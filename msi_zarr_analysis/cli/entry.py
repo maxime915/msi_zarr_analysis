@@ -4,13 +4,15 @@ import pathlib
 from typing import Tuple
 
 import click
-
 from sklearn.ensemble import ExtraTreesClassifier
 
-from .utils import bins_from_csv, load_img_mask, uniform_bins
-from ..ml.forests import interpret_forest_binned as interpret_trees_binned_, interpret_forest_ds
-from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..ml import dataset
+from ..ml.forests import interpret_forest_binned as interpret_trees_binned_
+from ..ml.forests import interpret_forest_ds
+from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
+from ..preprocessing.binning import bin_processed_lo_hi
+from .utils import bins_from_csv, load_img_mask, uniform_bins
+
 
 @click.group()
 def main_group():
@@ -107,7 +109,6 @@ def interpret_trees_binned(
     )
 
 
-
 @main_group.command()
 @click.option("--x-low", type=int, default=0)
 @click.option("--x-high", type=int, default=-1)
@@ -124,7 +125,11 @@ def interpret_trees_binned(
 )
 @click.argument("cls_mask_path", type=click.Path(exists=True), nargs=-1, required=True)
 @click.option("--roi-mask-path", type=click.Path(exists=True))
-@click.option("--model", type=click.Choice(["extra_trees", "random_forests"], case_sensitive=True), default="extra_trees")
+@click.option(
+    "--model",
+    type=click.Choice(["extra_trees", "random_forests"], case_sensitive=True),
+    default="extra_trees",
+)
 @click.argument(
     "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
 )
@@ -172,20 +177,21 @@ def interpret_trees_nonbinned(
         model_choice=model,
     )
 
+
 @main_group.command()
 def cytomine_raw_example():
     # TODO add these as parameters
-    from secrets_ import HOST_URL, PRIV_KEY, PUB_KEY
     from cytomine import Cytomine
-    
+    from secrets_ import HOST_URL, PRIV_KEY, PUB_KEY
+
     with Cytomine(HOST_URL, PUB_KEY, PRIV_KEY):
 
         ds = dataset.CytomineNonBinned(
             project_id=31054043,
             image_id=146726078,
-            term_set={'Urothelium', 'Stroma'},
+            term_set={"Urothelium", "Stroma"},
         )
-        
+
         interpret_forest_ds(
             ds,
             ExtraTreesClassifier(n_jobs=4),
@@ -193,5 +199,55 @@ def cytomine_raw_example():
             fi_permutation_path="cytomine_raw_live_fi_per.csv",
             stratify_classes=True,
         )
-    
-    
+
+
+@main_group.command()
+@click.option("--mz-low", type=float, default=200.0)
+@click.option("--mz-high", type=float, default=850.0)
+@click.option("--n-bins", type=int, default=100)
+@click.option("--x-low", type=int, default=0)
+@click.option("--x-high", type=int, default=-1)
+@click.option("--y-low", type=int, default=0)
+@click.option("--y-high", type=int, default=-1)
+@click.option(
+    "--bin-csv-path",
+    type=click.Path(exists=True),
+    help=(
+        "CSV file containing the m/Z values in the first column and the "
+        "intervals' width in the second one. Overrides 'mz-low', 'mz-high' "
+        "and 'b-bins'"
+    ),
+)
+@click.argument(
+    "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.argument("destination_zarr_path", type=click.Path(exists=False))
+def bin_dataset(
+    image_zarr_path: click.Path,
+    destination_zarr_path: click.Path,
+    mz_low: float,
+    mz_high: float,
+    n_bins: int,
+    bin_csv_path: click.Path,
+    x_low: int,
+    x_high: int,
+    y_low: int,
+    y_high: int,
+):
+    # check arguments
+    if not isinstance(n_bins, int) or n_bins < 2:
+        raise ValueError(f"{n_bins=} should be an int > 1")
+
+    if bin_csv_path:
+        bin_lo, bin_hi = bins_from_csv(bin_csv_path)
+    else:
+        bin_lo, bin_hi = uniform_bins(mz_low, mz_high, n_bins)
+
+    bin_processed_lo_hi(
+        image_zarr_path,
+        destination_zarr_path,
+        bin_lo,
+        bin_hi,
+        y_slice=slice(y_low, y_high),
+        x_slice=slice(x_low, x_high),
+    )
