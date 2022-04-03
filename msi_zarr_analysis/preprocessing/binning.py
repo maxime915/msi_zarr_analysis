@@ -60,7 +60,7 @@ def _bin_processed(
     x_slice: slice,
     bin_lo: npt.NDArray,
     bin_hi: npt.NDArray,
-) -> npt.NDArray:
+):
 
     z_ints = z["/0"]
     z_mzs = z["/labels/mzs/0"]
@@ -79,8 +79,6 @@ def _bin_processed(
 
     # load chunks
     for cz, cy, cx in iter_loaded_chunks(z_ints, slice(None), y_slice, x_slice, skip=1):
-        # load from disk
-
         # allocate an array of the right size for c_dest
         c_dest = np.zeros(
             shape=(
@@ -91,6 +89,7 @@ def _bin_processed(
             )
         )
 
+        # load from disk
         c_ints = z_ints[:, cz, cy, cx]
         c_mzs = z_mzs[:, cz, cy, cx]
         c_lengths = z_lengths[0, cz, cy, cx]
@@ -104,6 +103,7 @@ def _bin_processed(
             bin_hi,
         )
 
+        # write to disk
         z_dest_int[:, cz, cy, cx] = c_dest
 
 
