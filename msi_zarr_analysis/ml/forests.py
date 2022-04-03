@@ -2,10 +2,14 @@ from typing import Dict, Optional
 
 import numpy as np
 import numpy.typing as npt
+from matplotlib import pyplot as plt
+from msi_zarr_analysis.ml.dataset import (
+    Dataset,
+    ZarrContinuousNonBinned,
+    ZarrProcessedBinned,
+)
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.model_selection import train_test_split
-
-from msi_zarr_analysis.ml.dataset import Dataset, ZarrContinuousNonBinned, ZarrProcessedBinned
 
 from .utils import (
     check_class_imbalance,
@@ -19,8 +23,8 @@ from .utils import (
 def build_model(description: str):
     kwargs = {
         "n_jobs": 4,
-        "max_depth": 2,
-        "n_estimators": 2,
+        # "max_top_depth": 2,
+        # "n_estimators": 2,
     }
     if description == "extra_trees":
         return ExtraTreesClassifier(**kwargs)
@@ -63,9 +67,9 @@ def interpret_forest_ds(
         random_state=random_state,
         stratify=stratify,
     )
-    
+
     cv_scores = evaluate_cv(forest, dataset_x, dataset_y)
-    
+
     compare_score_imbalance(np.min(cv_scores), imbalance)
 
     forest.fit(X_train, Y_train)
@@ -111,7 +115,7 @@ def interpret_forest_binned(
         y_slice,
         x_slice,
     )
-    
+
     interpret_forest_ds(
         dataset=dataset,
         forest=build_model(model_choice),
@@ -120,7 +124,6 @@ def interpret_forest_binned(
         random_state=random_state,
         stratify_classes=stratify_classes,
     )
-
 
 
 def interpret_forest_nonbinned(

@@ -165,17 +165,20 @@ def feature_importance_forest_mdi(
         raise ValueError(
             "model may not be a tree ensemble, missing 'feature_importances_' attribute"
         )
-    if not hasattr(forest, "estimators_"):
-        raise ValueError(
-            "model may not be a tree ensemble, missing 'estimators_' attribute"
-        )
+    # if not hasattr(forest, "estimators_"):
+    #     raise ValueError(
+    #         "model may not be a tree ensemble, missing 'estimators_' attribute"
+    #     )
 
     print("computing importance based on impurity...")
 
     print("computing importance based on impurity...")
     start_time = time.time()
     importances = forest.feature_importances_
-    std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
+    if hasattr(forest, "estimators_"):
+        std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
+    else:
+        std = np.full_like(importances, np.nan)
     elapsed_time = time.time() - start_time
 
     print(f"Elapsed time to compute the importances: {elapsed_time:.3f} seconds")
