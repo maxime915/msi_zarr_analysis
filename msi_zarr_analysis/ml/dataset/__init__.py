@@ -7,7 +7,11 @@ from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 import numpy as np
 import numpy.typing as npt
 from sklearn.model_selection import train_test_split
-from cytomine.models import AnnotationCollection, SliceInstanceCollection, TermCollection
+from cytomine.models import (
+    AnnotationCollection,
+    SliceInstanceCollection,
+    TermCollection,
+)
 from msi_zarr_analysis.cli.utils import load_img_mask
 from msi_zarr_analysis.ml.dataset.utils import (
     bin_array_dataset,
@@ -284,32 +288,52 @@ class ZarrProcessedBinned(ZarrAbstractDataset):
 
 class CytomineNonBinned(Dataset):
     def __init__(
-        self, project_id: int, image_id: int, term_set: Optional[Set[str]] = None,
+        self,
+        project_id: int,
+        image_id: int,
+        term_set: Optional[Set[str]] = None,
+        cache_data: bool = True,
     ) -> None:
+        """
+        Parameters
+        ----------
+        project_id : int
+        image_id : int
+        term_set : Optional[Set[str]], optional
+            whitelist of term to load, by default None (all terms loaded)
+        cache_data : bool, optional
+            data must be tabular, by default True
+        """
         super().__init__()
         self.project_id = project_id
         self.image_id = image_id
         self.term_set = term_set
 
+        self.cache_data = bool(cache_data)
         self._cached_table = None
-    
-    
+
     def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
-        "TODO this is probably not the best caching behavior"
-        if self._cached_table:
-            for row in zip(*self._cached_table):
+        
+        if self.cache_data:
+            for row in zip(*self.as_table()):
                 yield row
             return
 
         for profile, class_idx in self.__raw_iter():
             yield np.array(profile), class_idx
-    
+
     def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         term_collection = TermCollection().fetch_with_filter("project", self.project_id)
-        annotations = AnnotationCollection(project=self.project_id, image=self.image_id, showTerm=True, showWKT=True).fetch()
+        annotations = AnnotationCollection(
+            project=self.project_id, image=self.image_id, showTerm=True, showWKT=True
+        ).fetch()
 
         # TODO is it true that an annotation always has 0 or 1 terms ?
-        term_set = {term_collection.find_by_attribute("id", a.term[0]).name for a in annotations if a.term}
+        term_set = {
+            term_collection.find_by_attribute("id", a.term[0]).name
+            for a in annotations
+            if a.term
+        }
         term_lst = list(term_set)
 
         # if given, only consider given terms
@@ -320,29 +344,40 @@ class CytomineNonBinned(Dataset):
             if not annotation.term:
                 continue
             term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
-        
+
             if term_name not in term_set:
                 continue
 
             for profile in annotation.profile():
-                yield profile['profile'], term_lst.index(term_name)
-    
+                yield profile["profile"], term_lst.index(term_name)
+
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
         attributes, classes = zip(*self.iter_rows())
         dtype = type(attributes[0][0])
         return np.array(attributes, dtype=dtype), np.array(classes)
-    
+
     def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
         if not self._cached_table:
             self._cached_table = self.__load_ds()
-        return self._cached_table
     
+        if not self.cache_data:
+            # remove cache if it shouldn't be there
+            tmp, self._cached_table = self._cached_table, None
+            return tmp
+
+        return self._cached_table
+
     def is_table_like(self) -> bool:
         try:
             _ = self.as_table()
             return True
         except (ValueError, IndexError):
             return False
-    
+
     def attribute_names(self) -> List[str]:
-        return [xySlice.zName for xySlice in SliceInstanceCollection().fetch_with_filter("imageinstance", self.image_id)]
+        return [
+            xySlice.zName
+            for xySlice in SliceInstanceCollection().fetch_with_filter(
+                "imageinstance", self.image_id
+            )
+        ]
