@@ -12,6 +12,7 @@ from ..ml.forests import interpret_forest_binned as interpret_trees_binned_
 from ..ml.forests import interpret_forest_ds
 from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..preprocessing.binning import bin_processed_lo_hi
+from ..preprocessing.normalize import normalize_array, valid_norms
 from .utils import bins_from_csv, load_img_mask, uniform_bins
 
 
@@ -128,7 +129,7 @@ def interpret_trees_binned(
 @click.option("--roi-mask-path", type=click.Path(exists=True))
 @click.option(
     "--model",
-    type=click.Choice(["extra_trees", "random_forests"], case_sensitive=True),
+    type=click.Choice(["extra_trees", "random_forests", "dt"], case_sensitive=True),
     default="extra_trees",
 )
 @click.argument(
@@ -262,3 +263,36 @@ def bin_dataset(
         y_slice=slice(y_low, y_high),
         x_slice=slice(x_low, x_high),
     )
+
+@main_group.command()
+@click.option("--x-low", type=int, default=0)
+@click.option("--x-high", type=int, default=-1)
+@click.option("--y-low", type=int, default=0)
+@click.option("--y-high", type=int, default=-1)
+@click.option(
+    "--norm",
+    type=click.Choice(valid_norms(), case_sensitive=False),
+    default="tic",
+)
+@click.argument(
+    "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.argument("destination_zarr_path", type=click.Path(exists=False))
+def normalize(
+    image_zarr_path: click.Path,
+    destination_zarr_path: click.Path,
+    x_low: int,
+    x_high: int,
+    y_low: int,
+    y_high: int,
+    norm: str,
+):
+
+    normalize_array(
+        image_zarr_path,
+        destination_zarr_path,
+        norm_name=norm,
+        y_slice=slice(y_low, y_high),
+        x_slice=slice(x_low, x_high),
+    )
+    
