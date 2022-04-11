@@ -1,5 +1,6 @@
 "entry point module"
 
+import json
 import pathlib
 from typing import Tuple
 
@@ -179,13 +180,23 @@ def interpret_trees_nonbinned(
 
 
 @main_group.command()
-def cytomine_raw_example():
-    # TODO add these as parameters
+@click.option(
+    "--config-path",
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to a JSON file containing 'HOST_URL', 'PUB_KEY', 'PRIV_KEY' members"
+)
+def cytomine_raw_example(
+    config_path: str,
+):
     from cytomine import Cytomine
-    from secrets_ import HOST_URL, PRIV_KEY, PUB_KEY
+    with open(config_path) as config_file:
+        config_data = json.loads(config_file.read())
+        host_url = config_data["HOST_URL"]
+        pub_key = config_data["PUB_KEY"]
+        priv_key = config_data["PRIV_KEY"]
 
-    with Cytomine(HOST_URL, PUB_KEY, PRIV_KEY):
-
+    with Cytomine(host_url, pub_key, priv_key):
+        
         ds = dataset.CytomineNonBinned(
             project_id=31054043,
             image_id=146726078,
