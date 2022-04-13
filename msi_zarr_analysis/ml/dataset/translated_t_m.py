@@ -132,13 +132,10 @@ def build_onehot_annotation(
 ) -> Tuple[List[int], npt.NDArray]:
     # [classes], np[dims..., classes]
 
-    print(f"{image_height=} {image_width=}")
-
     mask_dict = {}
 
     for annotation in annotation_collection:
         if not annotation.term:
-            print(f"term-less annotation: {annotation}")
             continue
 
         term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
@@ -325,7 +322,6 @@ def match_template_multiscale_scipy(
         tol=tol,
         method="Brent",
     )
-    # print(f"{res=!r}")
 
     best_score, (height, width), (x, y) = get_match_info(res.x)
 
@@ -554,7 +550,6 @@ class CytomineTranslated(Dataset):
 
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
         attributes, classes = zip(*self.__raw_iter())
-        # print(f"{attributes=!r} {classes=!r}")
         dtype = attributes[0].dtype
         return np.array(attributes, dtype=dtype), np.array(classes)
 
