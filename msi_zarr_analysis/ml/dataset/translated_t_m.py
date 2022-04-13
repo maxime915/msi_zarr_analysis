@@ -142,7 +142,7 @@ def build_onehot_annotation(
             continue
 
         term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
-        
+
         if term_name not in term_whitelist_set:
             continue
 
@@ -388,34 +388,20 @@ def generate_spectra_from_result(
 
     y_overlay, x_overlay = np.nonzero(onehot_annotation.any(axis=-1))
 
-    print(f"{y_overlay.min()=} {y_overlay.max()=}")
-    print(f"{x_overlay.min()=} {x_overlay.max()=}")
-
     y_template, x_template = match_result.map_yx(y_overlay, x_overlay)
-
-    print(f"{y_template.min()=} {y_template.max()=}")
-    print(f"{x_template.min()=} {x_template.max()=}")
 
     y_cropped, x_cropped, _ = transform.inverse_transform_coordinate(
         y_template, x_template, ms_template_shape
     )
 
-    print(f"{y_cropped.min()=} {y_cropped.max()=}")
-    print(f"{x_cropped.min()=} {x_cropped.max()=}")
-
     y_ms = y_cropped + crop_idx[0].start
     x_ms = x_cropped + crop_idx[1].start
-
-    print(f"{y_ms.min()=} {y_ms.max()=}")
-    print(f"{x_ms.min()=} {x_ms.max()=}")
 
     # map the results to the zarr arrays
     intensities = ms_group["/0"]
     lengths = ms_group["/labels/lengths/0"]
 
     z_mask = np.zeros(intensities.shape[2:] + onehot_annotation.shape[-1:], dtype=bool)
-
-    print(f"{z_mask.shape=}")
 
     z_mask[y_ms, x_ms, :] = onehot_annotation[y_overlay, x_overlay, :]
 
@@ -439,9 +425,8 @@ def generate_spectra_from_result(
             length = c_len[y, x]
             if length == 0:
                 continue
-    
-            yield c_int[:length, y, x], class_idx
 
+            yield c_int[:length, y, x], class_idx
 
 
 def generate_spectra(
@@ -455,29 +440,16 @@ def generate_spectra(
 ):
 
 
-    # overlay = load_tif_file(page_idx=tiff_page_idx, disk_path=tiff_path)
-    # print(f"{overlay.shape=}")
+    overlay = load_tif_file(page_idx=tiff_page_idx, disk_path=tiff_path)
 
-    # crop_idx, ms_template = load_ms_template(ms_group, mz_low=mz_low, mz_high=mz_high)
-    crop_idx = (slice(616, 643, None), slice(422, 653, None))
-    ms_template = np.zeros((27, 231))
-
-    print(f"{crop_idx=!r}")
-    print(f"{ms_template.shape=!r} (non transformed)")
+    crop_idx, ms_template = load_ms_template(ms_group, mz_low=mz_low, mz_high=mz_high)
 
     ms_template = transform.transform_template(ms_template)
 
-    print(f"{ms_template.shape=} (transformed)")
-
-    # matching_result = match_template_multiscale(
-    #     overlay,
-    #     colorize_data(ms_template),
-    # )
-    matching_result = MatchingResult(
-        x_top_left=244, y_top_left=126, scale=6.990526414630458
+    matching_result = match_template_multiscale(
+        overlay,
+        colorize_data(ms_template),
     )
-
-    print(f"{matching_result=!r}")
 
     yield from generate_spectra_from_result(
         onehot_annotation=onehot_annotations,
@@ -548,8 +520,6 @@ class CytomineTranslated(Dataset):
 
         self.term_names = term_names
         self.onehot_annotations = onehot_annotations
-        
-        print(f"term_names={list(enumerate(term_names))}")
 
         self.cache_data = bool(cache_data)
         self._cached_table = None
