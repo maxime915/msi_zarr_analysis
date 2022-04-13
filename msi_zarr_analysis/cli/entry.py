@@ -6,6 +6,11 @@ from typing import Tuple
 
 import click
 from sklearn.ensemble import ExtraTreesClassifier
+from sklearn.tree import DecisionTreeClassifier
+
+from msi_zarr_analysis.ml.dataset.translated_t_m import CytomineTranslated
+
+from ..utils.cytomine_utils import get_page_bin_indices
 
 from ..ml import dataset
 from ..ml.forests import interpret_forest_binned as interpret_trees_binned_
@@ -212,6 +217,85 @@ def cytomine_raw_example(
             stratify_classes=True,
         )
 
+
+@main_group.command()
+@click.option(
+    "--config-path",
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to a JSON file containing 'HOST_URL', 'PUB_KEY', 'PRIV_KEY' members",
+    required=True,
+)
+@click.option(
+    "--bin-csv-path",
+    type=click.Path(exists=True),
+    help=(
+        "CSV file containing the m/Z values in the first column and the "
+        "intervals' width in the second one. Overrides 'mz-low', 'mz-high' "
+        "and 'b-bins'"
+    ),
+    required=True,
+)
+@click.option(
+    "--lipid",
+    type=str,
+    default="LysoPPC",
+)
+@click.argument(
+    "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.argument(
+    "overlay_tiff_path", type=click.Path(exists=True, file_okay=True, dir_okay=False)
+)
+@click.argument(
+    "overlay_id", type=int, default=545025763
+)
+@click.argument(
+    "annotated_image_id", type=int, default=545025783
+)
+@click.argument(
+    "annotated_project_id", type=int, default=542576374
+)
+def comulis_translated_example(
+    config_path: str,
+    bin_csv_path: str,
+    lipid: str,
+    image_zarr_path: str,
+    overlay_tiff_path: str,
+    overlay_id: int,
+    annotated_image_id: int,
+    annotated_project_id: int,
+):
+    from cytomine import Cytomine
+    with open(config_path) as config_file:
+        config_data = json.loads(config_file.read())
+        host_url = config_data["HOST_URL"]
+        pub_key = config_data["PUB_KEY"]
+        priv_key = config_data["PRIV_KEY"]
+
+    with Cytomine(host_url, pub_key, priv_key):
+    
+        page_idx, _, mz_low, mz_high = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
+        
+        ds = CytomineTranslated(
+            annotated_project_id,
+            annotated_image_id,
+            image_zarr_path,
+            mz_low,
+            mz_high,
+            overlay_tiff_path,
+            page_idx,
+            transform_template_rot90=1,
+            transform_template_flip_ud=True,
+            term_whitelist_set=('SC positive AREA', 'SC negative AREA'),
+        )
+        
+        interpret_forest_ds(
+            ds,
+            DecisionTreeClassifier(max_depth=1),
+            fi_impurity_path="comulis_r13_fi_imp.csv",
+            fi_permutation_path="comulis_r13_fi_per.csv",
+            stratify_classes=True,
+        )
 
 @main_group.command()
 @click.option("--mz-low", type=float, default=200.0)

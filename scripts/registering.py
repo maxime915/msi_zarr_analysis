@@ -41,6 +41,17 @@ class TemplateTransform(NamedTuple):
 
         return np.ascontiguousarray(template)
 
+    def inverse_transform_mask(self, mask):
+        if self.rotate_90 != 0:
+            mask = np.rot90(mask, k=-self.rotate_90)
+        
+        if self.flip_lr:
+            mask = np.flip(mask, axis=1)
+        if self.flip_up:
+            mask = np.flip(mask, axis=0)
+        
+        return np.ascontiguousarray(mask)
+
 
 class MatchingResult(NamedTuple):
     # coordinates in the source coordinates for the top left of the scaled matching template
@@ -48,8 +59,6 @@ class MatchingResult(NamedTuple):
     y_top_left: float = 0.0
     # how much should the template be scaled to match the source
     scale: float = 1.1
-    # some transformation to apply to the template before matching
-    preprocess: TemplateTransform = None
 
     def map_xy(self, x_source, y_source):
         "map some (x, y) coordinates from the (source) image to the pre-processed template"
@@ -234,7 +243,7 @@ def load_tif_file(page_idx: int, disk_path: str, image_id: int = None):
 
     store = tifffile.imread(disk_path, aszarr=True)
     z = zarr.open(store)  # pages, chan, height, width
-    
+
     # first page
     image = z[page_idx, ...]  # C=[RGB], H, W
     image = np.transpose(image, (1, 2, 0))  # H, W, C
@@ -466,7 +475,6 @@ def bound_scale_in_sample(
 def match_template_multiscale(
     image_rgb,
     template_rgb,
-    template_transformation: TemplateTransform,
     save_to: str = None,
     save_tmp: bool = False,
     verbose: bool = False,
@@ -512,7 +520,7 @@ def match_template_multiscale(
             destination=save_to,
         )
 
-    return MatchingResult(tl_x, tl_y, scale, template_transformation)
+    return MatchingResult(tl_x, tl_y, scale)
 
 
 ## Evaluation
@@ -580,7 +588,7 @@ def check_match_annotations(
         save_all=True,
     )
     print("annotation downloaded")
-    
+
     page_idx, bin_idx = get_page_bin_indices(lipid=lipid, **image_dict)
 
     ms_data = get_ms_data(bin_idx=bin_idx)
@@ -591,7 +599,7 @@ def check_match_annotations(
     print("data loaded")
 
     matching_result = match_template_multiscale(
-        overlay_img, color_ms_data, transform, save_to=f"matched_template_{suffix}.png"
+        overlay_img, color_ms_data, save_to=f"matched_template_{suffix}.png"
     )
     print("mapping loaded")
 
@@ -619,7 +627,7 @@ def match_region13_flipped(lipid: str):
     )
 
 
-def match_adjusted(lipid: str,):
+def match_adjusted(lipid: str):
     check_match_annotations(
         __adjusted_viridis,
         __adjusted_grayscale_annotations,
@@ -672,7 +680,7 @@ def check_error(
             tl_x,
         )
 
-        result = match_template_multiscale(overlay, ms_data, transform)
+        result = match_template_multiscale(overlay, ms_data)
 
         return (
             scale,
@@ -722,7 +730,9 @@ def main():
     match_adjusted("LysoPPC")
 
 
-def get_page_bin_indices(image_id: int, lipid: str, disk_path: str = None) -> Tuple[int, int]:
+def get_page_bin_indices(
+    image_id: int, lipid: str, disk_path: str = None
+) -> Tuple[int, int]:
     """fetch the TIFF page and the bin's index corresponding to a lipied
 
     Parameters
@@ -749,16 +759,16 @@ def get_page_bin_indices(image_id: int, lipid: str, disk_path: str = None) -> Tu
         "imageinstance", image_id
     )
     name_to_slice = dict((slice_.zName, slice_.zStack) for slice_ in slice_collection)
-    
+
     try:
         tiff_page = name_to_slice[lipid]
     except KeyError as e:
         raise ValueError(f"unable to find {lipid=} in the Cytomine image") from e
 
     ds = pd.read_csv("mz value + lipid name.csv", sep=None, engine="python")
-    
+
     ms_bin = ds[ds.Name == lipid].index
-    
+
     if ms_bin.size == 0:
         raise ValueError(f"unable to find {lipid=} in the CSV file")
 
