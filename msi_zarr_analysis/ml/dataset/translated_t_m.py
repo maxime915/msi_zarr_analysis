@@ -139,7 +139,7 @@ def build_onehot_annotation(
 
         term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
 
-        if term_name not in term_whitelist_set:
+        if term_whitelist_set and term_name not in term_whitelist_set:
             continue
 
         # load geometry
@@ -158,6 +158,9 @@ def build_onehot_annotation(
             mask_dict[term_name] |= mask
         except KeyError:
             mask_dict[term_name] = mask
+
+    if not mask_dict:
+        raise ValueError("no annotation found")
 
     term_list, mask_list = zip(*mask_dict.items())
 
