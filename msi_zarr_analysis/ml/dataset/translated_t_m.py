@@ -19,7 +19,6 @@ from msi_zarr_analysis.utils.check import open_group_ro
 
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
 
-from ...utils.read_data import read_yx_slice
 from . import Dataset
 
 # Datatype definitions
@@ -170,12 +169,11 @@ def build_onehot_annotation(
 
 def load_ms_template(
     z_group: zarr.Group,
-    mz_low: float,
-    mz_high: float,
+    bin_idx: int,
 ) -> Tuple[Tuple[slice, slice], npt.NDArray]:
     "use m/Z bounds ? use the CSV ? use the binned array directly ?"
 
-    ms_data = read_yx_slice(z_group, mz_low, mz_high)
+    ms_data = z_group["/0"][bin_idx, 0, ...]
     nz_y, nz_x = ms_data.nonzero()
 
     # .min() will raise an Exception on empty array
@@ -427,18 +425,16 @@ def generate_spectra_from_result(
 
 def generate_spectra(
     ms_group: zarr.Group,
-    mz_low: float,
-    mz_high: float,
+    bin_idx: int,
     tiff_path: str,
     tiff_page_idx: int,
     onehot_annotations: npt.NDArray,
     transform: TemplateTransform,
 ):
 
-
     overlay = load_tif_file(page_idx=tiff_page_idx, disk_path=tiff_path)
 
-    crop_idx, ms_template = load_ms_template(ms_group, mz_low=mz_low, mz_high=mz_high)
+    crop_idx, ms_template = load_ms_template(ms_group, bin_idx=bin_idx)
 
     ms_template = transform.transform_template(ms_template)
 
@@ -470,8 +466,7 @@ class CytomineTranslated(Dataset):
         annotation_project_id: int,
         annotation_image_id: int,
         zarr_path: str,
-        mz_low: float,
-        mz_high: float,
+        bin_idx: int,
         tiff_path: str,
         tiff_page_idx: int,
         transform_template_rot90: int = 0,
@@ -494,8 +489,7 @@ class CytomineTranslated(Dataset):
         annotations.fetch()
 
         self.ms_group = open_group_ro(zarr_path)
-        self.mz_low = mz_low
-        self.mz_high = mz_high
+        self.bin_idx = bin_idx
         self.tiff_path = tiff_path
         self.tiff_page_idx = tiff_page_idx
         self.transform_template = TemplateTransform(
@@ -523,8 +517,7 @@ class CytomineTranslated(Dataset):
     def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         yield from generate_spectra(
             self.ms_group,
-            self.mz_low,
-            self.mz_high,
+            self.bin_idx,
             self.tiff_path,
             self.tiff_page_idx,
             self.onehot_annotations,

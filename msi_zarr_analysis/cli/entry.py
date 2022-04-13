@@ -274,14 +274,13 @@ def comulis_translated_example(
 
     with Cytomine(host_url, pub_key, priv_key):
     
-        page_idx, _, mz_low, mz_high = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
+        page_idx, bin_idx, *_ = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
         
         ds = CytomineTranslated(
             annotated_project_id,
             annotated_image_id,
             image_zarr_path,
-            mz_low,
-            mz_high,
+            bin_idx,
             overlay_tiff_path,
             page_idx,
             transform_template_rot90=1,
@@ -291,7 +290,8 @@ def comulis_translated_example(
         
         interpret_forest_ds(
             ds,
-            DecisionTreeClassifier(max_depth=1),
+            # DecisionTreeClassifier(max_depth=1),
+            ExtraTreesClassifier(n_jobs=4),
             fi_impurity_path="comulis_r13_fi_imp.csv",
             fi_permutation_path="comulis_r13_fi_per.csv",
             stratify_classes=True,
