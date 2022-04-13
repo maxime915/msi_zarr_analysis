@@ -145,7 +145,7 @@ def build_onehot_annotation(
         # load geometry
         geometry = wkt.loads(annotation.location)
         # change the coordinate system
-        mask = affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
+        geometry = affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
         # rasterize annotation
         mask = rasterio.features.rasterize(
             [geometry], out_shape=(image_height, image_width)
