@@ -352,7 +352,7 @@ class CytomineNonBinned(Dataset):
                 yield profile["profile"], term_lst.index(term_name)
 
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
-        attributes, classes = zip(*self.iter_rows())
+        attributes, classes = zip(*self.__raw_iter())
         dtype = type(attributes[0][0])
         return np.array(attributes, dtype=dtype), np.array(classes)
 
