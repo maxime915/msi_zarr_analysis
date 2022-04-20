@@ -18,7 +18,7 @@ from ..ml.forests import interpret_forest_ds
 from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
-from .utils import bins_from_csv, load_img_mask, uniform_bins
+from .utils import bins_from_csv, load_img_mask, uniform_bins, split_csl
 
 
 @click.group()
@@ -240,6 +240,12 @@ def cytomine_raw_example(
     type=str,
     default="LysoPPC",
 )
+@click.option(
+    "--select-terms-id", type=str, default="", help="Cytomine identifier for the term to fetch. Expects a comma separated list of ID."
+)
+@click.option(
+    "--select-users-id", type=str, default="", help="Cytomine identifier for the users that did the annotations. Expects a comma separated list of ID."
+)
 @click.argument(
     "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
 )
@@ -259,6 +265,8 @@ def comulis_translated_example(
     config_path: str,
     bin_csv_path: str,
     lipid: str,
+    select_terms_id: str,
+    select_users_id: str,
     image_zarr_path: str,
     overlay_tiff_path: str,
     overlay_id: int,
@@ -285,9 +293,10 @@ def comulis_translated_example(
             page_idx,
             transform_template_rot90=1,
             transform_template_flip_ud=True,
-            term_whitelist_set=('SC positive AREA', 'SC negative AREA'),
+            select_users=split_csl(select_users_id),
+            select_terms=split_csl(select_terms_id),
         )
-        
+
         interpret_forest_ds(
             ds,
             # DecisionTreeClassifier(max_depth=1),

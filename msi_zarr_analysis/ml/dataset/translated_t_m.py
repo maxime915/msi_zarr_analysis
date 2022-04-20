@@ -124,23 +124,27 @@ class MatchingResult(NamedTuple):
 
 def build_onehot_annotation(
     annotation_collection: AnnotationCollection,
-    term_collection: TermCollection,
     image_height: int,
     image_width: int,
-    term_whitelist_set: Iterable[str],
 ) -> Tuple[List[int], npt.NDArray]:
     # [classes], np[dims..., classes]
+
+    term_collection = TermCollection().fetch_with_filter(
+        "project", annotation_collection.project
+    )
 
     mask_dict = {}
 
     for annotation in annotation_collection:
         if not annotation.term:
+            warnings.warn(f"skipping annotation without any term: {annotation.id=}")
+            continue
+
+        if len(annotation.term) > 1:
+            warnings.warn(f"skipping annotation with multiple terms: {annotation.id=}")
             continue
 
         term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
-
-        if term_whitelist_set and term_name not in term_whitelist_set:
-            continue
 
         # load geometry
         geometry = wkt.loads(annotation.location)
@@ -475,8 +479,8 @@ class CytomineTranslated(Dataset):
         transform_template_rot90: int = 0,
         transform_template_flip_ud: bool = False,
         transform_template_flip_lr: bool = False,
-        annotation_users_list: Iterable[str] = (),
-        term_whitelist_set: Iterable[str] = (),
+        select_users: Iterable[int] = (),
+        select_terms: Iterable[int] = (),
         cache_data: bool = True,
     ) -> None:
         super().__init__()
@@ -486,7 +490,8 @@ class CytomineTranslated(Dataset):
         annotations = AnnotationCollection()
         annotations.project = annotation_project_id
         annotations.image = annotation_image_id
-        annotations.users = list(annotation_users_list)
+        annotations.users = list(select_users)
+        annotations.terms = list(select_terms)
         annotations.showTerm = True
         annotations.showWKT = True
         annotations.fetch()
@@ -503,15 +508,12 @@ class CytomineTranslated(Dataset):
 
         image_instance = ImageInstance().fetch(id=annotation_image_id)
 
-        term_names, onehot_annotations = build_onehot_annotation(
+        _, onehot_annotations = build_onehot_annotation(
             annotation_collection=annotations,
-            term_collection=terms,
             image_height=image_instance.height,
             image_width=image_instance.width,
-            term_whitelist_set=term_whitelist_set,
         )
 
-        self.term_names = term_names
         self.onehot_annotations = onehot_annotations
 
         self.cache_data = bool(cache_data)

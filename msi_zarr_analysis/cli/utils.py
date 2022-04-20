@@ -1,10 +1,19 @@
 "utils for the CLI tool"
 
-from typing import Tuple, Union
+from typing import List, Tuple, Union
 from PIL import Image
 import numpy as np
 from numpy import typing as npt
 import pandas as pd
+
+
+def split_csl(csl: str) -> List[int]:
+    if not csl:
+        return []
+    try:
+        return [int(part.strip()) for part in csl.split(",")]
+    except ValueError as e:
+        raise ValueError(f"invalid comma separated list: {csl!r}")
 
 
 def load_img_mask(path: str) -> npt.NDArray[np.dtype("bool")]:
