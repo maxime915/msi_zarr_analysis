@@ -231,6 +231,22 @@ def colorize_data(intensity, cmap=plt.cm.viridis):
     return colored
 
 
+def scale_image(
+    image: npt.NDArray, scale: float, mode: int = cv2.INTER_NEAREST
+) -> npt.NDArray:
+    """resize an image with a given scale
+
+    Args:
+        image (npt.NDArray): source image
+        scale (float): scaling factor
+        mode (int, optional): OpenCV interpolation mode. Defaults to cv2.INTER_NEAREST.
+
+    Returns:
+        npt.NDArray: scaled image
+    """
+    return cv2.resize(image, dsize=None, fx=scale, fy=scale, interpolation=mode)
+
+
 # pre-processing
 
 
@@ -304,7 +320,7 @@ def match_template_multiscale_scipy(
             # return a positive value to grow when going out of the interval
             return 2 * np.abs(scale - 0.5 * (low + high))
 
-        scaled = cv2.resize(grayscale_ms_data, dsize=None, fx=scale, fy=scale)
+        scaled = scale_image(grayscale_ms_data, scale)
 
         score, _ = get_template_matching_score(grayscale_overlay, scaled)
 
@@ -315,7 +331,7 @@ def match_template_multiscale_scipy(
         if scale > high or scale < low:
             raise ValueError("invalid scale")
 
-        scaled = cv2.resize(grayscale_ms_data, dsize=None, fx=scale, fy=scale)
+        scaled = scale_image(grayscale_ms_data, scale)
 
         score, coords = get_template_matching_score(grayscale_overlay, scaled)
 
