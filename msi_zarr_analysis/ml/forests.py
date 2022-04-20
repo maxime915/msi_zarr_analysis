@@ -51,6 +51,7 @@ def interpret_forest_ds(
     fi_permutation_path: str,
     random_state=None,
     stratify_classes: bool = False,
+    cv=None,
 ):
     dataset_x, dataset_y = dataset.as_table()
 
@@ -68,7 +69,7 @@ def interpret_forest_ds(
         stratify=stratify,
     )
 
-    cv_scores = evaluate_cv(forest, dataset_x, dataset_y)
+    cv_scores = evaluate_cv(forest, dataset_x, dataset_y, cv)
 
     compare_score_imbalance(np.min(cv_scores), imbalance)
 

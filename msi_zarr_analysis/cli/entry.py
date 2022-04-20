@@ -18,7 +18,7 @@ from ..ml.forests import interpret_forest_ds
 from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
-from .utils import bins_from_csv, load_img_mask, uniform_bins, split_csl
+from .utils import bins_from_csv, load_img_mask, uniform_bins, split_csl, parser_callback
 
 
 @click.group()
@@ -246,6 +246,18 @@ def cytomine_raw_example(
 @click.option(
     "--select-users-id", type=str, default="", help="Cytomine identifier for the users that did the annotations. Expects a comma separated list of ID."
 )
+@click.option(
+    "--et-max-depth", default=None, help="see sci-kit learn documentation", callback=parser_callback,
+)
+@click.option(
+    "--et-n-estimators", default=1000, help="see sci-kit learn documentation", callback=parser_callback,
+)
+@click.option(
+    "--et-max-features", default=None, help="see sci-kit learn documentation", callback=parser_callback,
+)
+@click.option(
+    "--cv-fold", default=None, help="see sci-kit learn documentation", callback=parser_callback,
+)
 @click.argument(
     "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
 )
@@ -267,6 +279,10 @@ def comulis_translated_example(
     lipid: str,
     select_terms_id: str,
     select_users_id: str,
+    et_max_depth,
+    et_n_estimators,
+    et_max_features,
+    cv_fold,
     image_zarr_path: str,
     overlay_tiff_path: str,
     overlay_id: int,
@@ -299,11 +315,16 @@ def comulis_translated_example(
 
         interpret_forest_ds(
             ds,
-            # DecisionTreeClassifier(max_depth=1),
-            ExtraTreesClassifier(n_jobs=4),
+            ExtraTreesClassifier(
+                n_jobs=4,
+                n_estimators=et_n_estimators,
+                max_depth=et_max_depth,
+                max_features=et_max_features,
+            ),
             fi_impurity_path="comulis_r13_fi_imp.csv",
             fi_permutation_path="comulis_r13_fi_per.csv",
             stratify_classes=True,
+            cv=cv_fold,
         )
 
 @main_group.command()

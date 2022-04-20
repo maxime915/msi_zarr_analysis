@@ -7,6 +7,34 @@ from numpy import typing as npt
 import pandas as pd
 
 
+def parser_callback(ctx, param, value: str):
+    """click callback to parse a value to either None, int or float
+
+    Args:
+        ctx (_type_): ignored
+        param (_type_): ignored
+        value (str): value to parse
+    """
+    # None value
+    if value == "None":
+        return None
+
+    # maybe int
+    try:
+        return int(value)
+    except (ValueError, TypeError):
+        pass
+
+    # maybe float
+    try:
+        return float(value)
+    except (ValueError, TypeError):
+        pass
+
+    # return as str
+    return value
+
+
 def split_csl(csl: str) -> List[int]:
     if not csl:
         return []
@@ -54,7 +82,7 @@ def bins_from_csv(
     tol_column: Union[int, str] = 1,
 ) -> Tuple[npt.NDArray[np.dtype("f8")], npt.NDArray[np.dtype("f8")]]:
 
-    dataframe: pd.DataFrame = pd.read_csv(csv_path, sep=None, engine='python')
+    dataframe: pd.DataFrame = pd.read_csv(csv_path, sep=None, engine="python")
 
     if isinstance(mz_column, int):
         mz_column = dataframe.columns[mz_column]

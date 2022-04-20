@@ -68,10 +68,10 @@ def evaluate_testset(model, X_test, Y_test):
     return score
 
 
-def evaluate_cv(model, dataset_x, dataset_y):
+def evaluate_cv(model, dataset_x, dataset_y, cv=None):
 
     start_time = time.time()
-    scores = cross_val_score(model, dataset_x, dataset_y, n_jobs=4)
+    scores = cross_val_score(model, dataset_x, dataset_y, n_jobs=4, cv=cv)
     elapsed_time = time.time() - start_time
 
     print(f"mean CV score: {np.mean(scores):.3f} (in {elapsed_time:.3f} seconds)")
