@@ -29,8 +29,8 @@ def get_page_bin_indices(
 
     Returns
     -------
-    Tuple[int, int]
-        TIFF page, bin index
+    Tuple[int, int, float, float]
+        TIFF page, bin index, m/Z low, m/Z high
 
     Raises
     ------
@@ -64,6 +64,15 @@ def get_page_bin_indices(
 
     return tiff_page, idx, center - .5 * width, center + .5 * width
 
+
+def get_lipid_names(
+    csv_lipid_mz_path: str,
+) -> pd.Series:
+    "get the names of the lipid in the order that matches the automated binning"
+    
+    ds = pd.read_csv(csv_lipid_mz_path, sep=None, engine="python")
+    return ds.Name
+    
 
 def iter_annoation_single_term(
     annotation_collection: AnnotationCollection,

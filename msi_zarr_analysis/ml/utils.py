@@ -1,6 +1,6 @@
 import time
 import warnings
-from typing import List
+from typing import List, Tuple
 from matplotlib import pyplot as plt
 
 import numpy as np
@@ -103,16 +103,19 @@ def present_feature_importance(
     feature_labels: npt.NDArray,
     print_n_most_important: int = 0,
 ):
-    max_len = max(len(fl) for fl in feature_labels)
+    max_len = 0
+    to_print = []
 
     for i in importances.argsort()[::-1][:print_n_most_important]:
-        padding = " " * (max_len - len(feature_labels[i]))
-        print(
-            feature_labels[i],
-            padding,
-            f"{importances[i]:.3f}",
-            f"+/- {std[i]:.3f}"
+        text_len = len(feature_labels[i])
+        if text_len > max_len:
+            max_len = text_len
+        to_print.append(
+            (feature_labels[i], text_len, f"{importances[i]:.3f} +/- {std[i]:.3f}")
         )
+    
+    for label, length, value in to_print:
+        print(" " * (max_len-length) + label + " " + value)
 
     if not store_at:
         return
@@ -139,6 +142,16 @@ def present_feature_importance(
     else:
         raise ValueError(f"invalid value for {store_at=}, neither an image nor a CSV")
 
+
+def get_feature_importance_forest_mdi(forest) -> Tuple[npt.NDArray, npt.NDArray]:
+    mean = forest.feature_importances_
+
+    if hasattr(forest, "estimators_"):
+        std = np.std([tree.feature_importances_ for tree in forest.estimators_], axis=0)
+    else:
+        std = np.full_like(mean, np.nan)
+
+    return mean, std
 
 def feature_importance_forest_mdi(
     forest,
@@ -193,6 +206,19 @@ def feature_importance_forest_mdi(
         print_n_most_important=print_n_most_important,
     )
 
+
+def get_feature_importance_model_mda(
+    model,
+    X_set: npt.NDArray,
+    Y_set: npt.NDArray,
+    n_repeat=5,
+    random_state=None,
+):
+    result = permutation_importance(
+        model, X_set, Y_set, n_repeats=n_repeat, random_state=random_state, n_jobs=4
+    )
+
+    return result.importances_mean, result.importances_std
 
 def feature_importance_model_mds(
     model,

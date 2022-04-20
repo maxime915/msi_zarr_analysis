@@ -490,6 +490,7 @@ class CytomineTranslated(Dataset):
         select_users: Iterable[int] = (),
         select_terms: Iterable[int] = (),
         cache_data: bool = True,
+        attribute_name_list: List[str] = (),
     ) -> None:
         super().__init__()
 
@@ -526,6 +527,8 @@ class CytomineTranslated(Dataset):
 
         self.cache_data = bool(cache_data)
         self._cached_table = None
+
+        self.attribute_name_list = list(attribute_name_list)
 
     def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         yield from generate_spectra(
@@ -571,4 +574,6 @@ class CytomineTranslated(Dataset):
         return self._cached_table
 
     def attribute_names(self) -> List[str]:
+        if self.attribute_name_list:
+            return self.attribute_name_list
         return [str(v) for v in self.ms_group["/labels/mzs/0"][:, 0, 0, 0]]

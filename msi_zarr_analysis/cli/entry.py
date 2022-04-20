@@ -10,10 +10,10 @@ from sklearn.tree import DecisionTreeClassifier
 
 from msi_zarr_analysis.ml.dataset.translated_t_m import CytomineTranslated
 
-from ..utils.cytomine_utils import get_page_bin_indices
+from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
 
 from ..ml import dataset
-from ..ml.forests import interpret_forest_binned as interpret_trees_binned_
+from ..ml.forests import interpret_forest_binned as interpret_trees_binned_, interpret_forest_mdi, interpret_model_mda, interpret_ttest, joint_presentation, present_disjoint
 from ..ml.forests import interpret_forest_ds
 from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..preprocessing.binning import bin_processed_lo_hi
@@ -296,9 +296,18 @@ def comulis_translated_example(
         pub_key = config_data["PUB_KEY"]
         priv_key = config_data["PRIV_KEY"]
 
+    model_ = lambda: ExtraTreesClassifier(
+        n_estimators=et_n_estimators,
+        max_depth=et_max_depth,
+        max_features=et_max_features,
+        n_jobs=4,
+    )
+
+
     with Cytomine(host_url, pub_key, priv_key):
     
         page_idx, bin_idx, *_ = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
+        lipid_names = get_lipid_names(bin_csv_path)
         
         ds = CytomineTranslated(
             annotated_project_id,
@@ -311,20 +320,22 @@ def comulis_translated_example(
             transform_template_flip_ud=True,
             select_users=split_csl(select_users_id),
             select_terms=split_csl(select_terms_id),
+            attribute_name_list=lipid_names,
         )
 
-        interpret_forest_ds(
-            ds,
-            ExtraTreesClassifier(
-                n_jobs=4,
-                n_estimators=et_n_estimators,
-                max_depth=et_max_depth,
-                max_features=et_max_features,
-            ),
-            fi_impurity_path="comulis_r13_fi_imp.csv",
-            fi_permutation_path="comulis_r13_fi_per.csv",
-            stratify_classes=True,
-            cv=cv_fold,
+        print(f"model: {model_()!r}")
+        print(f"terms: {ds.term_names}")
+
+        mdi_m, mdi_s = interpret_forest_mdi(ds, model_(), cv_fold)
+        mda_m, mda_s = interpret_model_mda(ds, model_(), cv_fold)
+        p_value, _ = interpret_ttest(ds)
+
+        present_disjoint(
+            ("MDI", mdi_m, mdi_s, "max"),
+            ("MDA", mda_m, mda_s, "max"),
+            ("p-value", p_value, None, "min"),
+            limit=10,
+            labels=ds.attribute_names(),
         )
 
 @main_group.command()
@@ -401,6 +412,8 @@ def normalize(
     y_high: int,
     norm: str,
 ):
+
+    # bad idea: it's better to normalize after binning (and can be done online)
 
     normalize_array(
         image_zarr_path,
