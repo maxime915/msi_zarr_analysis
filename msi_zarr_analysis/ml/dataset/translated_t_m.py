@@ -16,6 +16,7 @@ from shapely import wkt
 from shapely.affinity import affine_transform
 from skimage.feature import match_template
 from msi_zarr_analysis.utils.check import open_group_ro
+from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
 
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
 
@@ -135,16 +136,7 @@ def build_onehot_annotation(
 
     mask_dict = {}
 
-    for annotation in annotation_collection:
-        if not annotation.term:
-            warnings.warn(f"skipping annotation without any term: {annotation.id=}")
-            continue
-
-        if len(annotation.term) > 1:
-            warnings.warn(f"skipping annotation with multiple terms: {annotation.id=}")
-            continue
-
-        term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
+    for annotation, term in iter_annoation_single_term(annotation_collection, term_collection):
 
         # load geometry
         geometry = wkt.loads(annotation.location)
@@ -159,9 +151,9 @@ def build_onehot_annotation(
             warnings.warn(f"empty mask found {annotation.id=}")
 
         try:
-            mask_dict[term_name] |= mask
+            mask_dict[term.name] |= mask
         except KeyError:
-            mask_dict[term_name] = mask
+            mask_dict[term.name] = mask
 
     if not mask_dict:
         raise ValueError("no annotation found")

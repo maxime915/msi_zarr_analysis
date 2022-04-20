@@ -1,6 +1,13 @@
-from typing import Tuple
+from typing import Tuple, Generator
+import warnings
 
-from cytomine.models import SliceInstanceCollection
+from cytomine.models import (
+    SliceInstanceCollection,
+    AnnotationCollection,
+    Annotation,
+    TermCollection,
+    Term,
+)
 import pandas as pd
 
 
@@ -50,9 +57,44 @@ def get_page_bin_indices(
 
     if len(row) > 1:
         raise ValueError(f"duplicate entries for {lipid=}")
-    
+
     idx = row.index[0]
     center = row.loc[idx, "m/z"]
     width = row.loc[idx, "Interval Width (+/- Da)"]
 
     return tiff_page, idx, center - .5 * width, center + .5 * width
+
+
+def iter_annoation_single_term(
+    annotation_collection: AnnotationCollection,
+    term_collection: TermCollection,
+) -> Generator[Tuple[Annotation, Term], None, None]:
+    """iterate annotation and their terms in a collection, assuming each annotation
+    has only one term.
+
+    Args:
+        annotation_collection (AnnotationCollection): source of annotation
+        term_collection (TermCollection): collection to map from ID to instances
+
+    Yields:
+        Tuple[Annotation, Term]: annoation and their term
+    """
+
+    for annotation in annotation_collection:
+
+        if not annotation.term:
+            # no term found
+            warnings.warn(f"no term for {annotation.id=}")
+            continue
+
+        if len(annotation.term) > 1:
+            warnings.warn(
+                f"too many terms for {annotation.id=} {len(annotation.term)=}"
+            )
+            continue
+
+        term = term_collection.find_by_attribute("id", annotation.term[0])
+
+        assert term is not None
+
+        yield annotation, term

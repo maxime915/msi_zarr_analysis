@@ -19,6 +19,7 @@ from msi_zarr_analysis.ml.dataset.utils import (
     nonbinned_array_dataset,
 )
 from msi_zarr_analysis.utils.check import open_group_ro
+from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
 from msi_zarr_analysis.utils.iter_chunks import clean_slice_tuple
 
 
@@ -307,13 +308,13 @@ class CytomineNonBinned(Dataset):
         super().__init__()
         self.project_id = project_id
         self.image_id = image_id
-        self.term_set = term_set
+        self.term_set = term_set or set()
 
         self.cache_data = bool(cache_data)
         self._cached_table = None
 
     def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
-        
+
         if self.cache_data:
             for row in zip(*self.as_table()):
                 yield row
@@ -328,28 +329,25 @@ class CytomineNonBinned(Dataset):
             project=self.project_id, image=self.image_id, showTerm=True, showWKT=True
         ).fetch()
 
-        # TODO is it true that an annotation always has 0 or 1 terms ?
-        term_set = {
-            term_collection.find_by_attribute("id", a.term[0]).name
-            for a in annotations
-            if a.term
-        }
-        term_lst = list(term_set)
+        term_lst = []
 
-        # if given, only consider given terms
-        if self.term_set:
-            term_set = self.term_set & term_set
+        for annotation, term in iter_annoation_single_term(
+            annotations,
+            term_collection,
+        ):
+            term_name = term.name
 
-        for annotation in annotations:
-            if not annotation.term:
-                continue
-            term_name = term_collection.find_by_attribute("id", annotation.term[0]).name
-
-            if term_name not in term_set:
+            if term_name not in self.term_set:
                 continue
 
+            try:
+                term_idx = term_lst.index(term_name)
+            except ValueError:
+                term_idx = len(term_lst)
+                term_lst.append(term_name)
+            
             for profile in annotation.profile():
-                yield profile["profile"], term_lst.index(term_name)
+                yield profile["profile"], term_idx
 
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
         attributes, classes = zip(*self.__raw_iter())
@@ -359,7 +357,7 @@ class CytomineNonBinned(Dataset):
     def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
         if not self._cached_table:
             self._cached_table = self.__load_ds()
-    
+
         if not self.cache_data:
             # remove cache if it shouldn't be there
             tmp, self._cached_table = self._cached_table, None
