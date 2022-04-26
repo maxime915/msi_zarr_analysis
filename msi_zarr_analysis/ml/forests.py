@@ -276,6 +276,34 @@ def interpret_forest_ds(
             random_state,
         )
 
+
+def save_ds_heatmap(
+    dataset: Dataset,
+    title: str,
+    path: str,
+):
+    ds_x, ds_y = dataset.as_table()
+    ds_x = np.where(ds_x == 0.0, np.nan, ds_x)
+
+    classes = np.unique(ds_y)
+
+    fig, axes = plt.subplots(len(classes), 1, figsize=(70, 60))
+
+    axes[0].set_title(title or "heat map of the attributes over the dataset")
+    axes[0].set_ylabel("objects of the dataset")
+    axes[0].set_yticks(())
+    axes[0].set_xlabel("attributes")
+    axes[0].set_xticks(())
+
+    for ax, val in zip(axes, classes):
+        mask = ds_y == val
+        ax.matshow(ds_x[mask], aspect="auto")
+
+    fig.tight_layout()
+    # plt.show()
+    fig.savefig(path or "heatmap.png")
+
+
 def interpret_forest_binned(
     image_zarr_path: str,
     cls_dict: Dict[str, npt.NDArray[np.dtype("bool")]],
