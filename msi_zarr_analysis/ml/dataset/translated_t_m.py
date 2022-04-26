@@ -517,12 +517,13 @@ class CytomineTranslated(Dataset):
 
         image_instance = ImageInstance().fetch(id=annotation_image_id)
 
-        _, onehot_annotations = build_onehot_annotation(
+        term_names, onehot_annotations = build_onehot_annotation(
             annotation_collection=annotations,
             image_height=image_instance.height,
             image_width=image_instance.width,
         )
 
+        self.term_names = term_names
         self.onehot_annotations = onehot_annotations
 
         self.cache_data = bool(cache_data)
