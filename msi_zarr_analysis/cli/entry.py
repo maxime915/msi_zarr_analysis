@@ -8,7 +8,7 @@ import click
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.tree import DecisionTreeClassifier
 
-from msi_zarr_analysis.ml.dataset.translated_t_m import CytomineTranslated
+from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import CytomineTranslated
 
 from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
 
