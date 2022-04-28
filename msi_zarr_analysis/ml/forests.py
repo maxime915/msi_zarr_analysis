@@ -198,16 +198,16 @@ def present_disjoint(
     limit: int,
     labels: List[str],
     sep: str = " & ",
+    limit_bold: int = 5,
 ):
     def _format_number(val: float) -> str:
         if abs(val) < 1e-3:
             return f"{val:.0E}"
         return f"{val:.3f}"
 
-    if limit is not None and limit < len(labels):
-        bf_idx = _get_best_indices(*values, limit=limit)
-    else:
-        bf_idx = ()  # empty tuple: nothing in bold
+    bf_idx = ()  # empty tuple: nothing in bold
+    if limit_bold < len(labels):
+        bf_idx = _get_best_indices(*values, limit=limit_bold)
 
     for label, mean, std, mode in values:
         idx = np.argsort(mean)
@@ -224,7 +224,7 @@ def present_disjoint(
         print("\t\\begin{tabular}{l|r}")
 
         print("\t\tLipid" + sep + label + r" \\")
-        print("\t\t\\hline\\\\")
+        print("\t\t\\hline")
 
         # data
         for i in idx:
@@ -272,7 +272,7 @@ def present_p_values(
         print("\t\\begin{tabular}{l|r}")
 
         print("\t\tLipid" + sep + label + r" \\")
-        print("\t\t\\hline\\\\")
+        print("\t\t\\hline")
 
         # data
         for i in idx:
