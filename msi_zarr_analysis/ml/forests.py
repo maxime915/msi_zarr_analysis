@@ -144,6 +144,9 @@ def _get_best_indices(
     n_feature = len(values[0][1])
     indices = set(range(n_feature))
 
+    if len(values) == 1:
+        return set()
+
     for _, mean, _, mode in values:
         rank = np.argsort(mean)
 
@@ -219,6 +222,52 @@ def present_disjoint(
             value_text = _format_number(mean[i])
             if std is not None:
                 value_text += f" $\\pm$ " + _format_number(std[i])
+
+            print("\t\t" + label_ + sep + value_text + r" \\")
+
+        # footer
+        print("\t\\end{tabular}")
+        print(f"\t\\caption{{{label}}}")
+        print(f"\t\\label{{tab:{label}}}")
+        print("\\end{table}")
+
+
+
+def present_p_values(
+    *values,
+    limit: int,
+    labels: List[str],
+    sep: str = " & ",
+):
+    def _format_number(val: float) -> str:
+        if abs(val) < 1e-3:
+            return f"{val:.0E}"
+        return f"{val:.3f}"
+
+    for label, mean, mode in values:
+        idx = np.argsort(mean)
+        if mode == "max":
+            idx = idx[::-1]
+        elif mode != "min":
+            raise ValueError(f"invalid {mode=}")
+
+        idx = idx[:limit]
+
+        # header
+        print("\n\\begin{table}[hbp]")
+        print("\t\\centering")
+        print("\t\\begin{tabular}{l|r}")
+
+        print("\t\tLipid" + sep + label + r" \\")
+        print("\t\t\\hline\\\\")
+
+        # data
+        for i in idx:
+            label_ = labels[i]
+            if mean[i] < 5e-2:
+                label_ = f"\\textbf{{{label_}}}"
+
+            value_text = _format_number(mean[i])
 
             print("\t\t" + label_ + sep + value_text + r" \\")
 

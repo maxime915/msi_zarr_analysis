@@ -332,10 +332,15 @@ def comulis_translated_example(
         mda_m, mda_s = interpret_model_mda(ds, model_(), cv_fold)
         p_value, _ = interpret_ttest(ds)
 
+        present_p_values(
+            ("p-value", p_value, "min"),
+            limit=10,
+            labels=ds.attribute_names(),
+        )
+
         present_disjoint(
             ("MDI", mdi_m, mdi_s, "max"),
             ("MDA", mda_m, mda_s, "max"),
-            ("p-value", p_value, None, "min"),
             limit=10,
             labels=ds.attribute_names(),
         )
