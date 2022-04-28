@@ -22,9 +22,11 @@ from .utils import bins_from_csv, load_img_mask, uniform_bins, split_csl, parser
 
 
 @click.group()
-def main_group():
-    pass
-
+@click.option("--echo/--no-echo", default=False)
+def main_group(echo):
+    if echo:
+        import sys
+        click.echo(" ".join(sys.argv))
 
 @main_group.command()
 @click.option("--mz-low", type=float, default=200.0)
