@@ -419,14 +419,14 @@ def get_destination_mask_from_result(
     return z_mask, roi
 
 
-def get_destination_mask(
+def get_template_matching_data(
     ms_group: zarr.Group,
     bin_idx: int,
     tiff_path: str,
     tiff_page_idx: int,
     onehot_annotations: npt.NDArray,
     transform: TemplateTransform,
-):
+) -> dict:
 
     overlay = load_tif_file(page_idx=tiff_page_idx, disk_path=tiff_path)
 
@@ -439,11 +439,32 @@ def get_destination_mask(
         colorize_data(ms_template),
     )
 
-    return get_destination_mask_from_result(
+    return dict(
         onehot_annotation=onehot_annotations,
         yx_dest_shape=ms_group["/0"].shape[2:],
         transform=transform,
         match_result=matching_result,
         crop_idx=crop_idx,
         ms_template_shape=ms_template.shape,
+    )
+
+
+def get_destination_mask(
+    ms_group: zarr.Group,
+    bin_idx: int,
+    tiff_path: str,
+    tiff_page_idx: int,
+    onehot_annotations: npt.NDArray,
+    transform: TemplateTransform,
+):
+
+    return get_destination_mask_from_result(
+        **get_template_matching_data(
+            ms_group=ms_group,
+            bin_idx=bin_idx,
+            tiff_path=tiff_path,
+            tiff_page_idx=tiff_page_idx,
+            onehot_annotations=onehot_annotations,
+            transform=transform,
+        )
     )
