@@ -80,6 +80,15 @@ class Dataset(abc.ABC):
         """
         ...
 
+    @abc.abstractmethod
+    def class_names(self) -> List[str]:
+        """List of names matching the classes.
+        May return an empty list if no names are found.
+
+        Returns:
+            List[str]: list of classes, matching the class index in the targets
+        """
+
 
 class ZarrAbstractDataset(Dataset):
     def __init__(
@@ -129,7 +138,7 @@ class ZarrAbstractDataset(Dataset):
         if isinstance(roi_mask, np.ndarray):
             roi_mask = load_img_mask(roi_mask)
 
-        self.cls_mask, self.roi_mask = build_class_masks(
+        self.cls_mask, self.roi_mask, self.class_names_ = build_class_masks(
             self.z, classes, roi_mask, background_class
         )
 
@@ -138,6 +147,9 @@ class ZarrAbstractDataset(Dataset):
         )
 
         self._cached_ds = None
+    
+    def class_names(self) -> List[str]:
+        return self.class_names_
 
 
 class ZarrContinuousNonBinned(ZarrAbstractDataset):
@@ -313,6 +325,8 @@ class CytomineNonBinned(Dataset):
         self.cache_data = bool(cache_data)
         self._cached_table = None
 
+        self.cached_term_lst = None
+
     def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
 
         if self.cache_data:
@@ -348,6 +362,8 @@ class CytomineNonBinned(Dataset):
             
             for profile in annotation.profile():
                 yield profile["profile"], term_idx
+        
+        self.cached_term_lst = term_lst
 
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
         attributes, classes = zip(*self.__raw_iter())
@@ -379,3 +395,10 @@ class CytomineNonBinned(Dataset):
                 "imageinstance", self.image_id
             )
         ]
+
+    def class_names(self) -> List[str]:
+        if self.cached_term_lst is None:
+            for _ in self.__raw_iter():
+                pass
+        
+        return self.cached_term_lst

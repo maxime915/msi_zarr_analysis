@@ -54,21 +54,23 @@ def build_class_masks(
         roi_mask = check_roi_mask(roi_mask, valid_coordinates)
 
     cls_mask = len(cls_dict) * np.ones_like(roi_mask, dtype=int)
-    # classes_name = []
+    classes_name = []
 
     # build all classes, assuming background class=0
-    for idx, (_, cls_mask_) in enumerate(cls_dict.items()):
+    for idx, (cls_name_, cls_mask_) in enumerate(cls_dict.items()):
         # warn about overlap ?
         cls_mask[cls_mask_ > 0] = idx
-        # classes_name.append(_)
+        classes_name.append(cls_name_)
 
     if not append_background_cls:
         # removed background pixels from the ROI
-        roi_mask[cls_mask == len(cls_dict)] = 0
-    # else:
-    #     classes_name.append("background")
+        bg_mask = cls_mask == len(cls_dict)
+        roi_mask[bg_mask] = 0
+        cls_mask[bg_mask] = -len(cls_dict)
+    else:
+        classes_name.append("background")
 
-    return cls_mask, roi_mask
+    return cls_mask, roi_mask, classes_name
 
 
 @nb.jit(nopython=True)
