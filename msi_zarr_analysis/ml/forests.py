@@ -60,7 +60,14 @@ def interpret_forest_mdi(
 
     # estimate performance & warn if too bad
     cv_scores = evaluate_cv(forest, dataset_x, dataset_y, cv)
-    compare_score_imbalance(np.median(cv_scores), imbalance)
+    # compare_score_imbalance(np.median(cv_scores), imbalance)
+
+    print(f"{imbalance = :.3f}")
+    print(f"{1.5 * imbalance = :.3f}")
+    print(f"{np.min(cv_scores) = :.3f}")
+    print(f"{np.mean(cv_scores) = :.3f}")
+    print(f"{np.median(cv_scores) = :.3f}")
+    print(f"{np.max(cv_scores) = :.3f}")
 
     # train on full dataset
     forest.fit(dataset_x, dataset_y)
@@ -95,8 +102,14 @@ def interpret_model_mda(
     # train on training data
     model.fit(X_train, Y_train)
 
+    score = model.score(X_test, Y_test)
+
+    print(f"{imbalance = :.3f}")
+    print(f"{1.5 * imbalance = :.3f}")
+    print(f"{score = :.3f}")
+
     # estimate performance on left out data & warn if too bad
-    compare_score_imbalance(model.score(X_test, Y_test), imbalance)
+    # compare_score_imbalance(model.score(X_test, Y_test), imbalance)
 
     # evaluate importance based on left out data
     return get_feature_importance_model_mda(
