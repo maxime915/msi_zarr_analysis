@@ -10,7 +10,10 @@ import zarr
 from cytomine.models import AnnotationCollection, TermCollection, ImageInstance
 from shapely import wkt
 from shapely.affinity import affine_transform
-from msi_zarr_analysis.ml.dataset.translate_annotation import TemplateTransform, get_destination_mask
+from msi_zarr_analysis.ml.dataset.translate_annotation import (
+    TemplateTransform,
+    get_destination_mask,
+)
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
 
@@ -32,7 +35,9 @@ def build_onehot_annotation(
 
     mask_dict = {}
 
-    for annotation, term in iter_annoation_single_term(annotation_collection, term_collection):
+    for annotation, term in iter_annoation_single_term(
+        annotation_collection, term_collection
+    ):
 
         # load geometry
         geometry = wkt.loads(annotation.location)
@@ -59,7 +64,6 @@ def build_onehot_annotation(
     return list(term_list), np.stack(mask_list, axis=-1)
 
 
-
 def generate_spectra(
     ms_group: zarr.Group,
     bin_idx: int,
@@ -71,16 +75,16 @@ def generate_spectra(
     # map the results to the zarr arrays
     intensities = ms_group["/0"]
     lengths = ms_group["/labels/lengths/0"]
-    
+
     z_mask, roi = get_destination_mask(
         ms_group,
         bin_idx,
         tiff_path,
         tiff_page_idx,
         onehot_annotations,
-        transform
+        transform,
     )
-    
+
     # yield all rows
     for cy, cx in iter_loaded_chunks(intensities, *roi, skip=2):
 

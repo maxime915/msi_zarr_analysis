@@ -13,7 +13,7 @@ from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import CytomineTranslated
 from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
 
 from ..ml import dataset
-from ..ml.forests import interpret_forest_binned as interpret_trees_binned_, interpret_forest_mdi, interpret_model_mda, interpret_ttest, joint_presentation, present_disjoint
+from ..ml.forests import interpret_forest_binned as interpret_trees_binned_, interpret_forest_mdi, interpret_model_mda, interpret_ttest, present_disjoint, present_p_values
 from ..ml.forests import interpret_forest_ds
 from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..preprocessing.binning import bin_processed_lo_hi

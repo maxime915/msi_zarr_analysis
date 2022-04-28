@@ -1,7 +1,5 @@
 "translated annotated data via template matching"
 
-from __future__ import annotations
-
 import warnings
 from typing import List, NamedTuple, Tuple
 
@@ -406,7 +404,7 @@ def get_destination_mask_from_result(
     x_ms = x_cropped + crop_idx[1].start
 
     # map the results to the zarr arrays
-    shape = yx_dest_shape + annotations.shape[-1:]
+    shape = yx_dest_shape + onehot_annotation.shape[-1:]
     z_mask = np.zeros(shape, dtype=bool)
 
     z_mask[y_ms, x_ms, :] = onehot_annotation[y_overlay, x_overlay, :]
@@ -443,7 +441,7 @@ def get_destination_mask(
 
     return get_destination_mask_from_result(
         onehot_annotation=onehot_annotations,
-        ms_group=ms_group,
+        yx_dest_shape=ms_group["/0"].shape[2:],
         transform=transform,
         match_result=matching_result,
         crop_idx=crop_idx,
