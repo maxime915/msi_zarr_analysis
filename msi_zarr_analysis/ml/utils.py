@@ -14,11 +14,13 @@ from sklearn.model_selection import cross_val_score
 def check_class_imbalance(dataset_y):
     _, occurrences = np.unique(dataset_y, return_counts=True)
 
+    print(f"{occurrences = }")
+
     # highest fraction of class over samples
     imbalance = np.max(occurrences / dataset_y.size)
-    print(f"{np.max(occurrences / dataset_y.size) = :.2f}")
-    print(f"{np.min(occurrences / dataset_y.size) = :.2f}")
-    print(f". . . . . . . . . . . . 1 / #classes = {1/(np.max(dataset_y)+1):.2f}")
+    print(f"{np.max(occurrences / dataset_y.size) = :.4f}")
+    print(f"{np.min(occurrences / dataset_y.size) = :.4f}")
+    print(f". . . . . . . . . . . . 1 / #classes = {1/(np.max(dataset_y)+1):.4f}")
 
     return imbalance
 
