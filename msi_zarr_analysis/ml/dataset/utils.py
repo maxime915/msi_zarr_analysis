@@ -12,17 +12,20 @@ from msi_zarr_analysis.utils.iter_chunks import iter_nd_chunks
 
 def masked_size(
     group: zarr.Group,
-    mask: npt.NDArray[np.dtype("bool")],
+    onehot_cls: npt.NDArray[np.dtype("bool")],
     y_slice: slice,
     x_slice: slice,
 ) -> Tuple[int, int]:
 
     intensities_itemsize = group["/0"].dtype.itemsize
     lengths = group["/labels/lengths/0"][0, 0, y_slice, x_slice]
-    row_lengths = lengths[mask[y_slice, x_slice] > 0]
-    element_count = row_lengths.sum()
 
-    return row_lengths.size, intensities_itemsize * element_count
+    onehot_cls_ = onehot_cls[y_slice, x_slice]
+
+    band_count = onehot_cls_.sum(axis=-1)
+    element_count = (lengths * band_count).sum()
+
+    return band_count.sum(), intensities_itemsize * element_count
 
 
 def check_roi_mask(
@@ -53,24 +56,29 @@ def build_class_masks(
     else:
         roi_mask = check_roi_mask(roi_mask, valid_coordinates)
 
-    cls_mask = len(cls_dict) * np.ones_like(roi_mask, dtype=int)
-    classes_name = []
+    names, masks = zip(*cls_dict.items())
 
-    # build all classes, assuming background class=0
-    for idx, (cls_name_, cls_mask_) in enumerate(cls_dict.items()):
-        # warn about overlap ?
-        cls_mask[cls_mask_ > 0] = idx
-        classes_name.append(cls_name_)
+    for mask in masks:
+        # check invalid selection
+        dead_pixels = sum(mask[~valid_coordinates])
+        if dead_pixels:
+            warnings.warn(f"found {dead_pixels} labelled pixels without any data")
 
-    if not append_background_cls:
-        # removed background pixels from the ROI
-        bg_mask = cls_mask == len(cls_dict)
-        roi_mask[bg_mask] = 0
-        cls_mask[bg_mask] = -len(cls_dict)
-    else:
-        classes_name.append("background")
+        # remove non ROI
+        mask &= roi_mask
 
-    return cls_mask, roi_mask, classes_name
+    if append_background_cls:
+        if "background" in cls_dict:
+            raise ValueError(f"{cls_dict.keys()} already contains 'background'")
+
+        neg_bg = np.zeros_like(roi_mask)
+        for mask in masks:
+            neg_bg |= mask
+
+        masks += (roi_mask & ~neg_bg,)
+        names += ("background",)
+
+    return np.stack(masks, axis=-1), roi_mask, names
 
 
 @nb.jit(nopython=True)
@@ -93,20 +101,23 @@ def fill_binned_dataset_processed_chunk(
     ints: npt.NDArray,
     mzs: npt.NDArray,
     lengths: npt.NDArray,
-    roi: npt.NDArray,
     cls: npt.NDArray,
     bin_lo: npt.NDArray,
     bin_hi: npt.NDArray,
     start_idx: int,
 ) -> int:
 
-    idx_y, idx_x = roi.nonzero()
+    (
+        idx_y,
+        idx_x,
+        idx_c,
+    ) = cls.nonzero()
     count = idx_y.size
 
     for idx in nb.prange(count):
         row_offset = start_idx + idx
 
-        y, x = idx_y[idx], idx_x[idx]
+        y, x, c = idx_y[idx], idx_x[idx], idx_c[idx]
 
         len_band = lengths[y, x]
         mz_band = mzs[:len_band, y, x]
@@ -121,35 +132,33 @@ def fill_binned_dataset_processed_chunk(
             reduction=np.sum,
         )
 
-        dataset_y[row_offset] = cls[y, x]
+        dataset_y[row_offset] = c
 
     return start_idx + count
 
 
 def fill_nonbinned_dataset_continuous_chunk(
-    dataset_x: npt.NDArray,
-    dataset_y: npt.NDArray,
-    ints: npt.NDArray,
-    roi: npt.NDArray,
-    cls: npt.NDArray,
+    dataset_x: npt.NDArray,  # (rows, attrs)
+    dataset_y: npt.NDArray,  # (rows,)
+    ints: npt.NDArray,  # (attrs, cy, cx)
+    cls: npt.NDArray,  # (cy, cx, classes)
     start_idx: int,
 ) -> int:
 
-    low = start_idx
-    high = start_idx + np.count_nonzero(roi)
+    idx_y, idx_x, idx_c = cls.nonzero()
 
-    dataset_x[low:high, :] = ints[:, roi].T
-    dataset_y[low:high] = cls[roi].T
+    for k, (y, x, c) in enumerate(zip(idx_y, idx_x, idx_c), start=start_idx):
+        dataset_x[k, :] = ints[:, y, x]
+        dataset_y[k] = c
 
-    return high
+    return start_idx + idx_c.size
 
 
 def fill_binned_dataset_processed(
     dataset_x: npt.NDArray,
     dataset_y: npt.NDArray,
     z: zarr.Group,
-    roi_mask: npt.NDArray[np.dtype("bool")],
-    cls_mask: npt.NDArray[np.dtype("int")],
+    onehot_cls: npt.NDArray[np.dtype("int")],
     y_slice: slice,
     x_slice: slice,
     bin_lo: npt.NDArray,
@@ -169,8 +178,7 @@ def fill_binned_dataset_processed(
         c_mzs = z_mzs[:, 0, cy, cx]
         c_lengths = z_lengths[0, 0, cy, cx]
 
-        c_roi = roi_mask[cy, cx]
-        c_pos = cls_mask[cy, cx]
+        c_cls = onehot_cls[cy, cx]
 
         row_idx = fill_binned_dataset_processed_chunk(
             dataset_x,
@@ -178,8 +186,7 @@ def fill_binned_dataset_processed(
             c_ints,
             c_mzs,
             c_lengths,
-            c_roi,
-            c_pos,
+            c_cls,
             bin_lo,
             bin_hi,
             row_idx,
@@ -193,8 +200,7 @@ def fill_nonbinned_dataset_continuous(
     dataset_x: npt.NDArray,
     dataset_y: npt.NDArray,
     z: zarr.Group,
-    roi_mask: npt.NDArray[np.dtype("bool")],
-    cls_mask: npt.NDArray[np.dtype("int")],
+    onehot_cls: npt.NDArray[np.dtype("int")],
     y_slice: slice,
     x_slice: slice,
 ) -> None:
@@ -208,15 +214,13 @@ def fill_nonbinned_dataset_continuous(
         # load from disk
         c_ints = z_ints[:, 0, cy, cx]
 
-        c_roi = roi_mask[cy, cx]
-        c_pos = cls_mask[cy, cx]
+        c_cls = onehot_cls[cy, cx]
 
         row_idx = fill_nonbinned_dataset_continuous_chunk(
             dataset_x,
             dataset_y,
             c_ints,
-            c_roi,
-            c_pos,
+            c_cls,
             row_idx,
         )
 
@@ -226,8 +230,7 @@ def fill_nonbinned_dataset_continuous(
 
 def bin_array_dataset(
     z: zarr.Group,
-    roi_mask: npt.NDArray[np.dtype("bool")],
-    cls_mask: npt.NDArray[np.dtype("int")],
+    onehot_cls: npt.NDArray[np.dtype("int")],
     y_slice: slice,
     x_slice: slice,
     bin_lo: npt.NDArray,
@@ -235,7 +238,7 @@ def bin_array_dataset(
 ) -> Tuple[npt.NDArray, npt.NDArray]:
 
     # estimate the size of the dataset to know if it will fit in memory
-    rows, data_size = masked_size(z, roi_mask, y_slice, x_slice)
+    rows, data_size = masked_size(z, onehot_cls, y_slice, x_slice)
     if data_size > 8 * 2**30:
         raise RuntimeError(
             (
@@ -274,8 +277,7 @@ def bin_array_dataset(
         dataset_x,
         dataset_y,
         z,
-        roi_mask,
-        cls_mask,
+        onehot_cls,
         y_slice,
         x_slice,
         bin_lo,
@@ -290,14 +292,13 @@ def bin_array_dataset(
 
 def nonbinned_array_dataset(
     z: zarr.Group,
-    roi_mask: npt.NDArray[np.dtype("bool")],
-    cls_mask: npt.NDArray[np.dtype("int")],
+    onehot_cls: npt.NDArray[np.dtype("int")],
     y_slice: slice,
     x_slice: slice,
 ) -> Tuple[npt.NDArray, npt.NDArray]:
 
     # estimate the size of the dataset to know if it will fit in memory
-    rows, data_size = masked_size(z, roi_mask, y_slice, x_slice)
+    rows, data_size = masked_size(z, onehot_cls, y_slice, x_slice)
     if data_size > 8 * 2**30:
         raise RuntimeError(
             (
@@ -328,8 +329,7 @@ def nonbinned_array_dataset(
         dataset_x,
         dataset_y,
         z,
-        roi_mask,
-        cls_mask,
+        onehot_cls,
         y_slice,
         x_slice,
     )

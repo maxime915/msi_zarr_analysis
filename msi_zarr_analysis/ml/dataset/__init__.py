@@ -135,10 +135,10 @@ class ZarrAbstractDataset(Dataset):
 
         self.z = open_group_ro(data_zarr_path)
 
-        if isinstance(roi_mask, np.ndarray):
+        if isinstance(roi_mask, (str, pathlib.Path)):
             roi_mask = load_img_mask(roi_mask)
 
-        self.cls_mask, self.roi_mask, self.class_names_ = build_class_masks(
+        self.cls_mask, _, self.class_names_ = build_class_masks(
             self.z, classes, roi_mask, background_class
         )
 
@@ -200,7 +200,7 @@ class ZarrContinuousNonBinned(ZarrAbstractDataset):
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
         "heavy lifting: call to utils"
         return nonbinned_array_dataset(
-            self.z, self.roi_mask, self.cls_mask, self.y_slice, self.x_slice
+            self.z, self.cls_mask, self.y_slice, self.x_slice
         )
 
     def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
@@ -273,11 +273,10 @@ class ZarrProcessedBinned(ZarrAbstractDataset):
         "heavy lifting: call to utils"
         return bin_array_dataset(
             self.z,
-            self.roi_mask,
             self.cls_mask,
             self.y_slice,
             self.x_slice,
-            self.bin_hi,
+            self.bin_lo,
             self.bin_hi,
         )
 
