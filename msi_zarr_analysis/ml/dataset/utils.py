@@ -7,7 +7,7 @@ import numpy as np
 import numpy.typing as npt
 import zarr
 
-from msi_zarr_analysis.utils.iter_chunks import iter_nd_chunks
+from msi_zarr_analysis.preprocessing.binning import flatten, bin_and_flatten
 
 
 def masked_size(
@@ -48,7 +48,7 @@ def build_class_masks(
     cls_dict: Dict[str, npt.NDArray[np.dtype("bool")]],
     roi_mask: Optional[npt.NDArray[np.dtype("bool")]] = None,
     append_background_cls: bool = False,
-):
+) -> Tuple[npt.NDArray, npt.NDArray, Tuple[str]]:
     valid_coordinates = z["/labels/lengths/0"][0, 0, ...] > 0
 
     if not roi_mask:
@@ -79,153 +79,6 @@ def build_class_masks(
         names += ("background",)
 
     return np.stack(masks, axis=-1), roi_mask, names
-
-
-@nb.jit(nopython=True)
-def bin_band(bins, mzs, ints, bin_lo, bin_hi, reduction):
-
-    lows = np.searchsorted(mzs, bin_lo, side="left")
-    highs = np.searchsorted(mzs, bin_hi, side="right")
-
-    for idx in range(lows.size):
-        lo = lows[idx]
-        hi = highs[idx]
-
-        bins[idx] = reduction(ints[lo:hi])
-
-
-@nb.jit(nopython=True, parallel=True)
-def fill_binned_dataset_processed_chunk(
-    dataset_x: npt.NDArray,
-    dataset_y: npt.NDArray,
-    ints: npt.NDArray,
-    mzs: npt.NDArray,
-    lengths: npt.NDArray,
-    cls: npt.NDArray,
-    bin_lo: npt.NDArray,
-    bin_hi: npt.NDArray,
-    start_idx: int,
-) -> int:
-
-    (
-        idx_y,
-        idx_x,
-        idx_c,
-    ) = cls.nonzero()
-    count = idx_y.size
-
-    for idx in nb.prange(count):
-        row_offset = start_idx + idx
-
-        y, x, c = idx_y[idx], idx_x[idx], idx_c[idx]
-
-        len_band = lengths[y, x]
-        mz_band = mzs[:len_band, y, x]
-        int_band = ints[:len_band, y, x]
-
-        bin_band(
-            dataset_x[row_offset],
-            mz_band,
-            int_band,
-            bin_lo,
-            bin_hi,
-            reduction=np.sum,
-        )
-
-        dataset_y[row_offset] = c
-
-    return start_idx + count
-
-
-def fill_nonbinned_dataset_continuous_chunk(
-    dataset_x: npt.NDArray,  # (rows, attrs)
-    dataset_y: npt.NDArray,  # (rows,)
-    ints: npt.NDArray,  # (attrs, cy, cx)
-    cls: npt.NDArray,  # (cy, cx, classes)
-    start_idx: int,
-) -> int:
-
-    idx_y, idx_x, idx_c = cls.nonzero()
-
-    for k, (y, x, c) in enumerate(zip(idx_y, idx_x, idx_c), start=start_idx):
-        dataset_x[k, :] = ints[:, y, x]
-        dataset_y[k] = c
-
-    return start_idx + idx_c.size
-
-
-def fill_binned_dataset_processed(
-    dataset_x: npt.NDArray,
-    dataset_y: npt.NDArray,
-    z: zarr.Group,
-    onehot_cls: npt.NDArray[np.dtype("int")],
-    y_slice: slice,
-    x_slice: slice,
-    bin_lo: npt.NDArray,
-    bin_hi: npt.NDArray,
-) -> None:
-
-    z_ints = z["/0"]
-    z_mzs = z["/labels/mzs/0"]
-    z_lengths = z["/labels/lengths/0"]
-
-    row_idx = 0
-
-    # load chunks
-    for cy, cx in iter_nd_chunks(z_ints, y_slice, x_slice, skip=2):
-        # load from disk
-        c_ints = z_ints[:, 0, cy, cx]
-        c_mzs = z_mzs[:, 0, cy, cx]
-        c_lengths = z_lengths[0, 0, cy, cx]
-
-        c_cls = onehot_cls[cy, cx]
-
-        row_idx = fill_binned_dataset_processed_chunk(
-            dataset_x,
-            dataset_y,
-            c_ints,
-            c_mzs,
-            c_lengths,
-            c_cls,
-            bin_lo,
-            bin_hi,
-            row_idx,
-        )
-
-    if row_idx != dataset_x.shape[0]:
-        print(f"{row_idx=} mismatch for {dataset_x.shape=}")
-
-
-def fill_nonbinned_dataset_continuous(
-    dataset_x: npt.NDArray,
-    dataset_y: npt.NDArray,
-    z: zarr.Group,
-    onehot_cls: npt.NDArray[np.dtype("int")],
-    y_slice: slice,
-    x_slice: slice,
-) -> None:
-
-    z_ints = z["/0"]
-
-    row_idx = 0
-
-    # load chunks
-    for cy, cx in iter_nd_chunks(z_ints, y_slice, x_slice, skip=2):
-        # load from disk
-        c_ints = z_ints[:, 0, cy, cx]
-
-        c_cls = onehot_cls[cy, cx]
-
-        row_idx = fill_nonbinned_dataset_continuous_chunk(
-            dataset_x,
-            dataset_y,
-            c_ints,
-            c_cls,
-            row_idx,
-        )
-
-    if row_idx != dataset_x.shape[0]:
-        print(f"{row_idx=} mismatch for {dataset_x.shape=}")
 
 
 def bin_array_dataset(
@@ -273,15 +126,15 @@ def bin_array_dataset(
     print("starting to read data from disk...")
 
     start_time = time.time()
-    fill_binned_dataset_processed(
-        dataset_x,
-        dataset_y,
-        z,
-        onehot_cls,
-        y_slice,
-        x_slice,
-        bin_lo,
-        bin_hi,
+    bin_and_flatten(
+        dataset_x=dataset_x,
+        dataset_y=dataset_y,
+        z=z,
+        onehot_cls=onehot_cls,
+        y_slice=y_slice,
+        x_slice=x_slice,
+        bin_lo=bin_lo,
+        bin_hi=bin_hi,
     )
     elapsed_time = time.time() - start_time
 
@@ -325,13 +178,13 @@ def nonbinned_array_dataset(
     print("starting to read data from disk...")
 
     start_time = time.time()
-    fill_nonbinned_dataset_continuous(
-        dataset_x,
-        dataset_y,
-        z,
-        onehot_cls,
-        y_slice,
-        x_slice,
+    flatten(
+        dataset_x=dataset_x,
+        dataset_y=dataset_y,
+        z=z,
+        onehot_cls=onehot_cls,
+        y_slice=y_slice,
+        x_slice=x_slice,
     )
     elapsed_time = time.time() - start_time
 
