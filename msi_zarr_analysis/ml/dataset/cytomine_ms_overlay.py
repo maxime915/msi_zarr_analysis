@@ -21,6 +21,8 @@ from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
 
 from . import Dataset
 
+from msi_zarr_analysis.ml.dataset.translate_annotation import save_bin_class_image
+
 
 def build_onehot_annotation(
     annotation_collection: AnnotationCollection,
@@ -71,6 +73,7 @@ def generate_spectra(
     tiff_page_idx: int,
     onehot_annotations: npt.NDArray,
     transform: TemplateTransform,
+    save_to: str = "",
 ):
     # map the results to the zarr arrays
     intensities = ms_group["/0"]
@@ -84,6 +87,8 @@ def generate_spectra(
         onehot_annotations,
         transform,
     )
+
+    save_bin_class_image(ms_group, z_mask, save_to=save_to)
 
     # yield all rows
     for cy, cx in iter_loaded_chunks(intensities, *roi, skip=2):
@@ -123,6 +128,7 @@ class CytomineTranslated(Dataset):
         select_terms: Iterable[int] = (),
         cache_data: bool = True,
         attribute_name_list: List[str] = (),
+        save_image: bool = False,
     ) -> None:
         super().__init__()
 
@@ -158,6 +164,13 @@ class CytomineTranslated(Dataset):
 
         self.attribute_name_list = list(attribute_name_list)
 
+        self.save_to = ""
+        if save_image:
+            self.save_to = (
+                f"saved_overlay_{image_instance.name or image_instance.filename}"
+                + f"_{self.term_names[0]}_{self.term_names[1]}.png"
+            )
+
     def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         yield from generate_spectra(
             self.ms_group,
@@ -166,6 +179,7 @@ class CytomineTranslated(Dataset):
             self.tiff_page_idx,
             self.onehot_annotations,
             self.transform_template,
+            save_to=self.save_to,
         )
 
     def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
@@ -205,6 +219,6 @@ class CytomineTranslated(Dataset):
         if self.attribute_name_list:
             return self.attribute_name_list
         return [str(v) for v in self.ms_group["/labels/mzs/0"][:, 0, 0, 0]]
-    
+
     def class_names(self) -> List[str]:
         return self.term_names

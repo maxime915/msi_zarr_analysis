@@ -147,7 +147,7 @@ class ZarrAbstractDataset(Dataset):
         )
 
         self._cached_ds = None
-    
+
     def class_names(self) -> List[str]:
         return self.class_names_
 
@@ -359,10 +359,10 @@ class CytomineNonBinned(Dataset):
             except ValueError:
                 term_idx = len(term_lst)
                 term_lst.append(term_name)
-            
+
             for profile in annotation.profile():
                 yield profile["profile"], term_idx
-        
+
         self.cached_term_lst = term_lst
 
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
@@ -400,5 +400,5 @@ class CytomineNonBinned(Dataset):
         if self.cached_term_lst is None:
             for _ in self.__raw_iter():
                 pass
-        
+
         return self.cached_term_lst

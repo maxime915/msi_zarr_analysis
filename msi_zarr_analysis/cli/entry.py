@@ -323,10 +323,11 @@ def comulis_translated_example(
             select_users=split_csl(select_users_id),
             select_terms=split_csl(select_terms_id),
             attribute_name_list=lipid_names,
+            save_image=True,
         )
 
         print(f"model: {model_()!r}")
-        print(f"terms: {ds.term_names}")
+        print(f"terms: {ds.class_names()}")
 
         mdi_m, mdi_s = interpret_forest_mdi(ds, model_(), cv_fold)
         mda_m, mda_s = interpret_model_mda(ds, model_(), cv_fold)

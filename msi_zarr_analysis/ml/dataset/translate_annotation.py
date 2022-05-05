@@ -11,7 +11,9 @@ import rasterio.features
 import tifffile
 import zarr
 from cytomine.models import AnnotationCollection, TermCollection
+from matplotlib import colors
 from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
+from PIL import Image
 from scipy.optimize import minimize_scalar
 from shapely import wkt
 from shapely.affinity import affine_transform
@@ -447,6 +449,46 @@ def get_template_matching_data(
         crop_idx=crop_idx,
         ms_template_shape=ms_template.shape,
     )
+
+
+def save_bin_class_image(
+    ms_group: zarr.Group,
+    ms_mask: npt.NDArray,
+    save_to: str = "",
+) -> None:
+    "save a visual representation of the data presence with the class repartition"
+
+    if ms_mask.shape[2] != 2:
+        raise ValueError("only binary classification is supported")
+
+    if not save_to:
+        return
+
+    # compute tic
+    tic = ms_group["/0"][:, 0, ...].sum(axis=0)
+
+    # take the nonzeros of both tic and mask (axis class)
+    nzy, nzx = np.nonzero(tic + ms_mask.max(axis=2))
+
+    crop = (
+        slice(nzy.min(), nzy.max() + 1),
+        slice(nzx.min(), nzx.max() + 1),
+        slice(None),
+    )
+
+    tic = tic[crop[:2]]
+    ms_mask = ms_mask[crop]
+
+    tic = np.abs(tic)
+    # only account for pixels with larger value
+    data_presence = 1.0 * (tic > np.mean(tic) / 1e2)
+
+    ms_mask = 255 * ms_mask.astype(np.uint8)
+    data_presence = 255 * data_presence.astype(np.uint8)
+
+    Image.fromarray(
+        np.stack([ms_mask[..., 0], ms_mask[..., 1], data_presence], axis=-1), mode="RGB"
+    ).save(save_to)
 
 
 def get_destination_mask(
