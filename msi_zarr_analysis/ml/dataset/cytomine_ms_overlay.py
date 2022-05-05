@@ -1,69 +1,21 @@
 "translated annotated data via template matching"
 
-import warnings
 from typing import Iterable, Iterator, List, Tuple
 
 import numpy as np
 import numpy.typing as npt
-import rasterio.features
 import zarr
-from cytomine.models import AnnotationCollection, TermCollection, ImageInstance
-from shapely import wkt
-from shapely.affinity import affine_transform
+from cytomine.models import AnnotationCollection, ImageInstance
 from msi_zarr_analysis.ml.dataset.translate_annotation import (
     TemplateTransform,
+    build_onehot_annotation,
     get_destination_mask,
+    save_bin_class_image,
 )
 from msi_zarr_analysis.utils.check import open_group_ro
-from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
-
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
 
 from . import Dataset
-
-from msi_zarr_analysis.ml.dataset.translate_annotation import save_bin_class_image
-
-
-def build_onehot_annotation(
-    annotation_collection: AnnotationCollection,
-    image_height: int,
-    image_width: int,
-) -> Tuple[List[str], npt.NDArray]:
-    # [classes], np[dims..., classes]
-
-    term_collection = TermCollection().fetch_with_filter(
-        "project", annotation_collection.project
-    )
-
-    mask_dict = {}
-
-    for annotation, term in iter_annoation_single_term(
-        annotation_collection, term_collection
-    ):
-
-        # load geometry
-        geometry = wkt.loads(annotation.location)
-        # change the coordinate system
-        geometry = affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
-        # rasterize annotation
-        mask = rasterio.features.rasterize(
-            [geometry], out_shape=(image_height, image_width)
-        )
-
-        if not mask.any():
-            warnings.warn(f"empty mask found {annotation.id=}")
-
-        try:
-            mask_dict[term.name] |= mask
-        except KeyError:
-            mask_dict[term.name] = mask
-
-    if not mask_dict:
-        raise ValueError("no annotation found")
-
-    term_list, mask_list = zip(*mask_dict.items())
-
-    return list(term_list), np.stack(mask_list, axis=-1)
 
 
 def generate_spectra(
