@@ -5,6 +5,8 @@ from PIL import Image
 import numpy as np
 from numpy import typing as npt
 import pandas as pd
+from functools import wraps
+import click
 
 
 def parser_callback(ctx, param, value: str):
@@ -65,6 +67,95 @@ def load_img_mask(path: str) -> npt.NDArray[np.dtype("bool")]:
 # def combine_and_load_masks(*path_lst: str) -> npt.NDArray[np.dtype("int")]:
 #     masks = [load_img_mask(path, i) for i, path in enumerate(path_lst, start=1)]
 #     return combine_masks(*masks)
+
+
+
+class RegionParam:
+    "helper class to avoid duplication in similar Click command"
+
+    x_low: int
+    x_high: int
+    y_low: int
+    y_high: int
+
+    def __init__(self, kwargs):
+        for name in RegionParam.__annotations__:
+            setattr(self, name, kwargs[name])
+    
+    def validated(self) -> "RegionParam":
+        return self
+
+    @staticmethod
+    def add_click_options(fn):
+        "add options to create a Region Param from the arguments passed"
+        
+        @click.option("--x-low", type=int, default=0)
+        @click.option("--x-high", type=int, default=-1)
+        @click.option("--y-low", type=int, default=0)
+        @click.option("--y-high", type=int, default=-1)
+        @wraps(fn)
+        def _wrapped(*a, **kw):
+            return fn(*a, **kw)
+
+        return _wrapped
+
+    @property
+    def y_slice(self) -> slice:
+        return slice(self.y_low, self.y_high, 1)
+    
+    @property
+    def x_slice(self) -> slice:
+        return slice(self.x_low, self.x_high, 1)
+    
+
+
+class BinningParam:
+    "helper class to avoid duplication in similar Click command"
+
+    mz_low: float
+    mz_high: float
+    n_bins: int
+    bin_csv_path: str
+
+    def __init__(self, kwargs):
+        for name in BinningParam.__annotations__:
+            setattr(self, name, kwargs[name])
+
+    def validated(self) -> "BinningParam":
+        if not isinstance(self.n_bins, int) or self.n_bins < 2:
+            raise ValueError(f"{self.n_bins=} should be an int > 1")
+        return self
+
+    @staticmethod
+    def add_click_options(fn):
+        "add options to create a Binning Param from the arguments passed"
+
+        @click.option("--mz-low", type=float, default=200.0)
+        @click.option("--mz-high", type=float, default=850.0)
+        @click.option("--n-bins", type=int, default=100)
+        @click.option(
+            "--bin-csv-path",
+            type=click.Path(exists=True),
+            help=(
+                "CSV file containing the m/Z values in the first column and the "
+                "intervals' width in the second one. Overrides 'mz-low', 'mz-high' "
+                "and 'b-bins'"
+            ),
+        )
+        @wraps(fn)
+        def _wrapped(*a, **kw):
+            return fn(*a, **kw)
+
+        return _wrapped
+
+    def get_bins(
+        self,
+    ) -> Tuple[npt.NDArray[np.dtype("f8")], npt.NDArray[np.dtype("f8")]]:
+
+        if self.bin_csv_path:
+            return bins_from_csv(self.bin_csv_path)
+
+        return uniform_bins(self.mz_low, self.mz_high, self.n_bins)
 
 
 def uniform_bins(

@@ -18,7 +18,7 @@ from ..ml.forests import interpret_forest_ds
 from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
-from .utils import bins_from_csv, load_img_mask, uniform_bins, split_csl, parser_callback
+from .utils import RegionParam, bins_from_csv, load_img_mask, uniform_bins, split_csl, parser_callback, BinningParam
 
 
 @click.group()
@@ -29,13 +29,6 @@ def main_group(echo):
         click.echo(" ".join(sys.argv))
 
 @main_group.command()
-@click.option("--mz-low", type=float, default=200.0)
-@click.option("--mz-high", type=float, default=850.0)
-@click.option("--n-bins", type=int, default=100)
-@click.option("--x-low", type=int, default=0)
-@click.option("--x-high", type=int, default=-1)
-@click.option("--y-low", type=int, default=0)
-@click.option("--y-high", type=int, default=-1)
 @click.option(
     "--background/--no-background",
     type=bool,
@@ -45,33 +38,19 @@ def main_group(echo):
         "Otherwise, ignore all pixels non included in the class masks, even those in the ROI"
     ),
 )
-@click.option(
-    "--bin-csv-path",
-    type=click.Path(exists=True),
-    help=(
-        "CSV file containing the m/Z values in the first column and the "
-        "intervals' width in the second one. Overrides 'mz-low', 'mz-high' "
-        "and 'b-bins'"
-    ),
-)
 @click.argument("cls_mask_path", type=click.Path(exists=True), nargs=-1, required=True)
 @click.option("--roi-mask-path", type=click.Path(exists=True))
 @click.argument(
     "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
 )
+@BinningParam.add_click_options
+@RegionParam.add_click_options
 def interpret_trees_binned(
     image_zarr_path: click.Path,
     roi_mask_path: click.Path,
     cls_mask_path: Tuple[click.Path],
-    mz_low: float,
-    mz_high: float,
-    n_bins: int,
     background: bool,
-    bin_csv_path: click.Path,
-    x_low: int,
-    x_high: int,
-    y_low: int,
-    y_high: int,
+    **kwargs,
 ):
     """provide an interpretation using random forests for the detection of a mask
     in the image, shows details on which bins provide the most information about
@@ -79,8 +58,6 @@ def interpret_trees_binned(
     """
 
     # check arguments
-    if not isinstance(n_bins, int) or n_bins < 2:
-        raise ValueError(f"{n_bins=} should be an int > 1")
 
     classes_dict = {
         pathlib.Path(cls_path).stem: load_img_mask(cls_path)
@@ -95,18 +72,16 @@ def interpret_trees_binned(
 
     base = pathlib.Path(image_zarr_path).stem
 
-    if bin_csv_path:
-        bin_lo, bin_hi = bins_from_csv(bin_csv_path)
-    else:
-        bin_lo, bin_hi = uniform_bins(mz_low, mz_high, n_bins)
+    bin_lo, bin_hi = BinningParam(kwargs).validated().get_bins()
+    region = RegionParam(kwargs).validated()
 
     interpret_trees_binned_(
         image_zarr_path=image_zarr_path,
         cls_dict=classes_dict,
         bin_lo=bin_lo,
         bin_hi=bin_hi,
-        y_slice=slice(y_low, y_high, 1),
-        x_slice=slice(x_low, x_high, 1),
+        y_slice=region.y_slice,
+        x_slice=region.x_slice,
         fi_impurity_path=base + "_fi_imp.csv",
         # fi_impurity_path=None,
         fi_permutation_path=base + "_fi_per.csv",
