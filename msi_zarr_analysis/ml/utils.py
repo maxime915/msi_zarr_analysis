@@ -1,6 +1,7 @@
 import time
 import warnings
 from typing import List, Tuple
+import joblib
 from matplotlib import pyplot as plt
 
 import numpy as np
@@ -9,6 +10,8 @@ import pandas as pd
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_score
+
+from msi_zarr_analysis.ml.dataset import Dataset
 
 
 def compare_score_imbalance(score: float, imbalance: float):
@@ -62,7 +65,7 @@ def evaluate_cv(model, dataset_x, dataset_y, cv=None):
     scores = cross_val_score(model, dataset_x, dataset_y, n_jobs=4, cv=cv)
     elapsed_time = time.time() - start_time
 
-    print(f"mean CV score: {np.mean(scores):.3f} (in {elapsed_time:.3f} seconds)")
+    # print(f"mean CV score: {np.mean(scores):.3f} (in {elapsed_time:.3f} seconds)")
 
     return scores
 
@@ -258,3 +261,61 @@ def feature_importance_model_mds(
         feature_labels=feature_labels,
         print_n_most_important=print_n_most_important,
     )
+
+
+def show_datasize_learning_curve(
+    dataset: Dataset,
+    model,
+    cv=None,
+    save_to: str = "",
+    show: bool = False,
+):
+    """plot the accuracy of the model at different dataset sizes
+
+    Args:
+        dataset (Dataset): dataset to train on
+        model (sklearn estimator): model from sci-kit learn
+        cv (int, optional): number of CV fold. Defaults to None.
+        save_to (str, optional): path to store the image. Defaults to "".
+        show (bool, optional): plt.show(). Defaults to False.
+    """
+
+    dataset_x, dataset_y = dataset.as_table()
+
+    if not save_to and not show:
+        raise ValueError(f"at least one of {save_to=}, {show=} should be set")
+
+    # 0.1, 0.2, ..., 0.9, 1.0
+    percentage = np.arange(0.1, 1.1, 0.1)
+
+    def _get_score_for_percentage(p: float):
+        "get the score using p percent of the data available"
+        r_mask = np.random.rand(dataset_x.shape[0]) < p
+
+        ds_x = dataset_x[r_mask, :]
+        ds_y = dataset_y[r_mask]
+
+        cv_scores = evaluate_cv(model, ds_x, ds_y, cv)
+
+        return np.mean(cv_scores)
+
+    fn = joblib.delayed(_get_score_for_percentage)
+    scores = joblib.Parallel(n_jobs=-1)(fn(p) for p in percentage)
+
+    fig, ax = plt.subplots(1, 1, figsize=(5, 4))
+
+    fig.suptitle("Estimated Accuracy as a Function of the Dataset Size")
+
+    ax.set_ylim((0, 100))
+    ax.set_xlim((0, 100))    
+
+    ax.set_ylabel("Estimated Accuracy (%)")
+    ax.set_xlabel("Relative size of the dataset (%)")
+
+    ax.plot(100 * percentage, 100 * np.array(scores))
+
+    if save_to:
+        fig.savefig(save_to)
+
+    if show:
+        plt.show()

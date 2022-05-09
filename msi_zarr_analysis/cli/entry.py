@@ -5,20 +5,23 @@ import pathlib
 from typing import Tuple
 
 import click
+from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import CytomineTranslated
+from msi_zarr_analysis.ml.utils import show_datasize_learning_curve
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.tree import DecisionTreeClassifier
 
-from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import CytomineTranslated
-
-from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
-
 from ..ml import dataset
-from ..ml.forests import interpret_forest_binned as interpret_trees_binned_, interpret_forest_mdi, interpret_model_mda, interpret_ttest, present_disjoint, present_p_values
-from ..ml.forests import interpret_forest_ds
-from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
+from ..ml.forests import interpret_forest_binned as interpret_trees_binned_
+from ..ml.forests import interpret_forest_ds, interpret_forest_mdi
+from ..ml.forests import \
+    interpret_forest_nonbinned as interpret_trees_nonbinned_
+from ..ml.forests import (interpret_model_mda, interpret_ttest,
+                          present_disjoint, present_p_values)
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
-from .utils import RegionParam, bins_from_csv, load_img_mask, uniform_bins, split_csl, parser_callback, BinningParam
+from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
+from .utils import (BinningParam, RegionParam, bins_from_csv, load_img_mask,
+                    parser_callback, split_csl, uniform_bins)
 
 
 @click.group()
@@ -320,6 +323,13 @@ def comulis_translated_example(
             limit=None,
             limit_bold=10,
             labels=ds.attribute_names(),
+        )
+        
+        show_datasize_learning_curve(
+            ds,
+            model_(),
+            cv_fold,
+            save_to="learning_curve_" + "_".join(ds.class_names()) + ".png",
         )
 
 @main_group.command()
