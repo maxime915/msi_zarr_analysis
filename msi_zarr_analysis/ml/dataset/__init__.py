@@ -89,6 +89,85 @@ class Dataset(abc.ABC):
             List[str]: list of classes, matching the class index in the targets
         """
 
+    def __raw_check_dataset(self) -> Tuple[np.ndarray, np.ndarray]:
+        ds_x, ds_y = self.as_table()
+        n_features = ds_x.shape[1]
+
+        # check X : look for correlations between the samples
+        corr = np.zeros((n_features, n_features))
+        # for i in range(1, n_features):
+        #     for j in range(i + 1, n_features):
+        #         corr[i, j] = np.corrcoef(ds_x[:, i], ds_x[:, j])[0, 1]
+        corr[:] = np.nan
+
+        # ensure symmetric matrix with unitary diagonal
+        corr = (corr + corr.T) / 2
+        np.fill_diagonal(corr, 1.0)
+
+        # check Y : look for class imbalance
+        _, occurrences = np.unique(ds_y, return_counts=True)
+
+        return corr, occurrences
+
+    def check_dataset(
+        self,
+        cache: bool = False,
+        print_: bool = False,
+        print_once: bool = False,
+    ) -> Tuple[np.ndarray, float]:
+        """identify danger of feature correlations and class imbalance in the
+        tabular dataset.
+
+        May raise an error for datasets where the number of attribute is not
+        constant. See Dataset.is_table_like .
+
+        Args:
+            cache (bool, optional): cache the computation. Defaults to False.
+            print_ (bool, optional): print results to stdout. Defaults to False.
+            print_once (bool, optional): subsequent calls to this function don't print more than once. Defaults to False.
+
+        Returns:
+            Tuple[np.ndarray, float]: the correlation matrix and the highest relative occurrence
+        """
+
+        cache_attr_name = "__cached_check_dataset"
+
+        if cache and hasattr(self, cache_attr_name):
+            corr, occurrences = getattr(self, cache_attr_name)
+        else:
+            corr, occurrences = self.__raw_check_dataset()
+            if cache:
+                setattr(self, cache_attr_name, (corr, occurrences))
+
+        single_print_attr_name = "__cached_single_print"
+
+        if print_ and not (print_once and hasattr(self, single_print_attr_name)):
+            setattr(self, single_print_attr_name, True)
+
+            # print("checking inter-feature correlation:")
+            # for i in range(corr.shape[0]):
+            #     for j in range(i + 1, corr.shape[1]):
+            #         if np.abs(corr[i, j]) > 0.8:
+            #             print(f"\t{i=} {j=} {corr[i, j]=}")
+
+            print("checking for class imbalance:")
+
+            n_classes = occurrences.size
+            n_items = np.sum(occurrences)
+
+            # number of items in each class
+            print(f"{occurrences=}")
+            # max and min relative occurrence
+            print(f"{np.max(occurrences / n_items) = :.4f}")
+            print(f"{np.min(occurrences / n_items) = :.4f}")
+            # ideal occurrence
+            print(f". . . . . . . . {1 / n_classes = :.4f}")
+
+        # largest relative occurrence
+        imbalance = np.max(occurrences) / np.sum(occurrences)
+
+        return corr, imbalance
+
 
 class ZarrAbstractDataset(Dataset):
     def __init__(

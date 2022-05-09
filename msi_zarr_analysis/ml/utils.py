@@ -11,20 +11,6 @@ from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_score
 
 
-def check_class_imbalance(dataset_y):
-    _, occurrences = np.unique(dataset_y, return_counts=True)
-
-    print(f"{occurrences = }")
-
-    # highest fraction of class over samples
-    imbalance = np.max(occurrences / dataset_y.size)
-    print(f"{np.max(occurrences / dataset_y.size) = :.4f}")
-    print(f"{np.min(occurrences / dataset_y.size) = :.4f}")
-    print(f". . . . . . . . . . . . 1 / #classes = {1/(np.max(dataset_y)+1):.4f}")
-
-    return imbalance
-
-
 def compare_score_imbalance(score: float, imbalance: float):
     if score < 1.5 * imbalance:
         warnings.warn(
@@ -115,9 +101,9 @@ def present_feature_importance(
         to_print.append(
             (feature_labels[i], text_len, f"{importances[i]:.3f} +/- {std[i]:.3f}")
         )
-    
+
     for label, length, value in to_print:
-        print(" " * (max_len-length) + label + " " + value)
+        print(" " * (max_len - length) + label + " " + value)
 
     if not store_at:
         return
@@ -154,6 +140,7 @@ def get_feature_importance_forest_mdi(forest) -> Tuple[npt.NDArray, npt.NDArray]
         std = np.full_like(mean, np.nan)
 
     return mean, std
+
 
 def feature_importance_forest_mdi(
     forest,
@@ -221,6 +208,7 @@ def get_feature_importance_model_mda(
     )
 
     return result.importances_mean, result.importances_std
+
 
 def feature_importance_model_mds(
     model,

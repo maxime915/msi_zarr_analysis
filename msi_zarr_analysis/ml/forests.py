@@ -13,8 +13,8 @@ from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
+
 from .utils import (
-    check_class_imbalance,
     compare_score_imbalance,
     evaluate_cv,
     feature_importance_forest_mdi,
@@ -37,26 +37,14 @@ def build_model(description: str):
     raise ValueError(f"invalid choice: {description}")
 
 
-def check_correlation(dataset_x):
-    return
-
-    for i in range(dataset_x.shape[1]):
-        for j in range(i + 1, dataset_x.shape[1]):
-            coeff = np.corrcoef(dataset_x[:, i], dataset_x[:, j])[0, 1]
-            if np.abs(coeff) > 0.8:
-                # dataset_x[:, j] = np.random.rand(dataset_x.shape[0])
-                print(f"{i=} {j=} {coeff=}")
-
-
 def interpret_forest_mdi(
     dataset: Dataset,
     forest,
     cv=None,
 ):
     # load an check dataset
+    _, imbalance = dataset.check_dataset(cache=True, print_=True, print_once=True)
     dataset_x, dataset_y = dataset.as_table()
-    check_correlation(dataset_x)
-    imbalance = check_class_imbalance(dataset_y)
 
     # estimate performance & warn if too bad
     cv_scores = evaluate_cv(forest, dataset_x, dataset_y, cv)
@@ -83,11 +71,9 @@ def interpret_model_mda(
     stratify_classes: bool = False,
     n_repeat: int = 5,
 ):
-
     # load an check dataset
+    _, imbalance = dataset.check_dataset(cache=True, print_=True, print_once=True)
     dataset_x, dataset_y = dataset.as_table()
-    check_correlation(dataset_x)
-    imbalance = check_class_imbalance(dataset_y)
 
     # split dataset
     stratify = dataset_y if stratify_classes else None
@@ -122,8 +108,9 @@ def interpret_ttest(
     random_state=None,
 ):
     # load an check dataset
+    dataset.check_dataset(cache=True, print_=True, print_once=True)
     dataset_x, dataset_y = dataset.as_table()
-    check_correlation(dataset_x)
+
     classes = np.unique(dataset_y)
     if classes.size != 2:
         raise ValueError(f"only binary classification supported, {classes=}")
@@ -245,7 +232,6 @@ def present_disjoint(
         print("\\end{table}")
 
 
-
 def present_p_values(
     *values,
     limit: int,
@@ -300,11 +286,9 @@ def interpret_forest_ds(
     stratify_classes: bool = False,
     cv=None,
 ):
+    # load an check dataset
+    _, imbalance = dataset.check_dataset(cache=True, print_=True, print_once=True)
     dataset_x, dataset_y = dataset.as_table()
-
-    check_correlation(dataset_x)
-
-    imbalance = check_class_imbalance(dataset_y)
 
     # split dataset
     stratify = dataset_y if stratify_classes else None
