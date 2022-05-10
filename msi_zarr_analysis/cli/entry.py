@@ -13,15 +13,25 @@ from sklearn.tree import DecisionTreeClassifier
 from ..ml import dataset
 from ..ml.forests import interpret_forest_binned as interpret_trees_binned_
 from ..ml.forests import interpret_forest_ds, interpret_forest_mdi
-from ..ml.forests import \
-    interpret_forest_nonbinned as interpret_trees_nonbinned_
-from ..ml.forests import (interpret_model_mda, interpret_ttest,
-                          present_disjoint, present_p_values)
+from ..ml.forests import interpret_forest_nonbinned as interpret_trees_nonbinned_
+from ..ml.forests import (
+    interpret_model_mda,
+    interpret_ttest,
+    present_disjoint,
+    present_p_values,
+)
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
 from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
-from .utils import (BinningParam, RegionParam, bins_from_csv, load_img_mask,
-                    parser_callback, split_csl, uniform_bins)
+from .utils import (
+    BinningParam,
+    RegionParam,
+    bins_from_csv,
+    load_img_mask,
+    parser_callback,
+    split_csl,
+    uniform_bins,
+)
 
 
 @click.group()
@@ -29,7 +39,9 @@ from .utils import (BinningParam, RegionParam, bins_from_csv, load_img_mask,
 def main_group(echo):
     if echo:
         import sys
+
         click.echo(" ".join(sys.argv))
+
 
 @main_group.command()
 @click.option(
@@ -169,12 +181,13 @@ def interpret_trees_nonbinned(
 @click.option(
     "--config-path",
     type=click.Path(exists=True, dir_okay=False),
-    help="path to a JSON file containing 'HOST_URL', 'PUB_KEY', 'PRIV_KEY' members"
+    help="path to a JSON file containing 'HOST_URL', 'PUB_KEY', 'PRIV_KEY' members",
 )
 def cytomine_raw_example(
     config_path: str,
 ):
     from cytomine import Cytomine
+
     with open(config_path) as config_file:
         config_data = json.loads(config_file.read())
         host_url = config_data["HOST_URL"]
@@ -182,7 +195,7 @@ def cytomine_raw_example(
         priv_key = config_data["PRIV_KEY"]
 
     with Cytomine(host_url, pub_key, priv_key):
-        
+
         ds = dataset.CytomineNonBinned(
             project_id=31054043,
             image_id=146726078,
@@ -221,22 +234,40 @@ def cytomine_raw_example(
     default="LysoPPC",
 )
 @click.option(
-    "--select-terms-id", type=str, default="", help="Cytomine identifier for the term to fetch. Expects a comma separated list of ID."
+    "--select-terms-id",
+    type=str,
+    default="",
+    help="Cytomine identifier for the term to fetch. Expects a comma separated list of ID.",
 )
 @click.option(
-    "--select-users-id", type=str, default="", help="Cytomine identifier for the users that did the annotations. Expects a comma separated list of ID."
+    "--select-users-id",
+    type=str,
+    default="",
+    help="Cytomine identifier for the users that did the annotations. Expects a comma separated list of ID.",
 )
 @click.option(
-    "--et-max-depth", default=None, help="see sci-kit learn documentation", callback=parser_callback,
+    "--et-max-depth",
+    default=None,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
 )
 @click.option(
-    "--et-n-estimators", default=1000, help="see sci-kit learn documentation", callback=parser_callback,
+    "--et-n-estimators",
+    default=1000,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
 )
 @click.option(
-    "--et-max-features", default=None, help="see sci-kit learn documentation", callback=parser_callback,
+    "--et-max-features",
+    default=None,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
 )
 @click.option(
-    "--cv-fold", default=None, help="see sci-kit learn documentation", callback=parser_callback,
+    "--cv-fold",
+    default=None,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
 )
 @click.argument(
     "image_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
@@ -244,15 +275,9 @@ def cytomine_raw_example(
 @click.argument(
     "overlay_tiff_path", type=click.Path(exists=True, file_okay=True, dir_okay=False)
 )
-@click.argument(
-    "overlay_id", type=int, default=545025763
-)
-@click.argument(
-    "annotated_image_id", type=int, default=545025783
-)
-@click.argument(
-    "annotated_project_id", type=int, default=542576374
-)
+@click.argument("overlay_id", type=int, default=545025763)
+@click.argument("annotated_image_id", type=int, default=545025783)
+@click.argument("annotated_project_id", type=int, default=542576374)
 def comulis_translated_example(
     config_path: str,
     bin_csv_path: str,
@@ -270,6 +295,7 @@ def comulis_translated_example(
     annotated_project_id: int,
 ):
     from cytomine import Cytomine
+
     with open(config_path) as config_file:
         config_data = json.loads(config_file.read())
         host_url = config_data["HOST_URL"]
@@ -283,12 +309,11 @@ def comulis_translated_example(
         n_jobs=4,
     )
 
-
     with Cytomine(host_url, pub_key, priv_key):
-    
+
         page_idx, bin_idx, *_ = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
         lipid_names = get_lipid_names(bin_csv_path)
-        
+
         ds = CytomineTranslated(
             annotated_project_id,
             annotated_image_id,
@@ -324,13 +349,14 @@ def comulis_translated_example(
             limit_bold=10,
             labels=ds.attribute_names(),
         )
-        
+
         show_datasize_learning_curve(
             ds,
             model_(),
             cv_fold,
             save_to="learning_curve_" + "_".join(ds.class_names()) + ".png",
         )
+
 
 @main_group.command()
 @click.option("--mz-low", type=float, default=200.0)
@@ -383,6 +409,7 @@ def bin_dataset(
         x_slice=slice(x_low, x_high),
     )
 
+
 @main_group.command()
 @click.option("--x-low", type=int, default=0)
 @click.option("--x-high", type=int, default=-1)
@@ -416,4 +443,3 @@ def normalize(
         y_slice=slice(y_low, y_high),
         x_slice=slice(x_low, x_high),
     )
-    
