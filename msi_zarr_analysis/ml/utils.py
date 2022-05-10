@@ -9,7 +9,8 @@ import numpy.typing as npt
 import pandas as pd
 from sklearn.inspection import permutation_importance
 from sklearn.metrics import accuracy_score
-from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.base import clone
 
 from msi_zarr_analysis.ml.dataset import Dataset
 
@@ -285,34 +286,56 @@ def show_datasize_learning_curve(
     if not save_to and not show:
         raise ValueError(f"at least one of {save_to=}, {show=} should be set")
 
-    # 0.1, 0.2, ..., 0.9, 1.0
-    percentage = np.arange(0.1, 1.1, 0.1)
+    percentage = np.array([0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0])
 
-    def _get_score_for_percentage(p: float):
-        "get the score using p percent of the data available"
-        r_mask = np.random.rand(dataset_x.shape[0]) < p
+    def _do_percentage():
+        "get scores at all percentages values"
 
-        ds_x = dataset_x[r_mask, :]
-        ds_y = dataset_y[r_mask]
+        x_train, x_test, y_train, y_test = train_test_split(
+            dataset_x, dataset_y, test_size=0.2
+        )
+        n_elem = x_train.shape[0]
 
-        cv_scores = evaluate_cv(model, ds_x, ds_y, cv)
+        scores = []
 
-        return np.mean(cv_scores)
+        for p in percentage:
+            model_ = clone(model)
 
-    fn = joblib.delayed(_get_score_for_percentage)
-    scores = joblib.Parallel(n_jobs=-1)(fn(p) for p in percentage)
+            r_mask = np.full((n_elem,), False)
+            r_mask[: int(np.ceil(p * n_elem))] = True
+            np.random.shuffle(r_mask)
+
+            ds_x = x_train[r_mask, :]
+            ds_y = y_train[r_mask]
+
+            model_.fit(ds_x, ds_y)
+
+            scores.append(model_.score(x_test, y_test))
+
+        return scores
+
+    fn = joblib.delayed(_do_percentage)
+    scores = joblib.Parallel(n_jobs=-1)(fn() for _ in range(cv))
+    scores = np.array(scores)
+
+    ys_ = 100 * np.mean(scores, axis=0)
+    yer = 100 * np.std(scores, ddof=1, axis=0)
+    y1s = ys_ - yer
+    y2s = ys_ + yer
+    xs_ = 100 * percentage
 
     fig, ax = plt.subplots(1, 1, figsize=(5, 4))
 
     fig.suptitle("Estimated Accuracy as a Function of the Dataset Size")
 
     ax.set_ylim((0, 100))
-    ax.set_xlim((0, 100))    
+    ax.set_xlim((0, 100))
 
     ax.set_ylabel("Estimated Accuracy (%)")
     ax.set_xlabel("Relative size of the dataset (%)")
 
-    ax.plot(100 * percentage, 100 * np.array(scores))
+    ax.fill_between(xs_, y1s, y2s, alpha=0.6, color="b")
+    ax.plot(xs_, ys_, color="b")
 
     if save_to:
         fig.savefig(save_to)
