@@ -41,6 +41,7 @@ def interpret_forest_mdi(
     dataset: Dataset,
     forest,
     cv=None,
+    return_mean_cv_score: bool = False,
 ):
     # load an check dataset
     _, imbalance = dataset.check_dataset(cache=True, print_=True, print_once=True)
@@ -60,7 +61,12 @@ def interpret_forest_mdi(
     # train on full dataset
     forest.fit(dataset_x, dataset_y)
 
-    return get_feature_importance_forest_mdi(forest)
+    importances = get_feature_importance_forest_mdi(forest)
+
+    if return_mean_cv_score:
+        return importances, np.mean(cv_scores)
+
+    return importances
 
 
 def interpret_model_mda(
@@ -70,6 +76,7 @@ def interpret_model_mda(
     random_state=None,
     stratify_classes: bool = False,
     n_repeat: int = 5,
+    return_testset_score: bool = False,
 ):
     # load an check dataset
     _, imbalance = dataset.check_dataset(cache=True, print_=True, print_once=True)
@@ -98,9 +105,14 @@ def interpret_model_mda(
     # compare_score_imbalance(model.score(X_test, Y_test), imbalance)
 
     # evaluate importance based on left out data
-    return get_feature_importance_model_mda(
+    importances = get_feature_importance_model_mda(
         model, X_test, Y_test, n_repeat=n_repeat, random_state=random_state
     )
+
+    if return_testset_score:
+        return importances, score
+
+    return importances
 
 
 def interpret_ttest(

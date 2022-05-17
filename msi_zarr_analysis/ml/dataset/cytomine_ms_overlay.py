@@ -12,10 +12,11 @@ from msi_zarr_analysis.ml.dataset.translate_annotation import (
     get_destination_mask,
     save_bin_class_image,
 )
+from msi_zarr_analysis.preprocessing.binning import bin_and_flatten
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
 
-from . import Dataset
+from . import Dataset, Tabular
 
 
 def generate_spectra(
@@ -27,6 +28,8 @@ def generate_spectra(
     transform: TemplateTransform,
     save_to: str = "",
 ):
+    "this yields all spectra instead of returning a table"
+
     # map the results to the zarr arrays
     intensities = ms_group["/0"]
     lengths = ms_group["/labels/lengths/0"]
@@ -174,3 +177,102 @@ class CytomineTranslated(Dataset):
 
     def class_names(self) -> List[str]:
         return self.term_names
+
+
+class CytomineTranslatedProgressiveBinningFactory:
+    def __init__(
+        self,
+        annotation_project_id: int,
+        annotation_image_id: int,
+        zarr_binned_path: str,
+        bin_idx: int,
+        tiff_path: str,
+        tiff_page_idx: int,
+        transform_template_rot90: int = 0,
+        transform_template_flip_ud: bool = False,
+        transform_template_flip_lr: bool = False,
+        select_users: Iterable[int] = (),
+        select_terms: Iterable[int] = (),
+    ) -> None:
+        super().__init__()
+
+        annotations = AnnotationCollection()
+        annotations.project = annotation_project_id
+        annotations.image = annotation_image_id
+        annotations.users = list(select_users)
+        annotations.terms = list(select_terms)
+        annotations.showTerm = True
+        annotations.showWKT = True
+        annotations.fetch()
+
+        self.binned_group = open_group_ro(zarr_binned_path)
+        self.bin_idx = bin_idx
+        self.tiff_path = tiff_path
+        self.tiff_page_idx = tiff_page_idx
+        self.transform_template = TemplateTransform(
+            transform_template_rot90,
+            transform_template_flip_ud,
+            transform_template_flip_lr,
+        )
+
+        image_instance = ImageInstance().fetch(id=annotation_image_id)
+
+        self.term_names, self.onehot_annotations = build_onehot_annotation(
+            annotation_collection=annotations,
+            image_height=image_instance.height,
+            image_width=image_instance.width,
+        )
+
+    def _build_mask(self):
+
+        attr_name = "__cached_build_mask"
+
+        if hasattr(self, attr_name):
+            return getattr(self, attr_name)
+
+        mask, roi = get_destination_mask(
+            self.binned_group,
+            self.bin_idx,
+            self.tiff_path,
+            self.tiff_page_idx,
+            self.onehot_annotations,
+            self.transform_template,
+        )
+
+        setattr(self, attr_name, (mask, roi))
+        return (mask, roi)
+
+    def bin(
+        self, processed_group: zarr.Group, bin_lo: np.ndarray, bin_hi: np.ndarray
+    ) -> Dataset:
+
+        assert bin_lo.shape == bin_hi.shape, "inconsistent bounds"
+        assert all(lo < hi for lo, hi in zip(bin_lo, bin_hi)), "inconsistent bounds"
+
+        (
+            mask,  # array[y, x, n_class] one-hot encoding of the annotations
+            roi,  # (y_slice, x_slice) for the region of interest
+        ) = self._build_mask()
+
+        n_rows = mask.sum()
+        n_bins = bin_lo.size
+
+        z_ints = processed_group["/0"]
+
+        dataset_x = np.empty((n_rows, n_bins), dtype=z_ints.dtype)
+        dataset_y = np.empty((n_rows,), dtype=mask.dtype)
+
+        bin_and_flatten(
+            dataset_x=dataset_x,
+            dataset_y=dataset_y,
+            z=processed_group,
+            onehot_cls=mask,
+            y_slice=roi[0],
+            x_slice=roi[1],
+            bin_lo=bin_lo,
+            bin_hi=bin_hi,
+        )
+
+        bin_names = [f"{lo}-{hi}" for lo, hi in zip(bin_lo, bin_hi)]
+
+        return Tabular(dataset_x, dataset_y, bin_names, self.term_names)

@@ -169,6 +169,41 @@ class Dataset(abc.ABC):
         return corr, imbalance
 
 
+class Tabular(Dataset):
+    def __init__(
+        self,
+        dataset_x: np.ndarray,
+        dataset_y: np.ndarray,
+        attributes_names: List[str],
+        classes_names: List[str],
+    ) -> None:
+        super().__init__()
+
+        self.dataset_x = dataset_x
+        self.dataset_y = dataset_y
+        self.attribute_names_ = attributes_names
+        self.classes_names_ = classes_names
+    
+    def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
+        yield from zip(self.dataset_x, self.dataset_y)
+    
+    def is_table_like(self) -> bool:
+        return True
+    
+    def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
+        return self.dataset_x, self.dataset_y
+
+    def attribute_names(self) -> List[str]:
+        if not self.attribute_names_:
+            raise ValueError("no attribute name found")
+        return self.attribute_names_
+
+    def class_names(self) -> List[str]:
+        if not self.classes_names_:
+            raise ValueError("no class name found")
+        return self.classes_names_
+
+
 class ZarrAbstractDataset(Dataset):
     def __init__(
         self,
