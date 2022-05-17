@@ -17,9 +17,18 @@ def parser_callback(ctx, param, value: str):
         param (_type_): ignored
         value (str): value to parse
     """
+    if isinstance(value, (int, float)):
+        return value
+
     # None value
     if value == "None":
         return None
+
+    # boolean ?
+    if value.lower() in ["true", "ok", "yes"]:
+        return True
+    if value.lower() in ["false", "ko", "no"]:
+        return False
 
     # maybe int
     try:
