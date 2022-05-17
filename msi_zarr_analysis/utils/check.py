@@ -1,5 +1,5 @@
 import zarr
-
+from zarr.errors import PathNotFoundError
 
 def check_group(z: zarr.Group, strict: bool = False) -> None:
 
@@ -41,6 +41,9 @@ def check_group(z: zarr.Group, strict: bool = False) -> None:
 
 
 def open_group_ro(path: str, strict_check: bool = False) -> zarr.Group:
-    z = zarr.open(path, mode='r')
+    try:
+        z = zarr.open(path, mode='r')
+    except PathNotFoundError as e:
+        raise ValueError(f"unable to open {path=!r}") from e
     check_group(z, strict=strict_check)
     return z
