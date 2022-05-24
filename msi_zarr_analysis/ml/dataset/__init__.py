@@ -156,7 +156,9 @@ class Dataset(abc.ABC):
             n_items = np.sum(occurrences)
 
             # number of items in each class
-            print(f"{occurrences=}")
+            # print(f"{occurrences=}")
+            occurrence_per_class = dict(zip(occurrences, self.class_names()))
+            print(f"{occurrence_per_class=}")
             # max and min relative occurrence
             print(f"{np.max(occurrences / n_items) = :.4f}")
             print(f"{np.min(occurrences / n_items) = :.4f}")

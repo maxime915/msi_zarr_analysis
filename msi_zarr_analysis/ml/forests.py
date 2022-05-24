@@ -118,7 +118,19 @@ def interpret_model_mda(
 def interpret_ttest(
     dataset: Dataset,
     random_state=None,
+    /,
+    correction = None,
 ):
+    """statistical independence test to select important feature
+
+    Args:
+        dataset (Dataset): dataset from which features should be selected
+        random_state (, optional): sklearn random state. Defaults to None.
+        correction (str, optional): correction, either "bonferroni" or None. Defaults to None.
+
+    Returns:
+        np.ndarray, np.ndarray: p values and statistics for the test
+    """
     # load an check dataset
     dataset.check_dataset(cache=True, print_=True, print_once=True)
     dataset_x, dataset_y = dataset.as_table()
@@ -137,6 +149,11 @@ def interpret_ttest(
         equal_var=False,
         random_state=random_state,
     )
+    
+    if correction == "bonferroni":
+        p_values *= dataset_x.shape[1]
+    elif correction is not None:
+        raise ValueError(F"invalid {correction=!r}")
 
     return p_values, statistics
 
@@ -249,9 +266,10 @@ def present_p_values(
     limit: int,
     labels: List[str],
     sep: str = " & ",
+    p_value_limit: float = 1e-3,
 ):
     def _format_number(val: float) -> str:
-        if abs(val) < 1e-3:
+        if abs(val) < p_value_limit:
             return f"{val:.0E}"
         return f"{val:.3f}"
 

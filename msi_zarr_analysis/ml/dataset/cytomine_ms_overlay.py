@@ -241,6 +241,17 @@ class CytomineTranslatedProgressiveBinningFactory:
 
         setattr(self, attr_name, (mask, roi))
         return (mask, roi)
+    
+    @property
+    def dataset_rows(self) -> int:
+        (
+            mask,  # array[y, x, n_class] one-hot encoding of the annotations
+            _,  # (y_slice, x_slice) for the region of interest
+        ) = self._build_mask()
+        
+        n_rows = mask.sum()  
+        
+        return n_rows      
 
     def bin(
         self, processed_group: zarr.Group, bin_lo: np.ndarray, bin_hi: np.ndarray
@@ -260,7 +271,7 @@ class CytomineTranslatedProgressiveBinningFactory:
         z_ints = processed_group["/0"]
 
         dataset_x = np.empty((n_rows, n_bins), dtype=z_ints.dtype)
-        dataset_y = np.empty((n_rows,), dtype=mask.dtype)
+        dataset_y = np.empty((n_rows,), dtype=int)
 
         bin_and_flatten(
             dataset_x=dataset_x,

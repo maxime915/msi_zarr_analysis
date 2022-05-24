@@ -334,7 +334,7 @@ def show_datasize_learning_curve(
     ax.set_ylabel("Estimated Accuracy (%)")
     ax.set_xlabel("Relative size of the dataset (%)")
 
-    ax.fill_between(xs_, y1s, y2s, alpha=0.6, color="b")
+    ax.fill_between(xs_, y1s, y2s, alpha=0.4, color="b")
     ax.plot(xs_, ys_, color="b")
 
     if save_to:
