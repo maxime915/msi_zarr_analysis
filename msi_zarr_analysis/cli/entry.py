@@ -5,12 +5,15 @@ import pathlib
 from typing import Tuple
 
 import click
+from matplotlib import pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
     CytomineTranslated,
     CytomineTranslatedProgressiveBinningFactory,
 )
-from msi_zarr_analysis.ml.utils import show_datasize_learning_curve
+from msi_zarr_analysis.ml.utils import get_feature_importance_forest_mdi, show_datasize_learning_curve
 from msi_zarr_analysis.utils.check import open_group_ro
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -27,7 +30,7 @@ from ..ml.forests import (
 )
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
-from ..utils.cytomine_utils import get_lipid_names, get_page_bin_indices
+from ..utils.cytomine_utils import get_lipid_dataframe, get_lipid_names, get_page_bin_indices
 from .utils import (
     BinningParam,
     RegionParam,
@@ -317,7 +320,17 @@ def comulis_translated_example(
     with Cytomine(host_url, pub_key, priv_key):
 
         page_idx, bin_idx, *_ = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
-        lipid_names = get_lipid_names(bin_csv_path)
+        lipid_df = get_lipid_dataframe(bin_csv_path)
+
+        lipids_of_interest = lipid_df[
+            lipid_df.Name.isin(
+                [
+                    "DPPC",
+                    "PLPC",
+                    "LysoPPC",
+                ]
+            )
+        ]
 
         ds = CytomineTranslated(
             annotated_project_id,
@@ -330,16 +343,31 @@ def comulis_translated_example(
             transform_template_flip_ud=True,
             select_users=split_csl(select_users_id),
             select_terms=split_csl(select_terms_id),
-            attribute_name_list=lipid_names,
+            attribute_name_list=lipid_df.Name,
             save_image=True,
         )
 
+        ds.check_dataset(print_=True)
+
         print(f"model: {model_()!r}")
-        print(f"terms: {ds.class_names()}")
+        class_names = ds.class_names()
+        print(f"terms: {class_names}")
+
+        # pairplot
+        ds_x, ds_y = ds.as_table()
+        
+        pair_df = pd.DataFrame(columns=lipids_of_interest.Name)
+        pair_df["class"] = [class_names[idx] for idx in ds_y]
+
+        for tpl in lipids_of_interest.itertuples():
+            pair_df[tpl.Name] = ds_x[:, tpl.Index]
+
+        sns.pairplot(pair_df, hue="class")
+        plt.savefig("pair_plot_" + "_".join(class_names))
 
         mdi_m, mdi_s = interpret_forest_mdi(ds, model_(), cv_fold)
         mda_m, mda_s = interpret_model_mda(ds, model_(), cv_fold)
-        p_value, _ = interpret_ttest(ds)
+        p_value, _ = interpret_ttest(ds, correction="bonferroni")
 
         present_p_values(
             ("p-value", p_value, "min"),
@@ -360,6 +388,188 @@ def comulis_translated_example(
             model_(),
             cv_fold,
             save_to="learning_curve_" + "_".join(ds.class_names()) + ".png",
+        )
+
+
+@main_group.command()
+@click.option(
+    "--config-path",
+    type=click.Path(exists=True, dir_okay=False),
+    help="path to a JSON file containing 'HOST_URL', 'PUB_KEY', 'PRIV_KEY' members",
+    required=True,
+)
+@click.option(
+    "--bin-csv-path",
+    type=click.Path(exists=True),
+    help=(
+        "CSV file containing the m/Z values in the first column and the "
+        "intervals' width in the second one. Overrides 'mz-low', 'mz-high' "
+        "and 'b-bins'"
+    ),
+    required=True,
+)
+@click.option(
+    "--lipid",
+    type=str,
+    default="LysoPPC",
+)
+@click.option(
+    "--select-terms-id",
+    type=str,
+    default="",
+    help="Cytomine identifier for the term to fetch. Expects a comma separated list of ID.",
+)
+@click.option(
+    "--select-users-id",
+    type=str,
+    default="",
+    help="Cytomine identifier for the users that did the annotations. Expects a comma separated list of ID.",
+)
+@click.option(
+    "--et-max-depth",
+    default=None,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
+)
+@click.option(
+    "--et-n-estimators",
+    default=1000,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
+)
+@click.option(
+    "--et-max-features",
+    default=None,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
+)
+@click.option(
+    "--cv-fold",
+    default=None,
+    help="see sci-kit learn documentation",
+    callback=parser_callback,
+)
+@click.option(
+    "--mz-low",
+    default=100.0,
+    callback=parser_callback,
+)
+@click.option(
+    "--mz-high",
+    default=1150.0,
+    callback=parser_callback,
+)
+@click.option(
+    "--n-bins",
+    default=20,
+    callback=parser_callback,
+)
+@click.argument(
+    "binned_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.argument(
+    "processed_zarr_path", type=click.Path(exists=True, file_okay=False, dir_okay=True)
+)
+@click.argument(
+    "overlay_tiff_path", type=click.Path(exists=True, file_okay=True, dir_okay=False)
+)
+@click.argument("overlay_id", type=int, default=545025763)
+@click.argument("annotated_image_id", type=int, default=545025783)
+@click.argument("annotated_project_id", type=int, default=542576374)
+def comulis_translated_example_custombins(
+    config_path: str,
+    bin_csv_path: str,
+    lipid: str,
+    select_terms_id: str,
+    select_users_id: str,
+    et_max_depth,
+    et_n_estimators,
+    et_max_features,
+    cv_fold,
+    mz_low: float,
+    mz_high: float,
+    n_bins: int,
+    binned_zarr_path: str,
+    processed_zarr_path: str,
+    overlay_tiff_path: str,
+    overlay_id: int,
+    annotated_image_id: int,
+    annotated_project_id: int,
+):
+    from cytomine import Cytomine
+
+    if not isinstance(n_bins, int):
+        raise ValueError(f"{n_bins=!r} should be an int")
+    if n_bins % 2 == 1:
+        print(f"{n_bins=} should be even, an additional bin will be added")
+        n_bins += 1
+
+    with open(config_path) as config_file:
+        config_data = json.loads(config_file.read())
+        host_url = config_data["HOST_URL"]
+        pub_key = config_data["PUB_KEY"]
+        priv_key = config_data["PRIV_KEY"]
+
+    model_ = lambda: ExtraTreesClassifier(
+        n_estimators=et_n_estimators,
+        max_depth=et_max_depth,
+        max_features=et_max_features,
+        n_jobs=4,
+    )
+    print(f"model: {model_()!r}")
+
+    with Cytomine(host_url, pub_key, priv_key):
+
+        page_idx, bin_idx, *_ = get_page_bin_indices(overlay_id, lipid, bin_csv_path)
+
+        factory = CytomineTranslatedProgressiveBinningFactory(
+            annotation_project_id=annotated_project_id,
+            annotation_image_id=annotated_image_id,
+            zarr_binned_path=binned_zarr_path,
+            bin_idx=bin_idx,
+            tiff_path=overlay_tiff_path,
+            tiff_page_idx=page_idx,
+            transform_template_rot90=1,
+            transform_template_flip_ud=True,
+            select_users=split_csl(select_users_id),
+            select_terms=split_csl(select_terms_id),
+        )
+
+        print(f"terms: {factory.term_names}")
+
+        ms_group = open_group_ro(processed_zarr_path)
+
+        # setup bins
+        bin_lo, bin_hi = uniform_bins(mz_low, mz_high, n_bins)
+
+        ds = factory.bin(ms_group, bin_lo, bin_hi)
+
+        ds.check_dataset(print_=True)
+
+        mdi_m, mdi_s = interpret_forest_mdi(ds, model_(), cv_fold)
+        mda_m, mda_s = interpret_model_mda(ds, model_(), cv_fold)
+        p_value, _ = interpret_ttest(ds, correction="bonferroni")
+
+        present_p_values(
+            ("p-value", p_value, "min"),
+            limit=None,
+            labels=ds.attribute_names(),
+            p_value_limit=5e-2,
+        )
+
+        present_disjoint(
+            ("MDI", mdi_m, mdi_s, "max"),
+            ("MDA", mda_m, mda_s, "max"),
+            limit=None,
+            limit_bold=int(np.ceil(np.sqrt(n_bins))),
+            labels=ds.attribute_names(),
+        )
+
+        show_datasize_learning_curve(
+            ds,
+            model_(),
+            cv_fold,
+            save_to="finer_learning_curve_" + "_".join(ds.class_names()) + ".png",
         )
 
 
