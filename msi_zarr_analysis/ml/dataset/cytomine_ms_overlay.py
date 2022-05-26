@@ -125,6 +125,8 @@ class CytomineTranslated(Dataset):
                 f"saved_overlay_{image_instance.name or image_instance.filename}"
                 + f"_{self.term_names[0]}_{self.term_names[1]}.png"
             )
+            if isinstance(save_image, str):  # act as a prefix
+                self.save_to = save_image + "_" + self.save_to
 
     def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         yield from generate_spectra(

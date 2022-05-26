@@ -441,6 +441,10 @@ def get_template_matching_data(
         colorize_data(ms_template),
     )
 
+    print(f"{crop_idx=!r}")
+    print(f"{ms_template.shape=!r}")
+    print(f"{matching_result=!r}")
+
     return dict(
         onehot_annotation=onehot_annotations,
         yx_dest_shape=ms_group["/0"].shape[2:],

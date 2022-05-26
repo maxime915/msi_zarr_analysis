@@ -13,7 +13,10 @@ from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
     CytomineTranslated,
     CytomineTranslatedProgressiveBinningFactory,
 )
-from msi_zarr_analysis.ml.utils import get_feature_importance_forest_mdi, show_datasize_learning_curve
+from msi_zarr_analysis.ml.utils import (
+    get_feature_importance_forest_mdi,
+    show_datasize_learning_curve,
+)
 from msi_zarr_analysis.utils.check import open_group_ro
 from sklearn.ensemble import ExtraTreesClassifier
 from sklearn.tree import DecisionTreeClassifier
@@ -30,7 +33,11 @@ from ..ml.forests import (
 )
 from ..preprocessing.binning import bin_processed_lo_hi
 from ..preprocessing.normalize import normalize_array, valid_norms
-from ..utils.cytomine_utils import get_lipid_dataframe, get_lipid_names, get_page_bin_indices
+from ..utils.cytomine_utils import (
+    get_lipid_dataframe,
+    get_lipid_names,
+    get_page_bin_indices,
+)
 from .utils import (
     BinningParam,
     RegionParam,
@@ -302,6 +309,8 @@ def comulis_translated_example(
     annotated_image_id: int,
     annotated_project_id: int,
 ):
+
+    print(f"{image_zarr_path=}")
     from cytomine import Cytomine
 
     with open(config_path) as config_file:
@@ -309,6 +318,8 @@ def comulis_translated_example(
         host_url = config_data["HOST_URL"]
         pub_key = config_data["PUB_KEY"]
         priv_key = config_data["PRIV_KEY"]
+
+    fname = pathlib.Path(image_zarr_path).stem
 
     model_ = lambda: ExtraTreesClassifier(
         n_estimators=et_n_estimators,
@@ -344,7 +355,7 @@ def comulis_translated_example(
             select_users=split_csl(select_users_id),
             select_terms=split_csl(select_terms_id),
             attribute_name_list=lipid_df.Name,
-            save_image=True,
+            save_image=fname,  # use fname as a prefix
         )
 
         ds.check_dataset(print_=True)
@@ -355,7 +366,7 @@ def comulis_translated_example(
 
         # pairplot
         ds_x, ds_y = ds.as_table()
-        
+
         pair_df = pd.DataFrame(columns=lipids_of_interest.Name)
         pair_df["class"] = [class_names[idx] for idx in ds_y]
 
@@ -363,7 +374,7 @@ def comulis_translated_example(
             pair_df[tpl.Name] = ds_x[:, tpl.Index]
 
         sns.pairplot(pair_df, hue="class")
-        plt.savefig("pair_plot_" + "_".join(class_names))
+        plt.savefig("pair_plot_" + fname + "_" + "_".join(class_names))
 
         mdi_m, mdi_s = interpret_forest_mdi(ds, model_(), cv_fold)
         mda_m, mda_s = interpret_model_mda(ds, model_(), cv_fold)
@@ -387,7 +398,11 @@ def comulis_translated_example(
             ds,
             model_(),
             cv_fold,
-            save_to="learning_curve_" + "_".join(ds.class_names()) + ".png",
+            save_to="learning_curve_"
+            + fname
+            + "_"
+            + "_".join(ds.class_names())
+            + ".png",
         )
 
 
@@ -1040,38 +1055,38 @@ def comulis_translated_evaluate_progressive_binning(
         # shuffle it
         np.random.shuffle(assignment)
         # trim last fold to fit the dataset
-        assignment = assignment[:factory.dataset_rows]
+        assignment = assignment[: factory.dataset_rows]
 
         def _score_evolution(test_mask) -> np.ndarray:
             lows_ = bin_lo.copy()
             highs_ = bin_hi.copy()
-            
+
             scores_ = []
-            
+
             train_mask = ~test_mask
-            
-            while  min(highs_ - lows_) > min_bin_width:
-                
+
+            while min(highs_ - lows_) > min_bin_width:
+
                 lows_next_ = np.empty_like(lows_)
                 highs_next_ = np.empty_like(highs_)
 
                 ds = factory.bin(ms_group, lows_, highs_)
-                
+
                 ds_x, ds_y = ds.as_table()
-                
+
                 forest_ = model_()
                 forest_.fit(ds_x[train_mask], ds_y[train_mask])
                 scores_.append(forest_.score(ds_x[test_mask], ds_y[test_mask]))
-                
+
                 mdi, _ = get_feature_importance_forest_mdi(forest_)
 
                 indices = np.argsort(mdi)
                 indices = indices[n_bins // 2 :]
-                
+
                 # select the n/2 most important features
                 lows_ = lows_[indices]
                 highs_ = highs_[indices]
-                
+
                 # build refined bins
                 midpoints = (lows_ + highs_) / 2
 
@@ -1083,9 +1098,9 @@ def comulis_translated_evaluate_progressive_binning(
 
                 # next iteration
                 lows_, highs_ = lows_next_, highs_next_
-            
+
             return np.array(scores_)
-        
+
         scores = np.stack([_score_evolution(assignment == k) for k in range(cv_fold)])
 
         np.savez(
