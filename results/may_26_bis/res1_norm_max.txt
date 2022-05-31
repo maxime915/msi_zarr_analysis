@@ -1,0 +1,166 @@
+image_zarr_path='comulis13_norm_max_binned.zarr'
+[2022-05-26 18:56:31,115][INFO] [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+[2022-05-26 18:56:31,535][INFO] [GET] [sliceinstance collection] 12 objects | 200 OK
+[2022-05-26 18:56:31,784][INFO] [GET] [annotation collection] 137 objects | 200 OK
+[2022-05-26 18:56:31,905][INFO] [GET] [imageinstance] 545025783 : Adjusted Cytomine MSI 3103/Region013-Grayscale-stacked.ome.tif | 200 OK
+[2022-05-26 18:56:32,033][INFO] [GET] [term collection] 35 objects | 200 OK
+crop_idx=(slice(616, 643, None), slice(414, 653, None))
+ms_template.shape=(239, 27)
+matching_result=MatchingResult(x_top_left=242, y_top_left=125, scale=7.003539399255515)
+checking for class imbalance:
+occurrence_per_class={81: 'LivingStrata positive AREA', 117: 'LivingStrata negative AREA'}
+np.max(occurrences / n_items) = 0.5909
+np.min(occurrences / n_items) = 0.4091
+. . . . . . . . 1 / n_classes = 0.5000
+model: ExtraTreesClassifier(max_features=None, n_estimators=1000, n_jobs=4)
+terms: ['LivingStrata positive AREA', 'LivingStrata negative AREA']
+imbalance = 0.591
+1.5 * imbalance = 0.886
+np.min(cv_scores) = 0.400
+np.mean(cv_scores) = 0.632
+np.median(cv_scores) = 0.625
+np.max(cv_scores) = 0.900
+imbalance = 0.591
+1.5 * imbalance = 0.886
+score = 0.500
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & p-value \\
+		\hline
+		\textbf{DPPC} & 2E-05 \\
+		\textbf{PDHPC} & 0.008 \\
+		\textbf{LysoPPC} & 0.011 \\
+		\textbf{PLPC} & 0.017 \\
+		PAPC & 0.182 \\
+		isoPGJ2 & 0.413 \\
+		PECPC & 0.423 \\
+		isoPGF-PPC & 1.147 \\
+		SLPC & 1.597 \\
+		X-X-x-farnesene & 4.433 \\
+		Neuroprotectin D1 & 5.237 \\
+		PAF -O-18:0 & 6.241 \\
+		LysoSPC/  PAF -O-16:0 & 6.575 \\
+		Resolvin D1 & 6.673 \\
+		PEIPC & 7.130 \\
+		SAPC & 7.439 \\
+		AA & 7.465 \\
+		PGD2 / PGE2 & 8.278 \\
+		PGPC & 8.367 \\
+		PAPC-OOH & 9.497 \\
+		TXB2 & 9.790 \\
+		PC 22:6 C1 Carbonyl & 11.561 \\
+		PC 16:0 C9 Carbonyl monohydroxy & 11.688 \\
+		PONPC & 17.219 \\
+		POVPC & 17.720 \\
+		hexadecanol & 21.781 \\
+		PC 20:3, Lyso & 26.595 \\
+		PGJ2 & 27.091 \\
+		12/15sHETE & 29.827 \\
+		PAzPC & 30.813 \\
+		PC 18:1 C1 Carbonyl & 31.558 \\
+		PAPC-OH & 32.873 \\
+		LTB4 & 34.533 \\
+		hexcadecyl acetate & 35.711 \\
+		PGF2a & nan \\
+		15d PGJ2 & nan \\
+		Sphingosine-1-phosphate & nan \\
+	\end{tabular}
+	\caption{p-value}
+	\label{tab:p-value}
+\end{table}
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & MDI \\
+		\hline
+		\textbf{DPPC} & 0.151 $\pm$ 0.046 \\
+		\textbf{PDHPC} & 0.085 $\pm$ 0.039 \\
+		LysoPPC & 0.060 $\pm$ 0.033 \\
+		SAPC & 0.059 $\pm$ 0.031 \\
+		PLPC & 0.059 $\pm$ 0.036 \\
+		PAPC & 0.058 $\pm$ 0.031 \\
+		\textbf{PAzPC} & 0.053 $\pm$ 0.028 \\
+		SLPC & 0.048 $\pm$ 0.027 \\
+		\textbf{PC 16:0 C9 Carbonyl monohydroxy} & 0.044 $\pm$ 0.023 \\
+		LysoSPC/  PAF -O-16:0 & 0.043 $\pm$ 0.027 \\
+		PC 20:3, Lyso & 0.040 $\pm$ 0.018 \\
+		PECPC & 0.034 $\pm$ 0.015 \\
+		X-X-x-farnesene & 0.030 $\pm$ 0.021 \\
+		PAPC-OH & 0.026 $\pm$ 0.019 \\
+		PC 18:1 C1 Carbonyl & 0.026 $\pm$ 0.019 \\
+		isoPGF-PPC & 0.025 $\pm$ 0.016 \\
+		PONPC & 0.023 $\pm$ 0.019 \\
+		PC 22:6 C1 Carbonyl & 0.017 $\pm$ 0.014 \\
+		POVPC & 0.017 $\pm$ 0.014 \\
+		PGPC & 0.015 $\pm$ 0.013 \\
+		PAPC-OOH & 0.014 $\pm$ 0.010 \\
+		hexcadecyl acetate & 0.012 $\pm$ 0.010 \\
+		PAF -O-18:0 & 0.008 $\pm$ 0.010 \\
+		hexadecanol & 0.007 $\pm$ 0.010 \\
+		LTB4 & 0.007 $\pm$ 0.009 \\
+		12/15sHETE & 0.007 $\pm$ 0.009 \\
+		AA & 0.006 $\pm$ 0.009 \\
+		PGJ2 & 0.006 $\pm$ 0.008 \\
+		isoPGJ2 & 0.005 $\pm$ 0.009 \\
+		PEIPC & 0.004 $\pm$ 0.007 \\
+		Resolvin D1 & 0.004 $\pm$ 0.006 \\
+		PGD2 / PGE2 & 0.003 $\pm$ 0.006 \\
+		Neuroprotectin D1 & 0.003 $\pm$ 0.006 \\
+		TXB2 & 2E-05 $\pm$ 5E-04 \\
+		Sphingosine-1-phosphate & 0E+00 $\pm$ 0E+00 \\
+		PGF2a & 0E+00 $\pm$ 0E+00 \\
+		15d PGJ2 & 0E+00 $\pm$ 0E+00 \\
+	\end{tabular}
+	\caption{MDI}
+	\label{tab:MDI}
+\end{table}
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & MDA \\
+		\hline
+		\textbf{DPPC} & 0.100 $\pm$ 0.126 \\
+		\textbf{PDHPC} & 0.100 $\pm$ 0E+00 \\
+		\textbf{PC 16:0 C9 Carbonyl monohydroxy} & 0.080 $\pm$ 0.040 \\
+		PONPC & 0.040 $\pm$ 0.049 \\
+		\textbf{PAzPC} & 0.040 $\pm$ 0.049 \\
+		PAPC-OOH & 0.020 $\pm$ 0.040 \\
+		PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		15d PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		12/15sHETE & 0E+00 $\pm$ 0E+00 \\
+		Sphingosine-1-phosphate & 0E+00 $\pm$ 0E+00 \\
+		LysoPPC & 0E+00 $\pm$ 0.089 \\
+		AA & 0E+00 $\pm$ 0E+00 \\
+		Resolvin D1 & 0E+00 $\pm$ 0E+00 \\
+		TXB2 & 0E+00 $\pm$ 0E+00 \\
+		Neuroprotectin D1 & 0E+00 $\pm$ 0E+00 \\
+		PGF2a & 0E+00 $\pm$ 0E+00 \\
+		PEIPC & 0E+00 $\pm$ 0E+00 \\
+		PAF -O-18:0 & 0E+00 $\pm$ 0E+00 \\
+		PC 22:6 C1 Carbonyl & 0E+00 $\pm$ 0E+00 \\
+		PGPC & 0E+00 $\pm$ 0E+00 \\
+		LTB4 & 0E+00 $\pm$ 0E+00 \\
+		PLPC & 0E+00 $\pm$ 0E+00 \\
+		PAPC & 0E+00 $\pm$ 0E+00 \\
+		SLPC & 0E+00 $\pm$ 0E+00 \\
+		hexcadecyl acetate & 0E+00 $\pm$ 0E+00 \\
+		PECPC & 0E+00 $\pm$ 0E+00 \\
+		hexadecanol & 0E+00 $\pm$ 0E+00 \\
+		isoPGJ2 & 0E+00 $\pm$ 0E+00 \\
+		PGD2 / PGE2 & 0E+00 $\pm$ 0E+00 \\
+		isoPGF-PPC & -0.020 $\pm$ 0.040 \\
+		PC 18:1 C1 Carbonyl & -0.020 $\pm$ 0.040 \\
+		LysoSPC/  PAF -O-16:0 & -0.080 $\pm$ 0.040 \\
+		PC 20:3, Lyso & -0.080 $\pm$ 0.040 \\
+		SAPC & -0.080 $\pm$ 0.040 \\
+		X-X-x-farnesene & -0.120 $\pm$ 0.075 \\
+		POVPC & -0.160 $\pm$ 0.049 \\
+		PAPC-OH & -0.220 $\pm$ 0.040 \\
+	\end{tabular}
+	\caption{MDA}
+	\label{tab:MDA}
+\end{table}
