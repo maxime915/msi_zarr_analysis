@@ -84,6 +84,8 @@ class CytomineTranslated(Dataset):
         cache_data: bool = True,
         attribute_name_list: List[str] = (),
         save_image: bool = False,
+        *,
+        term_list: List[str] = None,
     ) -> None:
         super().__init__()
 
@@ -112,6 +114,7 @@ class CytomineTranslated(Dataset):
             annotation_collection=annotations,
             image_height=image_instance.height,
             image_width=image_instance.width,
+            term_list=term_list,
         )
 
         self.cache_data = bool(cache_data)

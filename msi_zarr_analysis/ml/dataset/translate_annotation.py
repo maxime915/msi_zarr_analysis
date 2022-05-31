@@ -124,6 +124,8 @@ def build_onehot_annotation(
     annotation_collection: AnnotationCollection,
     image_height: int,
     image_width: int,
+    *,
+    term_list: List[str] = None,
 ) -> Tuple[List[str], npt.NDArray]:
     # [classes], np[dims..., classes]
 
@@ -156,6 +158,13 @@ def build_onehot_annotation(
 
     if not mask_dict:
         raise ValueError("no annotation found")
+    
+    if term_list:
+        if set(term_list) != set(mask_dict.keys()):
+            raise ValueError(f"{term_list=!r} inconsistent with {list(mask_dict.keys())=}")
+        
+        stacks = [mask_dict[term] for term in term_list]
+        return term_list, np.stack(stacks, axis=-1)
 
     term_list, mask_list = zip(*mask_dict.items())
 
