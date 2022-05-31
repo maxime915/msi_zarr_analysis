@@ -256,9 +256,13 @@ def bin_processed_lo_hi(
     z_dest_ints = destination["/0"]
 
     # TODO add description of transformation
-    for key, value in z.attrs:
+    for key, value in z.attrs.items():
         destination.attrs[key] = value
-    destination.attrs["pims-msi"] = {"binary-mode": "continuous"}
+    if "pims-msi" not in destination.attrs:
+        destination.attrs["pims-msi"] = {}
+    bkp = destination.attrs["pims-msi"]
+    bkp["binary_mode"] = "continuous"
+    destination.attrs["pims-msi"] = bkp
 
     return _bin_processed(
         z_ints,

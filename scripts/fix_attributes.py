@@ -20,7 +20,9 @@ def fix_attributes(path: str):
         z.attrs[PIMS_MSI] = {BINARY_MODE: mode}
     elif BINARY_MODE not in z.attrs[PIMS_MSI]:
         print(f"{BINARY_MODE=} not found in the {PIMS_MSI=} attrs")
-        z.attrs[PIMS_MSI][BINARY_MODE] = mode
+        cpy = z.attrs[PIMS_MSI]
+        cpy[BINARY_MODE] = mode
+        z.attrs[PIMS_MSI] = cpy
     elif mode != z.attrs[PIMS_MSI][BINARY_MODE]:
         print(f"{mode=} != {z.attrs[PIMS_MSI][BINARY_MODE]=}")
     else:

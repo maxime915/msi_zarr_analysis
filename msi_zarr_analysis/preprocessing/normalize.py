@@ -96,9 +96,13 @@ def _normalize(
     z_dest_int = destination["/0"]
 
     # TODO add description of transformation
-    for key, value in z.attrs:
+    for key, value in z.attrs.items():
         destination.attrs[key] = value
-    destination.attrs["pims-msi"] = {"binary-mode": "continuous"}
+    if "pims-msi" not in destination.attrs:
+        destination.attrs["pims-msi"] = {}
+    bkp = destination.attrs["pims-msi"]
+    bkp["binary_mode"] = "continuous"
+    destination.attrs["pims-msi"] = bkp
 
     # load chunks
     for cz, cy, cx in iter_loaded_chunks(z_ints, slice(None), y_slice, x_slice, skip=1):
