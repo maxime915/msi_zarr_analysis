@@ -185,13 +185,13 @@ class Tabular(Dataset):
         self.dataset_y = dataset_y
         self.attribute_names_ = attributes_names
         self.classes_names_ = classes_names
-    
+
     def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         yield from zip(self.dataset_x, self.dataset_y)
-    
+
     def is_table_like(self) -> bool:
         return True
-    
+
     def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
         return self.dataset_x, self.dataset_y
 
@@ -204,6 +204,67 @@ class Tabular(Dataset):
         if not self.classes_names_:
             raise ValueError("no class name found")
         return self.classes_names_
+
+
+class MergedDS(Dataset):
+    """MergedDS: merge multiple datasets into one
+
+    NOTE There could be an optimization to flatten the tree, in case one of the inner
+    datasets is also a MergedDS. self.as_table() would probably benefit from this.
+    """
+
+    def __init__(
+        self,
+        *datasets: Dataset,
+    ) -> None:
+
+        super().__init__()
+
+        if not datasets:
+            raise ValueError("cannot merge en empty list of datasets")
+
+        first, *rest = datasets
+        attr_names = first.attribute_names()
+        cls_names = first.class_names()
+
+        # check for consistency
+        for idx, item in enumerate(rest, start=1):
+            if item.attribute_names() != attr_names:
+                raise ValueError(
+                    (
+                        f"inconsistent attribute names at position {idx}: "
+                        f"{item.attribute_names()} (expected {attr_names}"
+                    )
+                )
+
+            if item.class_names() != cls_names:
+                raise ValueError(
+                    (
+                        f"inconsistent class names at position {idx}: "
+                        f"{item.class_names()} (expected {cls_names}"
+                    )
+                )
+
+        self.attribute_names_ = attr_names
+        self.class_names_ = cls_names
+        self.datasets = datasets
+
+    def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
+        for ds in self.datasets:
+            yield from ds.iter_rows()
+
+    def is_table_like(self) -> bool:
+        return all(ds.is_table_like() for ds in self.datasets)
+
+    def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
+        ds_x, ds_y = zip(*(ds.as_table() for ds in self.datasets))
+        return np.concatenate(ds_x), np.concatenate(ds_y)
+
+    def attribute_names(self) -> List[str]:
+        return self.attribute_names_
+
+    def class_names(self) -> List[str]:
+        return self.class_names_
 
 
 class ZarrAbstractDataset(Dataset):
