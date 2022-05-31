@@ -43,7 +43,13 @@ def generate_spectra(
         transform,
     )
 
-    save_bin_class_image(ms_group, z_mask, save_to=save_to)
+    tic = ms_group["/0"][:, 0, ...].sum(axis=0)
+
+    save_bin_class_image(
+        transform.inverse_transform_mask(tic),
+        transform.inverse_transform_mask(z_mask),
+        save_to=save_to
+    )
 
     # yield all rows
     for cy, cx in iter_loaded_chunks(intensities, *roi, skip=2):

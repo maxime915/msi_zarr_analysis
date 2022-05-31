@@ -465,7 +465,7 @@ def get_template_matching_data(
 
 
 def save_bin_class_image(
-    ms_group: zarr.Group,
+    tic: npt.NDArray,
     ms_mask: npt.NDArray,
     save_to: str = "",
 ) -> None:
@@ -476,9 +476,6 @@ def save_bin_class_image(
 
     if not save_to:
         return
-
-    # compute tic
-    tic = ms_group["/0"][:, 0, ...].sum(axis=0)
 
     # take the nonzeros of both tic and mask (axis class)
     nzy, nzx = np.nonzero(tic + ms_mask.max(axis=2))
