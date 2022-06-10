@@ -1,0 +1,23 @@
+__file__='scripts/runs/may30/run.py'
+VERSION='0.0.1'
+start=datetime.datetime(2022, 6, 1, 10, 14, 16, 829780)
+[2022-06-01 10:14:17,139][INFO] [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+[2022-06-01 10:14:17,459][INFO] [GET] [sliceinstance collection] 12 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-01 10:14:17,710][INFO] [GET] [annotation collection] 204 objects | 200 OK
+[2022-06-01 10:14:17,813][INFO] [GET] [imageinstance] 545025783 : Adjusted Cytomine MSI 3103/Region013-Grayscale-stacked.ome.tif | 200 OK
+[2022-06-01 10:14:17,948][INFO] [GET] [term collection] 35 objects | 200 OK
+[2022-06-01 10:14:18,631][INFO] [GET] [sliceinstance collection] 14 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-01 10:14:18,929][INFO] [GET] [annotation collection] 336 objects | 200 OK
+[2022-06-01 10:14:19,033][INFO] [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+[2022-06-01 10:14:19,141][INFO] [GET] [term collection] 35 objects | 200 OK
+crop_idx=(slice(619, 642, None), slice(449, 653, None))
+ms_template.shape=(204, 23)
+matching_result=MatchingResult(x_top_left=249, y_top_left=124, scale=7.0036522392120775)
+crop_idx=(slice(594, 622, None), slice(447, 678, None))
+ms_template.shape=(231, 28)
+matching_result=MatchingResult(x_top_left=229, y_top_left=594, scale=3.273939758595317)
+process.exitcode=1
+end=datetime.datetime(2022, 6, 1, 10, 14, 31, 605673)
+end-start=datetime.timedelta(seconds=14, microseconds=775893)

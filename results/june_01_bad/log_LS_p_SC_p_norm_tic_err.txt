@@ -1,0 +1,31 @@
+Process Process-16:
+Traceback (most recent call last):
+  File "/home/maximw/miniconda3/envs/msi_zarr_analysis/lib/python3.8/multiprocessing/process.py", line 315, in _bootstrap
+    self.run()
+  File "/home/maximw/miniconda3/envs/msi_zarr_analysis/lib/python3.8/multiprocessing/process.py", line 108, in run
+    self._target(*self._args, **self._kwargs)
+  File "scripts/runs/may30/run.py", line 156, in run
+    comulis_translated_example(
+  File "scripts/runs/may30/run.py", line 173, in comulis_translated_example
+    ds.check_dataset(print_=True)
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/__init__.py", line 138, in check_dataset
+    corr, occurrences = self.__raw_check_dataset()
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/__init__.py", line 93, in __raw_check_dataset
+    ds_x, ds_y = self.as_table()
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/__init__.py", line 295, in as_table
+    ds_x, ds_y = zip(*(ds.as_table() for ds in self.datasets))
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/__init__.py", line 295, in <genexpr>
+    ds_x, ds_y = zip(*(ds.as_table() for ds in self.datasets))
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/cytomine_ms_overlay.py", line 175, in as_table
+    self._cached_table = self.__load_ds()
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/cytomine_ms_overlay.py", line 169, in __load_ds
+    attributes, classes = zip(*self.__raw_iter())
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/cytomine_ms_overlay.py", line 141, in __raw_iter
+    yield from generate_spectra(
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/cytomine_ms_overlay.py", line 37, in generate_spectra
+    z_mask, roi = get_destination_mask(
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/translate_annotation.py", line 549, in get_destination_mask
+    return get_destination_mask_from_result(
+  File "/home/maximw/Github/msi_zarr_analysis/msi_zarr_analysis/ml/dataset/translate_annotation.py", line 438, in get_destination_mask_from_result
+    z_mask[y_ms, x_ms, :] = onehot_annotation[y_overlay, x_overlay, :]
+IndexError: index 770 is out of bounds for axis 1 with size 763

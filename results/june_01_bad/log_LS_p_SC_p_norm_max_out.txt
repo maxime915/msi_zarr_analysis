@@ -1,0 +1,180 @@
+__file__='scripts/runs/may30/run.py'
+VERSION='0.0.1'
+start=datetime.datetime(2022, 6, 1, 10, 17, 59, 524590)
+[2022-06-01 10:17:59,840][INFO] [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+[2022-06-01 10:18:00,180][INFO] [GET] [sliceinstance collection] 12 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-01 10:18:00,460][INFO] [GET] [annotation collection] 204 objects | 200 OK
+[2022-06-01 10:18:00,576][INFO] [GET] [imageinstance] 545025783 : Adjusted Cytomine MSI 3103/Region013-Grayscale-stacked.ome.tif | 200 OK
+[2022-06-01 10:18:00,719][INFO] [GET] [term collection] 35 objects | 200 OK
+[2022-06-01 10:18:01,418][INFO] [GET] [sliceinstance collection] 14 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-01 10:18:01,701][INFO] [GET] [annotation collection] 336 objects | 200 OK
+[2022-06-01 10:18:01,797][INFO] [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+[2022-06-01 10:18:01,907][INFO] [GET] [term collection] 35 objects | 200 OK
+crop_idx=(slice(616, 643, None), slice(414, 653, None))
+ms_template.shape=(239, 27)
+matching_result=MatchingResult(x_top_left=242, y_top_left=125, scale=7.003539399255515)
+crop_idx=(slice(594, 622, None), slice(447, 678, None))
+ms_template.shape=(231, 28)
+matching_result=MatchingResult(x_top_left=209, y_top_left=306, scale=6.12710918443706)
+checking for class imbalance:
+occurrence_per_class={266: 'LivingStrata positive AREA', 221: 'SC positive AREA'}
+np.max(occurrences / n_items) = 0.5462
+np.min(occurrences / n_items) = 0.4538
+. . . . . . . . 1 / n_classes = 0.5000
+model: ExtraTreesClassifier(max_features=None, n_estimators=1000, n_jobs=4)
+terms: ['LivingStrata positive AREA', 'SC positive AREA']
+imbalance = 0.546
+1.5 * imbalance = 0.819
+np.min(cv_scores) = 0.500
+np.mean(cv_scores) = 0.679
+np.median(cv_scores) = 0.684
+np.max(cv_scores) = 0.837
+imbalance = 0.546
+1.5 * imbalance = 0.819
+score = 0.900
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & p-value \\
+		\hline
+		\textbf{DPPC} & 1E-16 \\
+		\textbf{PDHPC} & 6E-11 \\
+		\textbf{PAPC} & 1E-10 \\
+		\textbf{PLPC} & 1E-10 \\
+		\textbf{SAPC} & 3E-04 \\
+		\textbf{PAzPC} & 0.002 \\
+		\textbf{LysoPPC} & 0.004 \\
+		\textbf{PC 16:0 C9 Carbonyl monohydroxy} & 0.004 \\
+		\textbf{SLPC} & 0.004 \\
+		PAPC-OH & 0.116 \\
+		PECPC & 0.317 \\
+		PC 18:1 C1 Carbonyl & 0.451 \\
+		PGJ2 & 1.381 \\
+		isoPGF-PPC & 1.687 \\
+		LysoSPC/  PAF -O-16:0 & 1.858 \\
+		PC 22:6 C1 Carbonyl & 4.988 \\
+		AA & 5.114 \\
+		PC 20:3, Lyso & 5.276 \\
+		hexadecanol & 7.022 \\
+		PGD2 / PGE2 & 7.515 \\
+		POVPC & 9.519 \\
+		X-X-x-farnesene & 11.702 \\
+		PAPC-OOH & 12.544 \\
+		12/15sHETE & 14.157 \\
+		PEIPC & 19.647 \\
+		LTB4 & 21.240 \\
+		PONPC & 22.929 \\
+		Neuroprotectin D1 & 22.934 \\
+		isoPGJ2 & 23.124 \\
+		PAF -O-18:0 & 23.799 \\
+		PGPC & 25.156 \\
+		hexcadecyl acetate & 27.335 \\
+		TXB2 & 27.950 \\
+		Resolvin D1 & 30.790 \\
+		Sphingosine-1-phosphate & nan \\
+		PGF2a & nan \\
+		15d PGJ2 & nan \\
+	\end{tabular}
+	\caption{p-value}
+	\label{tab:p-value}
+\end{table}
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & MDI \\
+		\hline
+		\textbf{DPPC} & 0.153 $\pm$ 0.046 \\
+		\textbf{SLPC} & 0.101 $\pm$ 0.028 \\
+		\textbf{PLPC} & 0.086 $\pm$ 0.033 \\
+		\textbf{PAPC} & 0.075 $\pm$ 0.030 \\
+		\textbf{LysoPPC} & 0.073 $\pm$ 0.023 \\
+		PAzPC & 0.064 $\pm$ 0.029 \\
+		\textbf{PDHPC} & 0.056 $\pm$ 0.031 \\
+		\textbf{LysoSPC/  PAF -O-16:0} & 0.052 $\pm$ 0.019 \\
+		\textbf{SAPC} & 0.049 $\pm$ 0.018 \\
+		PONPC & 0.030 $\pm$ 0.015 \\
+		PAPC-OH & 0.028 $\pm$ 0.012 \\
+		PC 18:1 C1 Carbonyl & 0.025 $\pm$ 0.011 \\
+		PC 16:0 C9 Carbonyl monohydroxy & 0.018 $\pm$ 0.011 \\
+		POVPC & 0.017 $\pm$ 0.006 \\
+		hexadecanol & 0.017 $\pm$ 0.008 \\
+		isoPGJ2 & 0.016 $\pm$ 0.008 \\
+		X-X-x-farnesene & 0.015 $\pm$ 0.008 \\
+		hexcadecyl acetate & 0.013 $\pm$ 0.008 \\
+		AA & 0.013 $\pm$ 0.006 \\
+		PGPC & 0.012 $\pm$ 0.006 \\
+		PEIPC & 0.012 $\pm$ 0.007 \\
+		PAF -O-18:0 & 0.010 $\pm$ 0.007 \\
+		LTB4 & 0.010 $\pm$ 0.006 \\
+		PAPC-OOH & 0.008 $\pm$ 0.003 \\
+		PC 20:3, Lyso & 0.007 $\pm$ 0.007 \\
+		PC 22:6 C1 Carbonyl & 0.007 $\pm$ 0.005 \\
+		isoPGF-PPC & 0.006 $\pm$ 0.005 \\
+		PGJ2 & 0.005 $\pm$ 0.005 \\
+		PECPC & 0.005 $\pm$ 0.005 \\
+		Resolvin D1 & 0.005 $\pm$ 0.005 \\
+		12/15sHETE & 0.005 $\pm$ 0.005 \\
+		TXB2 & 0.005 $\pm$ 0.005 \\
+		Neuroprotectin D1 & 0.002 $\pm$ 0.003 \\
+		PGD2 / PGE2 & 0.001 $\pm$ 0.003 \\
+		Sphingosine-1-phosphate & 0E+00 $\pm$ 0E+00 \\
+		PGF2a & 0E+00 $\pm$ 0E+00 \\
+		15d PGJ2 & 0E+00 $\pm$ 0E+00 \\
+	\end{tabular}
+	\caption{MDI}
+	\label{tab:MDI}
+\end{table}
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & MDA \\
+		\hline
+		\textbf{DPPC} & 0.160 $\pm$ 0.174 \\
+		\textbf{SLPC} & 0.120 $\pm$ 0.040 \\
+		\textbf{PLPC} & 0.120 $\pm$ 0.098 \\
+		\textbf{LysoPPC} & 0.080 $\pm$ 0.075 \\
+		AA & 0.060 $\pm$ 0.049 \\
+		\textbf{PAPC} & 0.040 $\pm$ 0.080 \\
+		\textbf{LysoSPC/  PAF -O-16:0} & 0.040 $\pm$ 0.049 \\
+		\textbf{SAPC} & 0.040 $\pm$ 0.049 \\
+		\textbf{PDHPC} & 0.020 $\pm$ 0.040 \\
+		15d PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		hexcadecyl acetate & 0E+00 $\pm$ 0E+00 \\
+		hexadecanol & 0E+00 $\pm$ 0E+00 \\
+		12/15sHETE & 0E+00 $\pm$ 0E+00 \\
+		PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		LTB4 & 0E+00 $\pm$ 0E+00 \\
+		PGD2 / PGE2 & 0E+00 $\pm$ 0E+00 \\
+		PGF2a & 0E+00 $\pm$ 0E+00 \\
+		Neuroprotectin D1 & 0E+00 $\pm$ 0E+00 \\
+		TXB2 & 0E+00 $\pm$ 0E+00 \\
+		Resolvin D1 & 0E+00 $\pm$ 0E+00 \\
+		Sphingosine-1-phosphate & 0E+00 $\pm$ 0E+00 \\
+		isoPGF-PPC & 0E+00 $\pm$ 0E+00 \\
+		PAF -O-18:0 & 0E+00 $\pm$ 0E+00 \\
+		PC 20:3, Lyso & 0E+00 $\pm$ 0E+00 \\
+		PC 18:1 C1 Carbonyl & 0E+00 $\pm$ 0E+00 \\
+		PEIPC & 0E+00 $\pm$ 0E+00 \\
+		POVPC & 0E+00 $\pm$ 0E+00 \\
+		PC 22:6 C1 Carbonyl & 0E+00 $\pm$ 0E+00 \\
+		PGPC & 0E+00 $\pm$ 0E+00 \\
+		PONPC & 0E+00 $\pm$ 0E+00 \\
+		PC 16:0 C9 Carbonyl monohydroxy & 0E+00 $\pm$ 0E+00 \\
+		PECPC & 0E+00 $\pm$ 0E+00 \\
+		isoPGJ2 & 0E+00 $\pm$ 0E+00 \\
+		PAPC-OOH & 0E+00 $\pm$ 0E+00 \\
+		X-X-x-farnesene & 0E+00 $\pm$ 0E+00 \\
+		PAzPC & -0.020 $\pm$ 0.075 \\
+		PAPC-OH & -0.020 $\pm$ 0.075 \\
+	\end{tabular}
+	\caption{MDA}
+	\label{tab:MDA}
+\end{table}
+process.exitcode=0
+end=datetime.datetime(2022, 6, 1, 10, 19, 7, 611755)
+end-start=datetime.timedelta(seconds=68, microseconds=87165)
