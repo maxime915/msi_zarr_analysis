@@ -16,7 +16,7 @@ from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
 from PIL import Image
 from scipy.optimize import minimize_scalar
 from shapely import wkt
-from shapely.affinity import affine_transform
+from shapely import affinity
 from skimage.feature import match_template
 
 # Datatype definitions
@@ -86,10 +86,13 @@ class TemplateTransform(NamedTuple):
 
 class MatchingResult(NamedTuple):
     # coordinates in the source coordinates for the top left of the scaled matching template
-    x_top_left: float = 0.0
-    y_top_left: float = 0.0
+    x_top_left: int
+    y_top_left: int
     # how much should the template be scaled to match the source
-    scale: float = 1.1
+    scale: float
+    # area
+    y_slice: slice
+    x_slice: slice
 
     def map_yx(self, y_source, x_source):
         "map some (y, x) coordinates from the (source) image to the pre-processed template"
@@ -142,7 +145,7 @@ def build_onehot_annotation(
         # load geometry
         geometry = wkt.loads(annotation.location)
         # change the coordinate system
-        geometry = affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
+        geometry = affinity.affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
         # rasterize annotation
         mask = rasterio.features.rasterize(
             [geometry], out_shape=(image_height, image_width)
@@ -158,11 +161,13 @@ def build_onehot_annotation(
 
     if not mask_dict:
         raise ValueError("no annotation found")
-    
+
     if term_list:
         if set(term_list) != set(mask_dict.keys()):
-            raise ValueError(f"{term_list=!r} inconsistent with {list(mask_dict.keys())=}")
-        
+            raise ValueError(
+                f"{term_list=!r} inconsistent with {list(mask_dict.keys())=}"
+            )
+
         stacks = [mask_dict[term] for term in term_list]
         return term_list, np.stack(stacks, axis=-1)
 
@@ -250,44 +255,45 @@ def scale_image(
 # pre-processing
 
 
+def filter_hsv(
+    image_hsv: np.ndarray,
+    *,
+    threshold_hue_low: np.uint8 = 0,
+    threshold_hue_high: np.uint8 = 180,
+    threshold_saturation_low: np.uint8 = 0,
+    threshold_value_low: np.uint8 = 0,
+) -> np.ndarray:
+    image_hsv[image_hsv[..., 0] < threshold_hue_low] = 0
+    image_hsv[image_hsv[..., 0] > threshold_hue_high] = 0
+    image_hsv[image_hsv[..., 1] < threshold_saturation_low] = 0
+    image_hsv[image_hsv[..., 2] < threshold_value_low] = 0
+    return image_hsv
+
+
 def threshold_overlay(overlay_img):
     "select MS peaks from the overlay based on the colormap (assuming default)"
-    overlay_img = np.copy(overlay_img)
 
-    # yellow part
-    #   - rg close to 200
-    #   - b close to 50-100
-    mask_yellow = np.ones(shape=overlay_img.shape[:2], dtype=bool)
-    mask_yellow[overlay_img[..., 0] < 150] = 0
-    mask_yellow[overlay_img[..., 1] < 150] = 0
-    mask_yellow[overlay_img[..., 2] > 120] = 0
-
-    # bluish part
-    #   - r close to 50-100
-    #   - gb close to 100-150
-    mask_bluish = np.ones(shape=overlay_img.shape[:2], dtype=bool)
-    mask_bluish[overlay_img[..., 0] > 110] = 0
-    mask_bluish[overlay_img[..., 1] < 100] = 0
-
-    overlay_img[~mask_yellow & ~mask_bluish] = 0
-
-    return overlay_img
+    overlay_hsv = cv2.cvtColor(overlay_img, cv2.COLOR_RGB2HSV)
+    filtered = filter_hsv(
+        overlay_hsv,
+        threshold_saturation_low=60,
+        threshold_hue_low=20,
+        threshold_hue_high=110,
+    )
+    return cv2.cvtColor(filtered, cv2.COLOR_HSV2RGB)
 
 
-def threshold_ms(color_ms_data, margin: float = 5.0):
-    color_ms_data = np.copy(color_ms_data)
+def threshold_ms(color_ms_data):
 
-    # remove the purple background at [68,  1, 84]
-    mask = np.abs(color_ms_data[..., 0] - 68) < margin
-    mask &= np.abs(color_ms_data[..., 1] - 1) < margin
-    mask &= np.abs(color_ms_data[..., 2] - 84) < margin
-
-    color_ms_data[mask] = 0
-
-    return color_ms_data
+    template_hsv = cv2.cvtColor(color_ms_data, cv2.COLOR_RGB2HSV)
+    filtered = filter_hsv(
+        template_hsv,
+        threshold_hue_high=110,
+    )
+    return cv2.cvtColor(filtered, cv2.COLOR_HSV2RGB)
 
 
-# Templata matching implementation
+# Template matching implementation
 
 
 def get_template_matching_score(grayscale_overlay, grayscale_ms_data):
@@ -369,7 +375,13 @@ def match_template_multiscale(
         image_th_gs, template_th_gs, max_scale
     )
 
-    return MatchingResult(tl_x, tl_y, scale)
+    return MatchingResult(
+        tl_x,
+        tl_y,
+        scale,
+        y_slice=slice(tl_y, tl_y + height),
+        x_slice=slice(tl_x, tl_x + width),
+    )
 
 
 def get_destination_mask_from_result(

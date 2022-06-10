@@ -6,7 +6,6 @@ import os
 import pathlib
 from typing import Callable, List, NamedTuple, Optional, Tuple, Union
 
-import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -357,22 +356,22 @@ def do_joint():
 def do_all_joint():
 
     data_sources = [
-        # {
-        #     "name": "region_13",
-        #     "args": {
-        #         "image_id_overlay": 545025763,
-        #         "local_overlay_path": "Adjusted_Cytomine_MSI_3103_Region013-Viridis-stacked.ome.tif",
-        #         "lipid_tm": "LysoPPC",
-        #         "project_id": 542576374,
-        #         "annotated_image_id": 545025783,
-        #         "transform_rot90": 1,
-        #         "transform_flip_ud": True,
-        #         "transform_flip_lr": False,
-        #         "annotation_users_id": (),
-        #         "zarr_template_path": "comulis13_binned.zarr"
-        #     },
-        #     "base": "comulis13"
-        # },
+        {
+            "name": "region_13",
+            "args": {
+                "image_id_overlay": 545025763,
+                "local_overlay_path": "Adjusted_Cytomine_MSI_3103_Region013-Viridis-stacked.ome.tif",
+                "lipid_tm": "LysoPPC",
+                "project_id": 542576374,
+                "annotated_image_id": 545025783,
+                "transform_rot90": 1,
+                "transform_flip_ud": True,
+                "transform_flip_lr": False,
+                "annotation_users_id": (),
+                "zarr_template_path": "comulis13_binned.zarr",
+            },
+            "base": "comulis13",
+        },
         {
             "name": "region_14",
             "args": {
@@ -388,6 +387,22 @@ def do_all_joint():
                 "zarr_template_path": "comulis14_binned.zarr",
             },
             "base": "comulis14",
+        },
+        {
+            "name": "region_15",
+            "args": {
+                "image_id_overlay": 548365463,
+                "local_overlay_path": "Region015-Viridis-stacked.ome.tif",
+                "lipid_tm": "LysoPPC",
+                "project_id": 542576374,
+                "annotated_image_id": 548365463,
+                "transform_rot90": 1,
+                "transform_flip_ud": True,
+                "transform_flip_lr": False,
+                "annotation_users_id": (),
+                "zarr_template_path": "comulis15_binned.zarr",
+            },
+            "base": "comulis15",
         },
     ]
 
@@ -427,8 +442,7 @@ def do_all_joint():
             with open(f"log_{base}_out.txt", mode="w") as out, open(
                 f"log_{base}_err.txt", mode="w"
             ) as err:
-                # with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
-                if True:
+                with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
 
                     print(f"{__file__=}")
                     print(f"{VERSION=}")
@@ -472,7 +486,6 @@ def do_all_joint():
                     end = datetime.now()
                     print(f"{end=}")
                     print(f"{end-start=}")
-    pass
 
 
 if __name__ == "__main__":

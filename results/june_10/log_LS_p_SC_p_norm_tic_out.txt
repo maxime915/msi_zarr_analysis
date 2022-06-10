@@ -1,0 +1,188 @@
+__file__='scripts/runs/multi_source/run.py'
+VERSION='0.0.1'
+start=datetime.datetime(2022, 6, 10, 17, 3, 21, 834535)
+[2022-06-10 17:03:22,164][INFO] [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+[2022-06-10 17:03:22,531][INFO] [GET] [sliceinstance collection] 12 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-10 17:03:22,822][INFO] [GET] [annotation collection] 204 objects | 200 OK
+[2022-06-10 17:03:22,940][INFO] [GET] [imageinstance] 545025783 : Adjusted Cytomine MSI 3103/Region013-Grayscale-stacked.ome.tif | 200 OK
+[2022-06-10 17:03:23,078][INFO] [GET] [term collection] 35 objects | 200 OK
+[2022-06-10 17:03:23,753][INFO] [GET] [sliceinstance collection] 14 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-10 17:03:24,043][INFO] [GET] [annotation collection] 336 objects | 200 OK
+[2022-06-10 17:03:24,152][INFO] [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+[2022-06-10 17:03:24,267][INFO] [GET] [term collection] 35 objects | 200 OK
+[2022-06-10 17:03:25,132][INFO] [GET] [sliceinstance collection] 15 objects | 200 OK
+ds_config_itm.save_image=False
+[2022-06-10 17:03:25,332][INFO] [GET] [annotation collection] 90 objects | 200 OK
+[2022-06-10 17:03:25,444][INFO] [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+[2022-06-10 17:03:25,570][INFO] [GET] [term collection] 35 objects | 200 OK
+crop_idx=(slice(616, 643, None), slice(414, 653, None))
+ms_template.shape=(239, 27)
+matching_result=MatchingResult(x_top_left=243, y_top_left=126, scale=6.998395336086913, y_slice=slice(126, 1799, None), x_slice=slice(243, 432, None))
+crop_idx=(slice(594, 622, None), slice(447, 678, None))
+ms_template.shape=(231, 28)
+matching_result=MatchingResult(x_top_left=205, y_top_left=283, scale=6.786607519439346, y_slice=slice(283, 1851, None), x_slice=slice(205, 395, None))
+crop_idx=(slice(590, 613, None), slice(712, 756, None))
+ms_template.shape=(44, 23)
+matching_result=MatchingResult(x_top_left=230, y_top_left=316, scale=8.17379800672557, y_slice=slice(316, 676, None), x_slice=slice(230, 418, None))
+checking for class imbalance:
+occurrence_per_class={269: 'LivingStrata positive AREA', 248: 'SC positive AREA'}
+np.max(occurrences / n_items) = 0.5203
+np.min(occurrences / n_items) = 0.4797
+. . . . . . . . 1 / n_classes = 0.5000
+model: ExtraTreesClassifier(max_features=None, n_estimators=1000, n_jobs=4)
+terms: ['LivingStrata positive AREA', 'SC positive AREA']
+imbalance = 0.520
+1.5 * imbalance = 0.780
+np.min(cv_scores) = 0.216
+np.mean(cv_scores) = 0.649
+np.median(cv_scores) = 0.712
+np.max(cv_scores) = 0.808
+imbalance = 0.520
+1.5 * imbalance = 0.780
+score = 0.900
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & p-value \\
+		\hline
+		\textbf{PDHPC} & 1E-22 \\
+		\textbf{PAPC} & 2E-20 \\
+		\textbf{DPPC} & 2E-20 \\
+		\textbf{PLPC} & 8E-16 \\
+		\textbf{SAPC} & 2E-07 \\
+		\textbf{SLPC} & 8E-05 \\
+		\textbf{PAPC-OH} & 0.001 \\
+		\textbf{LysoPPC} & 0.003 \\
+		\textbf{PAzPC} & 0.011 \\
+		\textbf{PC 16:0 C9 Carbonyl monohydroxy} & 0.015 \\
+		PC 18:1 C1 Carbonyl & 0.132 \\
+		LysoSPC/  PAF -O-16:0 & 0.613 \\
+		X-X-x-farnesene & 0.767 \\
+		PONPC & 0.811 \\
+		PC 22:6 C1 Carbonyl & 2.415 \\
+		isoPGJ2 & 3.670 \\
+		PGPC & 8.527 \\
+		TXB2 & 8.793 \\
+		isoPGF-PPC & 10.386 \\
+		PGD2 / PGE2 & 10.989 \\
+		PEIPC & 11.920 \\
+		PC 20:3, Lyso & 17.608 \\
+		PAPC-OOH & 18.755 \\
+		PECPC & 19.871 \\
+		12/15sHETE & 20.333 \\
+		Neuroprotectin D1 & 21.058 \\
+		hexcadecyl acetate & 23.890 \\
+		LTB4 & 24.746 \\
+		Resolvin D1 & 27.171 \\
+		PGJ2 & 28.666 \\
+		POVPC & 32.217 \\
+		AA & 33.759 \\
+		PAF -O-18:0 & 34.086 \\
+		hexadecanol & 34.335 \\
+		15d PGJ2 & nan \\
+		PGF2a & nan \\
+		Sphingosine-1-phosphate & nan \\
+	\end{tabular}
+	\caption{p-value}
+	\label{tab:p-value}
+\end{table}
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & MDI \\
+		\hline
+		\textbf{PDHPC} & 0.155 $\pm$ 0.077 \\
+		\textbf{PAPC} & 0.112 $\pm$ 0.064 \\
+		\textbf{DPPC} & 0.092 $\pm$ 0.047 \\
+		SLPC & 0.087 $\pm$ 0.025 \\
+		PLPC & 0.081 $\pm$ 0.040 \\
+		\textbf{LysoPPC} & 0.056 $\pm$ 0.021 \\
+		SAPC & 0.051 $\pm$ 0.019 \\
+		PAzPC & 0.046 $\pm$ 0.018 \\
+		LysoSPC/  PAF -O-16:0 & 0.037 $\pm$ 0.017 \\
+		PC 18:1 C1 Carbonyl & 0.035 $\pm$ 0.013 \\
+		PAPC-OH & 0.032 $\pm$ 0.012 \\
+		PONPC & 0.029 $\pm$ 0.012 \\
+		PC 16:0 C9 Carbonyl monohydroxy & 0.025 $\pm$ 0.010 \\
+		isoPGJ2 & 0.022 $\pm$ 0.009 \\
+		X-X-x-farnesene & 0.013 $\pm$ 0.007 \\
+		PECPC & 0.011 $\pm$ 0.006 \\
+		hexadecanol & 0.011 $\pm$ 0.007 \\
+		PC 20:3, Lyso & 0.010 $\pm$ 0.007 \\
+		POVPC & 0.009 $\pm$ 0.006 \\
+		PGPC & 0.009 $\pm$ 0.006 \\
+		AA & 0.009 $\pm$ 0.005 \\
+		PEIPC & 0.008 $\pm$ 0.006 \\
+		PC 22:6 C1 Carbonyl & 0.006 $\pm$ 0.005 \\
+		PGJ2 & 0.006 $\pm$ 0.005 \\
+		PAF -O-18:0 & 0.006 $\pm$ 0.006 \\
+		PAPC-OOH & 0.006 $\pm$ 0.005 \\
+		hexcadecyl acetate & 0.006 $\pm$ 0.005 \\
+		isoPGF-PPC & 0.005 $\pm$ 0.005 \\
+		PGD2 / PGE2 & 0.005 $\pm$ 0.004 \\
+		Resolvin D1 & 0.004 $\pm$ 0.004 \\
+		LTB4 & 0.004 $\pm$ 0.004 \\
+		TXB2 & 0.004 $\pm$ 0.002 \\
+		12/15sHETE & 0.003 $\pm$ 0.004 \\
+		Neuroprotectin D1 & 0.003 $\pm$ 0.003 \\
+		PGF2a & 0E+00 $\pm$ 0E+00 \\
+		15d PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		Sphingosine-1-phosphate & 0E+00 $\pm$ 0E+00 \\
+	\end{tabular}
+	\caption{MDI}
+	\label{tab:MDI}
+\end{table}
+
+\begin{table}[hbp]
+	\centering
+	\begin{tabular}{l|r}
+		Lipid & MDA \\
+		\hline
+		\textbf{PDHPC} & 0.120 $\pm$ 0.117 \\
+		\textbf{DPPC} & 0.080 $\pm$ 0.075 \\
+		\textbf{PAPC} & 0.040 $\pm$ 0.049 \\
+		isoPGF-PPC & 0E+00 $\pm$ 0E+00 \\
+		\textbf{LysoPPC} & 0E+00 $\pm$ 0E+00 \\
+		Sphingosine-1-phosphate & 0E+00 $\pm$ 0E+00 \\
+		Resolvin D1 & 0E+00 $\pm$ 0E+00 \\
+		TXB2 & 0E+00 $\pm$ 0E+00 \\
+		Neuroprotectin D1 & 0E+00 $\pm$ 0E+00 \\
+		PGF2a & 0E+00 $\pm$ 0E+00 \\
+		PGD2 / PGE2 & 0E+00 $\pm$ 0E+00 \\
+		LTB4 & 0E+00 $\pm$ 0E+00 \\
+		PC 20:3, Lyso & 0E+00 $\pm$ 0E+00 \\
+		PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		12/15sHETE & 0E+00 $\pm$ 0E+00 \\
+		15d PGJ2 & 0E+00 $\pm$ 0E+00 \\
+		AA & 0E+00 $\pm$ 0E+00 \\
+		hexcadecyl acetate & 0E+00 $\pm$ 0E+00 \\
+		hexadecanol & 0E+00 $\pm$ 0E+00 \\
+		LysoSPC/  PAF -O-16:0 & 0E+00 $\pm$ 0E+00 \\
+		PAF -O-18:0 & 0E+00 $\pm$ 0E+00 \\
+		PC 18:1 C1 Carbonyl & 0E+00 $\pm$ 0E+00 \\
+		PEIPC & 0E+00 $\pm$ 0E+00 \\
+		POVPC & 0E+00 $\pm$ 0E+00 \\
+		PC 22:6 C1 Carbonyl & 0E+00 $\pm$ 0E+00 \\
+		PGPC & 0E+00 $\pm$ 0E+00 \\
+		PONPC & 0E+00 $\pm$ 0E+00 \\
+		PC 16:0 C9 Carbonyl monohydroxy & 0E+00 $\pm$ 0E+00 \\
+		PLPC & 0E+00 $\pm$ 0E+00 \\
+		PAPC-OH & 0E+00 $\pm$ 0E+00 \\
+		PECPC & 0E+00 $\pm$ 0E+00 \\
+		SAPC & 0E+00 $\pm$ 0.063 \\
+		isoPGJ2 & 0E+00 $\pm$ 0E+00 \\
+		PAPC-OOH & 0E+00 $\pm$ 0E+00 \\
+		X-X-x-farnesene & 0E+00 $\pm$ 0E+00 \\
+		PAzPC & -0.020 $\pm$ 0.040 \\
+		SLPC & -0.060 $\pm$ 0.080 \\
+	\end{tabular}
+	\caption{MDA}
+	\label{tab:MDA}
+\end{table}
+process.exitcode=0
+end=datetime.datetime(2022, 6, 10, 17, 4, 39, 241267)
+end-start=datetime.timedelta(seconds=77, microseconds=406732)
