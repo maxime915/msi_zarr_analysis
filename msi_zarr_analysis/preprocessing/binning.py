@@ -244,7 +244,9 @@ def bin_processed_lo_hi(
 
     destination = zarr.open_group(destination_path, mode="w-")
 
-    destination["/0"] = zarr.zeros(
+    # create empty array
+    destination.create(
+        "/0",
         shape=(len(bin_lo),) + z_ints.shape[1:],
         chunks=z_ints.chunks,
         compressor=z_ints.compressor,
