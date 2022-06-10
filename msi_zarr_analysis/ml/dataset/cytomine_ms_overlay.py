@@ -21,6 +21,7 @@ from . import Dataset, Tabular
 
 def generate_spectra(
     ms_group: zarr.Group,
+    ms_template_group: zarr.Group,
     bin_idx: int,
     tiff_path: str,
     tiff_page_idx: int,
@@ -30,12 +31,8 @@ def generate_spectra(
 ):
     "this yields all spectra instead of returning a table"
 
-    # map the results to the zarr arrays
-    intensities = ms_group["/0"]
-    lengths = ms_group["/labels/lengths/0"]
-
     z_mask, roi = get_destination_mask(
-        ms_group,
+        ms_template_group,
         bin_idx,
         tiff_path,
         tiff_page_idx,
@@ -43,13 +40,18 @@ def generate_spectra(
         transform,
     )
 
-    tic = ms_group["/0"][:, 0, ...].sum(axis=0)
+    if save_to:
+        tic = ms_template_group["/0"][:, 0, ...].sum(axis=0)
 
-    save_bin_class_image(
-        transform.inverse_transform_mask(tic),
-        transform.inverse_transform_mask(z_mask),
-        save_to=save_to
-    )
+        save_bin_class_image(
+            transform.inverse_transform_mask(tic),
+            transform.inverse_transform_mask(z_mask),
+            save_to=save_to
+        )
+
+    # map the results to the zarr arrays
+    intensities = ms_group["/0"]
+    lengths = ms_group["/labels/lengths/0"]
 
     # yield all rows
     for cy, cx in iter_loaded_chunks(intensities, *roi, skip=2):
@@ -92,6 +94,7 @@ class CytomineTranslated(Dataset):
         save_image: bool = False,
         *,
         term_list: List[str] = None,
+        zarr_template_path: str = None,
     ) -> None:
         super().__init__()
 
@@ -113,6 +116,12 @@ class CytomineTranslated(Dataset):
             transform_template_flip_ud,
             transform_template_flip_lr,
         )
+
+        self.ms_template_group = self.ms_group
+        if zarr_template_path:
+            self.ms_template_group = open_group_ro(zarr_template_path)
+            if self.ms_group["/0"].shape != self.ms_template_group["/0"].shape:
+                raise ValueError("inconsistent shape between template and value groups")
 
         image_instance = ImageInstance().fetch(id=annotation_image_id)
 
@@ -140,6 +149,7 @@ class CytomineTranslated(Dataset):
     def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
         yield from generate_spectra(
             self.ms_group,
+            self.ms_template_group,
             self.bin_idx,
             self.tiff_path,
             self.tiff_page_idx,
