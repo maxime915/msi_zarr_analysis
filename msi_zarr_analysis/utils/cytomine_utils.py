@@ -80,7 +80,7 @@ def get_lipid_names(
     return ds.Name
     
 
-def iter_annoation_single_term(
+def iter_annotation_single_term(
     annotation_collection: AnnotationCollection,
     term_collection: TermCollection,
 ) -> Generator[Tuple[Annotation, Term], None, None]:
@@ -92,7 +92,7 @@ def iter_annoation_single_term(
         term_collection (TermCollection): collection to map from ID to instances
 
     Yields:
-        Tuple[Annotation, Term]: annoation and their term
+        Tuple[Annotation, Term]: annotation and their term
     """
 
     for annotation in annotation_collection:

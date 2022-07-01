@@ -19,7 +19,7 @@ from msi_zarr_analysis.ml.dataset.utils import (
     nonbinned_array_dataset,
 )
 from msi_zarr_analysis.utils.check import open_group_ro
-from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
+from msi_zarr_analysis.utils.cytomine_utils import iter_annotation_single_term
 from msi_zarr_analysis.utils.iter_chunks import clean_slice_tuple
 
 
@@ -521,7 +521,7 @@ class CytomineNonBinned(Dataset):
 
         term_lst = []
 
-        for annotation, term in iter_annoation_single_term(
+        for annotation, term in iter_annotation_single_term(
             annotations,
             term_collection,
         ):

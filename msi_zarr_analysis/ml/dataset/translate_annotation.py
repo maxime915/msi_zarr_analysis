@@ -12,7 +12,7 @@ import tifffile
 import zarr
 from cytomine.models import AnnotationCollection, TermCollection
 from matplotlib import colors
-from msi_zarr_analysis.utils.cytomine_utils import iter_annoation_single_term
+from msi_zarr_analysis.utils.cytomine_utils import iter_annotation_single_term
 from PIL import Image
 from scipy.optimize import minimize_scalar
 from shapely import wkt
@@ -138,7 +138,7 @@ def build_onehot_annotation(
 
     mask_dict = {}
 
-    for annotation, term in iter_annoation_single_term(
+    for annotation, term in iter_annotation_single_term(
         annotation_collection, term_collection
     ):
 
