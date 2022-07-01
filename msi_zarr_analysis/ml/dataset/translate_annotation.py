@@ -1,7 +1,8 @@
 "translated annotated data via template matching"
 
+import logging
 import warnings
-from typing import List, NamedTuple, Tuple
+from typing import Dict, List, NamedTuple, Tuple, overload
 
 import cv2
 import matplotlib.pyplot as plt
@@ -10,13 +11,12 @@ import numpy.typing as npt
 import rasterio.features
 import tifffile
 import zarr
-from cytomine.models import AnnotationCollection, TermCollection
-from matplotlib import colors
+from cytomine.models import Annotation, AnnotationCollection, TermCollection
 from msi_zarr_analysis.utils.cytomine_utils import iter_annotation_single_term
 from PIL import Image
 from scipy.optimize import minimize_scalar
-from shapely import wkt
-from shapely import affinity
+from shapely import affinity, wkt
+from shapely.geometry import Polygon
 from skimage.feature import match_template
 
 # Datatype definitions
@@ -28,6 +28,10 @@ class TemplateTransform(NamedTuple):
     # should the template be flipped ?
     flip_ud: bool = False
     flip_lr: bool = False
+
+    @staticmethod
+    def none():
+        return TemplateTransform()
 
     def transform_template(self, template):
         "suppose YX array"
@@ -111,6 +115,20 @@ class MatchingResult(NamedTuple):
 
         return y, x
 
+    def map_yx_reverse(self, y_template, x_template):
+        """"""
+
+        y = y_template * self.scale
+        x = x_template * self.scale
+
+        y = y + self.y_top_left
+        x = x + self.x_top_left
+
+        y = np.int32(np.floor(y))
+        x = np.int32(np.floor(x))
+
+        return y, x
+
     def map_xy(self, x_source, y_source):
         "map some (x, y) coordinates from the (source) image to the pre-processed template"
 
@@ -121,6 +139,166 @@ class MatchingResult(NamedTuple):
 
 
 # annotation masks
+
+
+def translate_geometry(
+    image_geometry,
+    template_transform: TemplateTransform,
+    matching_result: MatchingResult,
+    crop_idx: Tuple[slice, slice],
+):
+    """translate annotation from the overlay to the template
+
+    Args:
+        image_geometry (Polygon): geometry of the annotation, with image coordinates (XY at the top left, Y axis descending)
+        template_transform (TemplateTransform): transformation applied to the template, pre template-matching
+        matching_result (MatchingResult): results of the template matching algorithm
+        crop_idx (Tuple[slice, slice]): cropping of the template, pre template-matching
+
+    Returns:
+        Annotation: translated annotation
+    """
+
+    # translation is based on the template rectangle, not the annotation
+    rect = Polygon(
+        (
+            (matching_result.x_slice.start, matching_result.y_slice.start),
+            (matching_result.x_slice.stop, matching_result.y_slice.start),
+            (matching_result.x_slice.stop, matching_result.y_slice.stop),
+            (matching_result.x_slice.start, matching_result.y_slice.stop),
+        )
+    )
+    geometry = image_geometry
+
+    # 1. template matching
+
+    # 1.1 translate
+    geometry = affinity.translate(
+        geometry, xoff=-matching_result.x_top_left, yoff=-matching_result.y_top_left
+    )
+    rect = affinity.translate(
+        rect, xoff=-matching_result.x_top_left, yoff=-matching_result.y_top_left
+    )
+
+    # 1.2 scale
+    f = 1 / matching_result.scale
+    geometry = affinity.scale(geometry, f, f, origin=(0, 0))
+    rect = affinity.scale(rect, f, f, origin=(0, 0))
+
+    # 2. (template) transform
+
+    # 2.0 translate such that (0, 0) is the center of the rect
+    center = rect.centroid
+    geometry = affinity.translate(geometry, -center.x, -center.y)
+    rect = affinity.translate(rect, -center.x, -center.y)
+
+    # 2.1. apply rotation
+    geometry = affinity.rotate(
+        geometry,
+        template_transform.rotate_90 * 90,
+        origin=(0, 0),
+    )
+    rect = affinity.rotate(
+        rect,
+        template_transform.rotate_90 * 90,
+        origin=(0, 0),
+    )
+
+    # 2.2. apply flipping
+    if template_transform.flip_lr:
+        geometry = affinity.affine_transform(geometry, [-1, 0, 0, 1, 0, 0])
+        # rectangle is unaffected
+    if template_transform.flip_ud:
+        geometry = affinity.affine_transform(geometry, [1, 0, 0, -1, 0, 0])
+        # rectangle is unaffected
+
+    # 3. cropping
+    (min_x, min_y, _, _) = rect.bounds
+    geometry = affinity.translate(
+        geometry,
+        crop_idx[1].start - min_x,
+        crop_idx[0].start - min_y,
+    )
+    # no need to translate rect, it is unused
+
+    return geometry
+
+
+def rasterize_annotation_dict(
+    annotation_dict: Dict[str, List[Annotation]],
+    template_shape: Tuple[int, int],
+) -> Dict[str, List[np.ndarray]]:
+    """make a dict of rasterized annotations for each term
+
+    Args:
+        annotation_dict (Dict[str, List[Annotation]]): dict of annotations for each term
+        template_shape (Tuple[int, int]): height and width of the template
+
+    Returns:
+        Dict[str, List[np.ndarray]]: dict of rasterized annotations for each term
+    """
+
+    def rasterize(annotation):
+        return rasterio.features.rasterize(
+            [annotation.template_geometry], out_shape=template_shape
+        )
+
+    return {
+        term: [rasterize(annotation) for annotation in annotation_list]
+        for term, annotation_list in annotation_dict.items()
+    }
+
+
+def translate_annotation_dict(
+    annotation_dict: Dict[str, List[Annotation]],
+    template_transform: TemplateTransform,
+    matching_result: MatchingResult,
+    crop_idx: Tuple[slice, slice],
+):
+    for annotation_lst in annotation_dict.values():
+        for annotation_item in annotation_lst:
+            annotation_item.template_geometry = translate_geometry(
+                annotation_item.image_geometry,
+                template_transform,
+                matching_result,
+                crop_idx,
+            )
+
+
+def add_image_geometry(
+    annotation: Annotation,
+    image_height: int,
+):
+    # load geometry
+    geometry = wkt.loads(annotation.location)
+    # change the coordinate system
+    geometry = affinity.affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
+    # store it in the annotation
+    annotation.image_geometry = geometry
+
+
+def load_annotation(
+    annotation_collection: AnnotationCollection,
+    image_height: int,
+    *,
+    term_list: List[str] = None,
+) -> Dict[str, List[Annotation]]:
+
+    term_collection = TermCollection().fetch_with_filter(
+        "project", annotation_collection.project
+    )
+
+    mask_dict = {term: [] for term in term_list}
+
+    for annotation, term in iter_annotation_single_term(
+        annotation_collection, term_collection
+    ):
+        add_image_geometry(annotation, image_height)
+
+        try:
+            mask_dict[term.name].append(annotation)
+        except KeyError as e:
+            raise ValueError(f"invalid term {term} found") from e
 
 
 def build_onehot_annotation(
@@ -430,7 +608,20 @@ def get_destination_mask_from_result(
     shape = yx_dest_shape + onehot_annotation.shape[-1:]
     z_mask = np.zeros(shape, dtype=bool)
 
-    z_mask[y_ms, x_ms, :] = onehot_annotation[y_overlay, x_overlay, :]
+    try:
+        z_mask[y_ms, x_ms, :] = onehot_annotation[y_overlay, x_overlay, :]
+    except IndexError as e:
+        logging.error("unable to translate annotation: %s", e)
+
+        logging.error("z_mask.shape: %s", z_mask.shape)
+        logging.error("y_ms: [%d, %d]", y_ms.min(), y_ms.max())
+        logging.error("x_ms: [%d, %d]", x_ms.min(), x_ms.max())
+
+        logging.error("onehot_annotation.shape: %s", onehot_annotation.shape)
+        logging.error("y_overlay: [%d, %d]", y_overlay.min(), overload.max())
+        logging.error("x_overlay: [%d, %d]", x_overlay.min(), x_overlay.max())
+
+        raise e
 
     # build ROI
 
@@ -440,6 +631,47 @@ def get_destination_mask_from_result(
     )
 
     return z_mask, roi
+
+
+def match_template_ms_overlay(
+    ms_group: zarr.Group,
+    bin_idx: int,
+    tiff_path: str,
+    tiff_page_idx: int,
+    transform: TemplateTransform = TemplateTransform.none(),
+) -> Tuple[MatchingResult, Tuple[slice, slice]]:
+    """perform the template matching algorithm, using the MS data as a template
+    on the overlay image.
+
+    Args:
+        ms_group (zarr.Group): MS data, stored in OME-NGFF compliant format
+        bin_idx (int): channel of the MS data that should be used as template
+        tiff_path (str): path to the overlay tiff file
+        tiff_page_idx (int): page of the overlay to be used as image
+        transform (TemplateTransform, optional): transformation to apply to the \
+            template before performing the algorithm. Defaults to TemplateTransform.none().
+
+    Returns:
+        Tuple[
+            MatchingResult, : the mapping from the (transformed) template to the \
+                image
+            Tuple[slice, slice], : an index for the region used as template in \
+                the MS data
+        ]
+    """
+
+    overlay = load_tif_file(page_idx=tiff_page_idx, disk_path=tiff_path)
+
+    crop_idx, ms_template = load_ms_template(ms_group, bin_idx=bin_idx)
+
+    ms_template = transform.transform_template(ms_template)
+
+    matching_result = match_template_multiscale(
+        overlay,
+        colorize_data(ms_template),
+    )
+
+    return matching_result, crop_idx
 
 
 def get_template_matching_data(
@@ -462,9 +694,9 @@ def get_template_matching_data(
         colorize_data(ms_template),
     )
 
-    print(f"{crop_idx=!r}")
-    print(f"{ms_template.shape=!r}")
-    print(f"{matching_result=!r}")
+    logging.info("crop_idx: %s", crop_idx)
+    logging.info("ms_template.shape: %s", ms_template.shape)
+    logging.info("matching_results: %s", matching_result)
 
     return dict(
         onehot_annotation=onehot_annotations,

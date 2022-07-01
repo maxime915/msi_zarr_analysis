@@ -1,6 +1,7 @@
 "dataset: defines some representations for data source from Zarr & Cytomine."
 
 import abc
+import logging
 import pathlib
 from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
 
@@ -123,7 +124,7 @@ class Dataset(abc.ABC):
 
         Args:
             cache (bool, optional): cache the computation. Defaults to False.
-            print_ (bool, optional): print results to stdout. Defaults to False.
+            print_ (bool, optional): log results with INFO level. Defaults to False.
             print_once (bool, optional): subsequent calls to this function don't print more than once. Defaults to False.
 
         Returns:
@@ -144,26 +145,23 @@ class Dataset(abc.ABC):
         if print_ and not (print_once and hasattr(self, single_print_attr_name)):
             setattr(self, single_print_attr_name, True)
 
-            # print("checking inter-feature correlation:")
+            # logging.info("checking inter-feature correlation:")
             # for i in range(corr.shape[0]):
             #     for j in range(i + 1, corr.shape[1]):
             #         if np.abs(corr[i, j]) > 0.8:
-            #             print(f"\t{i=} {j=} {corr[i, j]=}")
+            #             logging.info("i=%02d, j=%02d, corr=%.4f", i, j, corr[i, j])
 
-            print("checking for class imbalance:")
+            logging.info("checking for class imbalance:")
 
             n_classes = occurrences.size
             n_items = np.sum(occurrences)
 
-            # number of items in each class
-            # print(f"{occurrences=}")
-            occurrence_per_class = dict(zip(occurrences, self.class_names()))
-            print(f"{occurrence_per_class=}")
-            # max and min relative occurrence
-            print(f"{np.max(occurrences / n_items) = :.4f}")
-            print(f"{np.min(occurrences / n_items) = :.4f}")
-            # ideal occurrence
-            print(f". . . . . . . . {1 / n_classes = :.4f}")
+            # information about the occurrence of each class
+            occurrence_per_class = dict(zip(self.class_names(), occurrences))
+            logging.info("occurrence_per_class: %s", occurrence_per_class)
+            logging.info("max rel. occurrence = %.4f", np.max(occurrences) / n_items)
+            logging.info("min rel. occurrence = %.4f", np.min(occurrences) / n_items)
+            logging.info(". . .  1 / #classes = %.4f", 1 / n_classes)
 
         # largest relative occurrence
         imbalance = np.max(occurrences) / np.sum(occurrences)
