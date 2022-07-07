@@ -3,7 +3,7 @@
 import abc
 import logging
 import pathlib
-from typing import Dict, Iterator, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -207,8 +207,89 @@ class Tabular(Dataset):
         return self.classes_names_
 
 
+class GroupCollection(NamedTuple):
+    "tuple of a dataset and mask that associate a group index for all samples"
+
+    dataset: Tabular
+    groups: np.ndarray
+
+    @property
+    def data(self):
+        "inputs of the dataset, as a (n_sample, n_features) array"
+        return self.dataset.dataset_x
+
+    @property
+    def target(self):
+        "targets of the dataset, as a (n_sample, n_output) array or (n_sample,) array"
+        return self.dataset.dataset_y
+
+    @staticmethod
+    def merge_datasets(*sets: Tabular) -> "GroupCollection":
+
+        class_names = sets[0].class_names()
+        attribute_names = sets[0].attribute_names()
+
+        # check for coherence
+        for idx, dataset in enumerate(sets[1:], start=1):
+            if dataset.class_names() != class_names:
+                raise ValueError(
+                    f"incoherent class names at {idx=}: "
+                    f"{class_names} VS {dataset.class_names()}"
+                )
+            if dataset.attribute_names() != attribute_names:
+                raise ValueError(
+                    f"incoherent attribute names at {idx=}: "
+                    f"{attribute_names} VS {dataset.attribute_names()}"
+                )
+
+        pairs = [(s.dataset_x, s.dataset_y) for s in sets]
+
+        lengths = []
+        for idx, (x, y) in enumerate(pairs):
+            lengths.append(len(x))
+            if len(x) != len(y):
+                raise ValueError(
+                    f"inconsistent sizes at {idx=}: {len(x)=} VS {len(y)=}"
+                )
+        offsets = np.cumsum(lengths)
+
+        groups = np.empty(dtype=int, shape=(offsets[-1],))
+
+        lo = 0
+        for idx, hi in enumerate(offsets):
+            groups[lo:hi] = idx
+            lo = hi
+
+        xs, ys = zip(*pairs)
+        dataset_x = np.concatenate(xs)
+        dataset_y = np.concatenate(ys)
+
+        return GroupCollection(
+            Tabular(dataset_x, dataset_y, attribute_names, class_names),
+            groups,
+        )
+
+    @staticmethod
+    def merge_collections(*collections: "GroupCollection") -> "GroupCollection":
+
+        # build collection with incorrect grouping
+        collection = GroupCollection.merge_datasets(*[ds.dataset for ds in collections])
+
+        # correct grouping
+        start = 0
+        baseline = 0
+        for collection_ in collections:
+            end = start + len(collection_.groups)
+            collection.groups[start:end] = baseline + collection_.groups
+
+            baseline += np.unique(collection_.groups).size
+            start = end
+
+        return collection
+
+
 class MergedDS(Dataset):
-    """MergedDS: merge multiple datasets into one
+    """MergedDS: (lazily) merge multiple datasets into one
 
     NOTE There could be an optimization to flatten the tree, in case one of the inner
     datasets is also a MergedDS. self.as_table() would probably benefit from this.
