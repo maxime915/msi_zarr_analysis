@@ -55,13 +55,21 @@ def clean_slice(
     start = sl.start
     if start is None:
         start = 0
-    if not isinstance(start, int):
+    try:
+        _start = int(start)
+        assert _start == start
+        start = _start
+    except (AssertionError, ValueError):
         raise ValueError(f"invalid start for slice {sl} ({start=})")
 
     stop = sl.stop
     if stop is None:
         stop = dim
-    if not isinstance(stop, int):
+    try:
+        _stop = int(stop)
+        assert _stop == stop
+        stop = _stop
+    except (AssertionError, ValueError):
         raise ValueError(f"invalid stop for slice {sl} ({stop=})")
 
     # update slices to have >= 0 start
