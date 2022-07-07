@@ -94,6 +94,9 @@ class Dataset(abc.ABC):
         ds_x, ds_y = self.as_table()
         n_features = ds_x.shape[1]
 
+        assert ds_x.shape[0] == ds_y.shape[0], f"{ds_x.shape=} vs {ds_y.shape=}"
+        logging.info("ds_x.shape=%s", ds_x.shape)
+
         # check X : look for correlations between the samples
         corr = np.zeros((n_features, n_features))
         # for i in range(1, n_features):
