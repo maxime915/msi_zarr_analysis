@@ -1,5 +1,6 @@
 "translated annotated data via template matching"
 
+from collections import defaultdict
 import logging
 import warnings
 from typing import Dict, List, NamedTuple, Tuple, overload
@@ -295,24 +296,31 @@ def load_annotation(
     annotation_collection: AnnotationCollection,
     image_height: int,
     *,
-    term_list: List[str] = None,
+    term_list: List[str],
 ) -> Dict[str, List[Annotation]]:
 
     term_collection = TermCollection().fetch_with_filter(
         "project", annotation_collection.project
     )
 
-    mask_dict = {term: [] for term in term_list}
+    polygon_sets_per_term: Dict[str, set] = defaultdict(set)
+    annotation_dict = {term: [] for term in term_list}
 
     for annotation, term in iter_annotation_single_term(
         annotation_collection, term_collection
     ):
+        # avoid duplicate annotations
+        if annotation.location in polygon_sets_per_term[term]:
+            continue
+        polygon_sets_per_term[term].add(annotation.location)
+
         add_image_geometry(annotation, image_height)
 
         try:
-            mask_dict[term.name].append(annotation)
+            annotation_dict[term.name].append(annotation)
         except KeyError as e:
             raise ValueError(f"invalid term {term} found") from e
+    return annotation_dict
 
 
 def build_onehot_annotation(
