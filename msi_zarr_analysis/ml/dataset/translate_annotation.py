@@ -226,22 +226,36 @@ def translate_geometry(
 
 def rasterize_annotation_dict(
     annotation_dict: Dict[str, List[Annotation]],
-    template_shape: Tuple[int, int],
+    dest_shape: Tuple[int, int],
+    *,
+    key="template_geometry",
 ) -> Dict[str, List[np.ndarray]]:
     """make a dict of rasterized annotations for each term
 
     Args:
         annotation_dict (Dict[str, List[Annotation]]): dict of annotations for each term
-        template_shape (Tuple[int, int]): height and width of the template
+        dest_shape (Tuple[int, int]): height and width of the template
 
     Returns:
         Dict[str, List[np.ndarray]]: dict of rasterized annotations for each term
     """
 
     def rasterize(annotation):
-        return rasterio.features.rasterize(
-            [annotation.template_geometry], out_shape=template_shape
+        if isinstance(key, str):
+            geometry = getattr(annotation, key)
+        else:
+            try:
+                geometry = key(annotation)
+            except TypeError as e:
+                raise ValueError("key must be a str or a callable") from e
+
+        mask = rasterio.features.rasterize(
+            [geometry],
+            out_shape=dest_shape,
+            all_touched=False,
         )
+
+        return mask
 
     return {
         term: [rasterize(annotation) for annotation in annotation_list]
