@@ -1,24 +1,18 @@
 import json
-from typing import (
-    Iterable,
-    List,
-    NamedTuple,
-    Tuple,
-    Union,
-)
+from typing import Iterable, List, NamedTuple, Tuple, Union
 
 import numpy as np
 from cytomine.models import AnnotationCollection, ImageInstance
 from matplotlib import pyplot as plt
-
 from msi_zarr_analysis.ml.dataset.translate_annotation import (
     TemplateTransform,
-    load_annotation,
+    parse_annotation_mapping,
+    get_annotation_mapping,
     load_ms_template,
     load_tif_file,
     match_template_ms_overlay,
-    rasterize_annotation_dict,
-    translate_annotation_dict,
+    rasterize_annotation_mapping,
+    translate_parsed_annotation_mapping,
 )
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.cytomine_utils import (
@@ -99,6 +93,7 @@ def run(
                 zarr_template_path=ds_config_itm.zarr_template_path,
             )
 
+
 def save_annotated_image(
     name: str,
     annotation_project_id: int,
@@ -159,46 +154,39 @@ def save_annotated_image(
     image_instance = ImageInstance().fetch(id=annotation_image_id)
 
     # filter matching annotation & correct geometry
-    annotation_dict = load_annotation(
-        annotations,
-        image_height=image_instance.height,
-        term_list=term_list,
+    annotation_dict_ = get_annotation_mapping(
+        annotations, classes={term: [id_] for term, id_ in zip(term_list, select_terms)}
     )
 
-    # class names
-    term_names = term_list
-    if not term_names:
-        term_names = list(annotation_dict.keys())
-
-    # attribute names
-    attribute_name_list = list(attribute_name_list)
-    if not attribute_name_list:
-        raise ValueError("missing attribut names")
+    annotation_dict_ = parse_annotation_mapping(
+        annotation_dict_,
+        image_height=image_instance.height,
+        image_width=image_instance.width,
+    )
 
     # update values from the annotation dict
-    translate_annotation_dict(
-        annotation_dict,
+    tr_annotation_dict_ = translate_parsed_annotation_mapping(
+        annotation_dict_,
         template_transform=transform_template,
         matching_result=matching_result,
         crop_idx=crop_idx,
     )
 
     # have a numpy array like the template for each annotation
-    rasterized_dict = rasterize_annotation_dict(
-        annotation_dict, ms_template_group["/0"].shape[-2:]
+    rasterized_dict = rasterize_annotation_mapping(
+        tr_annotation_dict_, (ms_template_group["/0"].shape[-2:])
     )
-    
+
     # per annotation rasterization on the overlay
-    image_raster_dict = rasterize_annotation_dict(
-        annotation_dict,
+    image_raster_dict = rasterize_annotation_mapping(
+        annotation_dict_,
         overlay.shape[:2],
-        key="image_geometry",
     )
-    
+
     def _color(idx: int):
         _color_data = [
-            [255, 0, 0], # red
-            [255, 255, 255], # white
+            [255, 0, 0],  # red
+            [255, 255, 255],  # white
         ]
         return _color_data[idx % len(_color_data)]
 
@@ -206,30 +194,34 @@ def save_annotated_image(
     ax.imshow(overlay, interpolation="nearest")
     for idx, (term, lst) in enumerate(image_raster_dict.items()):
         selection = 0
-        for mask in lst:
-            selection = np.logical_or(mask, selection)
+        for annotation in lst:
+            selection = np.logical_or(annotation.raster, selection)
         mask = np.zeros(selection.shape + (4,), dtype=np.uint8)
         mask[selection, :3] = _color(idx)
         mask[selection, 3] = 150
-        
+
         ax.imshow(mask, interpolation="nearest")
 
     ax.set_title("Annotation " + name + " overlay")
 
     fig.tight_layout()
-    fig.savefig("dataset_annotation_" + name + "_overlayYou can adjust the subplot geometry in the very tight_layout call as follows:.png")
+    fig.savefig(
+        "dataset_annotation_"
+        + name
+        + "_overlayYou can adjust the subplot geometry in the very tight_layout call as follows:.png"
+    )
     plt.close(fig)
 
     # Different choices to use for the MS image (max intensity, spectrum length, any lipid, ...)
     z_ints = ms_group["/0"]
     z_lens = ms_group["/labels/lengths/0"][0, 0]
-    
+
     # ms_data = np.zeros(z_ints.shape[-2:], dtype=float)
     # for cy, cx in iter_loaded_chunks(z_ints, *crop_idx, skip=2):
     #     max_len = z_lens[cy, cx].max()
     #     ms_data[cy, cx] = ms_group["/0"][:max_len, 0, cy, cx].max(axis=0)
     ms_data = z_lens.astype(float)
-    valid_mask = (z_lens != 0)
+    valid_mask = z_lens != 0
     ms_data[valid_mask] -= ms_data[valid_mask].mean()
     norm_val = ms_data[valid_mask].std()
     if np.abs(norm_val) > 1e-7:
@@ -240,12 +232,12 @@ def save_annotated_image(
     ax.imshow(ms_data, interpolation="nearest")
     for idx, (term, lst) in enumerate(rasterized_dict.items()):
         selection = 0
-        for mask in lst:
-            selection = np.logical_or(mask, selection)
+        for annotation in lst:
+            selection = np.logical_or(annotation.raster, selection)
         mask = np.zeros(selection.shape + (4,), dtype=np.uint8)
         mask[selection, :3] = _color(idx)
         mask[selection, 3] = 150
-        
+
         ax.imshow(mask, interpolation="nearest")
 
     ax.set_ylim((crop_idx[0].stop, crop_idx[0].start))  # backward y axis
@@ -308,7 +300,6 @@ def main():
             "base": "datasets/comulis15",
         },
     ]
-
 
     classification_problems = {
         "SC_n_SC_p": {

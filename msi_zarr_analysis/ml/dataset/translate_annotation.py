@@ -3,7 +3,7 @@
 from collections import defaultdict
 import logging
 import warnings
-from typing import Dict, List, NamedTuple, Tuple, overload
+from typing import Container, Dict, Iterable, List, Mapping, NamedTuple, Tuple
 
 import cv2
 import matplotlib.pyplot as plt
@@ -280,7 +280,7 @@ def translate_annotation_dict(
             )
 
 
-def add_image_geometry(
+def get_image_geometry(
     annotation: Annotation,
     image_height: int,
 ):
@@ -288,8 +288,160 @@ def add_image_geometry(
     geometry = wkt.loads(annotation.location)
     # change the coordinate system
     geometry = affinity.affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
-    # store it in the annotation
-    annotation.image_geometry = geometry
+   
+    return geometry
+
+
+def get_annotation_mapping(
+    annotation_collection: AnnotationCollection,
+    classes: Mapping[str, Container[int]],
+) -> Dict[str, List[Annotation]]:
+    """read annotation without duplicates from an annotation collection, grouping
+    them by terms to perform classification.
+    
+    All ID in a set will correspond to one class.
+
+    Args:
+        annotation_collection (AnnotationCollection): Cytomine annotation collection (already fetched)
+        classes (Mapping[str, Container[int]]): Mapping from class names to set of term IDs
+
+    Raises:
+        ValueError: if some annotations are found with unexpected terms
+
+    Returns:
+        Dict[str, List[Annotation]]: A mapping from class names to lists of annotations
+    """
+
+    term_collection = TermCollection().fetch_with_filter(
+        "project", annotation_collection.project
+    )
+
+    polygon_sets_per_term: Dict[str, set] = defaultdict(set)
+    annotation_dict = {key: [] for key in classes}
+
+    for annotation, term in iter_annotation_single_term(
+        annotation_collection,
+        term_collection,
+    ):
+        # avoid duplicate annotations
+        if annotation.location in polygon_sets_per_term[term.id]:
+            continue
+        polygon_sets_per_term[term.id].add(annotation.location)
+
+        for class_name, id_set in classes.items():
+            if term.id in id_set:
+                annotation_dict[class_name].append(annotation)
+                break
+        else:
+            raise ValueError(f"unexpected {term.id=} not found in {classes=}")
+
+    return annotation_dict
+
+
+class ParsedAnnotation(NamedTuple):
+    "A tuple of one Cytomine annotation and the parsed geometry"
+
+    annotation: Annotation
+    geometry: Polygon
+
+
+def parse_annotation_mapping(
+    annotation_dict: Mapping[str, Iterable[Annotation]],
+    image_height: int,
+    image_width: int,
+) -> Dict[str, List[ParsedAnnotation]]:
+    """parse the location of each annotation to a shapely Polygon
+
+    Args:
+        annotation_dict (Mapping[str, Iterable[Annotation]]): mapping from class names to iterables of annotations
+        image_height (int): the height (in pixels) of the image (the geometry needs to be vertically flipped to use the common coordinate system)
+        image_width (int): the width (in pixels) of the image (this parameter is ignored)
+
+    Returns:
+        Dict[str, List[ParsedAnnotation]]: A mapping from class names to lists of parsed annotations
+    """
+
+    def _add_image_geometry(annotation: Annotation) -> ParsedAnnotation:
+        geometry = get_image_geometry(annotation, image_height)
+        return ParsedAnnotation(annotation, geometry)
+
+    return {
+        class_name: [_add_image_geometry(annotation) for annotation in annotation_list]
+        for class_name, annotation_list in annotation_dict.items()
+    }
+
+
+def translate_parsed_annotation_mapping(
+    annotation_dict: Mapping[str, Iterable[ParsedAnnotation]],
+    template_transform: TemplateTransform,
+    matching_result: MatchingResult,
+    crop_idx: Tuple[slice, slice],
+) -> Dict[str, List[ParsedAnnotation]]:
+    """apply a transformation to map the geometry from one coordinate system to another,
+    using results from a template matching algorithm.
+
+    Args:
+        annotation_dict (Mapping[str, Iterable[ParsedAnnotation]]): mapping from class names to iterables of annotations
+        template_transform (TemplateTransform): transformation to applied to the template in the algorithm
+        matching_result (MatchingResult): results of the algorithm
+        crop_idx (Tuple[slice, slice]): region of the template used in the algorithm
+
+    Returns:
+        Dict[str, List[ParsedAnnotation]]: mapping from class names to lists of annotations.
+    """
+
+    def _translate_geometry(annotation: ParsedAnnotation) -> ParsedAnnotation:
+        translated_geometry = translate_geometry(
+            annotation.geometry,
+            template_transform,
+            matching_result,
+            crop_idx,
+        )
+        return ParsedAnnotation(annotation.annotation, translated_geometry)
+
+    return {
+        class_name: [_translate_geometry(annotation) for annotation in annotation_list]
+        for class_name, annotation_list in annotation_dict.items()
+    }
+
+
+class RasterizedAnnotation(NamedTuple):
+    "A tuple of one ParsedAnnotation and a raster of its geometry"
+    
+    annotation: ParsedAnnotation
+    raster: np.ndarray
+
+
+def rasterize_annotation_mapping(
+    annotation_dict: Mapping[str, Iterable[ParsedAnnotation]],
+    dest_shape: Tuple[int, int],
+) -> Dict[str, List[RasterizedAnnotation]]:
+    """make a dict of rasterized annotations for each term
+
+    Args:
+        annotation_dict (Mapping[str, Iterable[ParsedAnnotation]]): mapping from class names to iterables of annotations
+        dest_shape (Tuple[int, int]): height and width of the template
+
+    Returns:
+        Dict[str, List[RasterizedAnnotation]]: dict of rasterized annotations for each term
+    """
+
+    def _rasterize(annotation: ParsedAnnotation) -> RasterizedAnnotation:
+
+        geometry = annotation.geometry
+
+        mask = rasterio.features.rasterize(
+            [geometry],
+            out_shape=dest_shape,
+            all_touched=False,
+        )
+
+        return RasterizedAnnotation(annotation, mask)
+
+    return {
+        class_name: [_rasterize(annotation) for annotation in annotation_list]
+        for class_name, annotation_list in annotation_dict.items()
+    }
 
 
 def load_annotation(
@@ -310,11 +462,11 @@ def load_annotation(
         annotation_collection, term_collection
     ):
         # avoid duplicate annotations
-        if annotation.location in polygon_sets_per_term[term]:
+        if annotation.location in polygon_sets_per_term[term.id]:
             continue
-        polygon_sets_per_term[term].add(annotation.location)
+        polygon_sets_per_term[term.id].add(annotation.location)
 
-        add_image_geometry(annotation, image_height)
+        annotation.image_geometry = get_image_geometry(annotation, image_height)
 
         try:
             annotation_dict[term.name].append(annotation)
