@@ -640,7 +640,7 @@ def get_destination_mask_from_result(
         logging.error("x_ms: [%d, %d]", x_ms.min(), x_ms.max())
 
         logging.error("onehot_annotation.shape: %s", onehot_annotation.shape)
-        logging.error("y_overlay: [%d, %d]", y_overlay.min(), overload.max())
+        logging.error("y_overlay: [%d, %d]", y_overlay.min(), y_overlay.max())
         logging.error("x_overlay: [%d, %d]", x_overlay.min(), x_overlay.max())
 
         raise e
