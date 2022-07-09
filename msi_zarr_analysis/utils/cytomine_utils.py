@@ -16,7 +16,7 @@ def get_page_bin_indices(
     lipid: str,
     csv_lipid_mz_path: str,
 ) -> Tuple[int, int, float, float]:
-    """fetch the TIFF page and the bin's index corresponding to a lipied
+    """fetch the TIFF page and the bin's index corresponding to a lipid
 
     Parameters
     ----------
@@ -62,12 +62,10 @@ def get_page_bin_indices(
     center = row.loc[idx, "m/z"]
     width = row.loc[idx, "Interval Width (+/- Da)"]
 
-    return tiff_page, idx, center - .5 * width, center + .5 * width
+    return tiff_page, idx, center - 0.5 * width, center + 0.5 * width
 
 
-def get_lipid_dataframe(
-    csv_lipid_mz_path: str
-) -> pd.DataFrame:
+def get_lipid_dataframe(csv_lipid_mz_path: str) -> pd.DataFrame:
     return pd.read_csv(csv_lipid_mz_path, sep=None, engine="python")
 
 
@@ -75,10 +73,10 @@ def get_lipid_names(
     csv_lipid_mz_path: str,
 ) -> pd.Series:
     "get the names of the lipid in the order that matches the automated binning"
-    
+
     ds = get_lipid_dataframe(csv_lipid_mz_path)
     return ds.Name
-    
+
 
 def iter_annotation_single_term(
     annotation_collection: AnnotationCollection,

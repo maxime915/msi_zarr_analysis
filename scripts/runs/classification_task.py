@@ -1,7 +1,7 @@
 import json
 import logging
 import time
-from typing import Dict, NamedTuple, Optional, List, Union, Tuple, Any
+from typing import Dict, NamedTuple, Optional, List, Union, Tuple, Any, Type
 
 import numpy as np
 
@@ -26,7 +26,7 @@ from msi_zarr_analysis.utils.cytomine_utils import (
 
 
 class MLConfig(NamedTuple):
-    choices: Dict[BaseEstimator, Dict[str, Any]]
+    choices: Dict[Type[BaseEstimator], Dict[str, Any]]
     cv_fold_outer: Optional[int] = None
     cv_fold_inner: Optional[int] = None
 
@@ -198,7 +198,12 @@ def model_selection_assessment(
 
     # 1: feature importance
     logging.info("feature importances:")
-    logging.info(estimator.feature_importances_)
+    for idx, (feature, importance) in enumerate(
+        zip(collection.dataset.attribute_names(), estimator.feature_importances_)
+    ):
+        if len(feature) > 20:
+            feature = feature[:17] + "..."
+        logging.info("  %02d (%20s) : %.4f", idx, feature, importance)
 
     # TODO 2: segmentation mask for the whole image
 
