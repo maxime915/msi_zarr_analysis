@@ -174,7 +174,10 @@ def model_selection_assessment(
 
             model, res = select_model_(*train_set, groups[train_idx])
 
-            estimator = model(**res.best_params_)
+            try:
+                estimator = model(**res.best_params_, n_jobs=-1)
+            except TypeError:
+                estimator = model(**res.best_params_)
             estimator.fit(*train_set)
 
             scores.append(estimator.score(*test_set))
