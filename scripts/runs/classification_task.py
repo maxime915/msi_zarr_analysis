@@ -1,28 +1,25 @@
 import json
 import logging
 import time
-from typing import Dict, NamedTuple, Optional, List, Union, Tuple, Any, Type
+from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 import numpy as np
-
-from sklearn.base import BaseEstimator
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.model_selection import (
-    GridSearchCV,
-    StratifiedGroupKFold,
-    StratifiedKFold,
-)
-from sklearn.tree import DecisionTreeClassifier
-
 from msi_zarr_analysis import VERSION
 from msi_zarr_analysis.ml.dataset import GroupCollection
 from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
-    cytomine_translated_with_groups,
+    collect_spectra_zarr,
+    get_overlay_annotations,
+    translate_annotation_mapping_overlay_to_template,
 )
+from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.cytomine_utils import (
     get_lipid_dataframe,
     get_page_bin_indices,
 )
+from sklearn.base import BaseEstimator
+from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
+from sklearn.tree import DecisionTreeClassifier
 
 
 class MLConfig(NamedTuple):
@@ -41,7 +38,7 @@ class DSConfig(NamedTuple):
 
     zarr_path: str  # path to the non-binned zarr image
 
-    term_list: List[str]  # force order on the classes
+    classes: Dict[str, List[int]]
 
     save_image: Union[bool, str] = False
 
@@ -50,7 +47,6 @@ class DSConfig(NamedTuple):
     transform_flip_lr: bool = False
 
     annotation_users_id: Tuple[int] = ()  # select these users only
-    annotation_terms_id: Tuple[int] = ()  # select these terms only
 
     zarr_template_path: str = None  # use another group for the template matching
 
@@ -87,24 +83,31 @@ def run(
                 ds_config_itm.image_id_overlay, ds_config_itm.lipid_tm, bin_csv_path
             )
 
-            ds = cytomine_translated_with_groups(
-                annotation_project_id=ds_config_itm.project_id,
-                annotation_image_id=ds_config_itm.annotated_image_id,
-                zarr_path=ds_config_itm.zarr_path,
-                bin_idx=bin_idx,
-                tiff_path=ds_config_itm.local_overlay_path,
-                tiff_page_idx=page_idx,
-                transform_template_rot90=ds_config_itm.transform_rot90,
-                transform_template_flip_ud=ds_config_itm.transform_flip_ud,
-                transform_template_flip_lr=ds_config_itm.transform_flip_lr,
-                select_users=ds_config_itm.annotation_users_id,
-                select_terms=ds_config_itm.annotation_terms_id,
-                attribute_names=lipid_df.Name,
-                term_list=ds_config_itm.term_list,
-                zarr_template_path=ds_config_itm.zarr_template_path,
+            annotation_dict = get_overlay_annotations(
+                ds_config_itm.project_id,
+                ds_config_itm.image_id_overlay,
+                ds_config_itm.classes,
+                ds_config_itm.annotation_users_id,
             )
 
-            dataset_to_be_merged.append(ds)
+            annotation_dict = translate_annotation_mapping_overlay_to_template(
+                annotation_dict,
+                ds_config_itm.zarr_template_path,
+                bin_idx,
+                ds_config_itm.local_overlay_path,
+                page_idx,
+                ds_config_itm.transform_rot90,
+                ds_config_itm.transform_flip_ud,
+                ds_config_itm.transform_flip_lr,
+            )
+
+            dataset_to_be_merged.append(
+                collect_spectra_zarr(
+                    annotation_dict,
+                    lipid_df.Name,
+                    ds_config_itm.zarr_path,
+                )
+            )
 
         if len(dataset_to_be_merged) == 1:
             ds = dataset_to_be_merged[0]
@@ -302,28 +305,52 @@ def main():
         "_norm_vect",
     ]
 
-    classification_problems = {
-        "SC_n_SC_p": {
-            "term_list": ["SC negative AREA", "SC positive AREA"],
-            "annotation_terms_id": (544926052, 544924846),
+    problem_classes = {
+        "LS SC": {  # both merged
+            "LS": [544926097, 544926081],
+            "SC": [544926052, 544924846],
         },
-        "LS_n_LS_p": {
-            "term_list": ["LivingStrata negative AREA", "LivingStrata positive AREA"],
-            "annotation_terms_id": (544926097, 544926081),
+        "LS_n LS_p": {  # irradiation on LS
+            "LS_n": [544926097],
+            "LS_p": [544926081],
         },
-        "LS_n_SC_n": {
-            "term_list": ["LivingStrata negative AREA", "SC negative AREA"],
-            "annotation_terms_id": (544926097, 544926052),
+        "SC_n SC_p": {  # irradiation on SC
+            "SC_n": [544926052],
+            "SC_p": [544924846],
         },
-        "LS_p_SC_p": {
-            "term_list": ["LivingStrata positive AREA", "SC positive AREA"],
-            "annotation_terms_id": (544926081, 544924846),
+        "LS_n SC_n": {  # LS vs SC when irradiated
+            "LS_n": [544926097],
+            "SC_n": [544926052],
+        },
+        "LS_p SC_p": {  # LS vs SC before irradiation
+            "LS_p": [544926081],
+            "SC_p": [544924846],
         },
     }
 
+    ml_config = MLConfig(
+        choices={
+            ExtraTreesClassifier: {
+                "n_estimators": [200, 500, 1000],
+                "max_features": ["sqrt", None],
+                "max_depth": [20, None],
+            },
+            RandomForestClassifier: {
+                "n_estimators": [200, 500, 1000],
+                "max_features": ["sqrt", None],
+                "max_depth": [20, None],
+            },
+            DecisionTreeClassifier: {
+                "max_depth": [1, 20, None],
+            },
+        },
+        cv_fold_inner=5,
+        cv_fold_outer=5,
+    )
+
     for normalization in normalizations:
 
-        for name, class_problem in classification_problems.items():
+        for name, classes in problem_classes.items():
 
             ds_lst = []
             for source in data_sources:
@@ -331,7 +358,7 @@ def main():
                 ds_lst.append(
                     DSConfig(
                         **source["args"],
-                        **class_problem,
+                        classes=classes,
                         save_image=False,
                         zarr_path=zarr_path,
                     )
@@ -356,25 +383,7 @@ def main():
 
                 run(
                     "config_cytomine.json",
-                    MLConfig(
-                        choices={
-                            ExtraTreesClassifier: {
-                                "n_estimators": [200, 500, 1000],
-                                "max_features": ["sqrt", None],
-                                "max_depth": [20, None],
-                            },
-                            RandomForestClassifier: {
-                                "n_estimators": [200, 500, 1000],
-                                "max_features": ["sqrt", None],
-                                "max_depth": [20, None],
-                            },
-                            DecisionTreeClassifier: {
-                                "max_depth": [1, 20, None],
-                            },
-                        },
-                        cv_fold_inner=5,
-                        cv_fold_outer=5,
-                    ),
+                    ml_config,
                     "mz value + lipid name.csv",
                     *ds_lst,
                     grouped_cv=grouped_cv,
