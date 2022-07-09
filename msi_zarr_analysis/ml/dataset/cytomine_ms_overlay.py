@@ -1,23 +1,26 @@
 "translated annotated data via template matching"
 
+import functools
 import logging
 import random
 from collections import defaultdict
-from typing import Dict, Iterable, Iterator, List, Tuple
+from typing import Dict, Iterable, Iterator, List, Mapping, Tuple
 
 import numpy as np
 import numpy.typing as npt
 import zarr
 from cytomine.models import AnnotationCollection, ImageInstance
 from msi_zarr_analysis.ml.dataset.translate_annotation import (
+    ParsedAnnotation,
     TemplateTransform,
     build_onehot_annotation,
+    get_annotation_mapping,
     get_destination_mask,
-    load_annotation,
     match_template_ms_overlay,
-    rasterize_annotation_dict,
+    parse_annotation_mapping,
+    rasterize_annotation_mapping,
     save_bin_class_image,
-    translate_annotation_dict,
+    translate_parsed_annotation_mapping,
 )
 from msi_zarr_analysis.preprocessing.binning import bin_and_flatten
 from msi_zarr_analysis.utils.check import open_group_ro
@@ -318,46 +321,108 @@ class CytomineTranslatedProgressiveBinningFactory:
         return Tabular(dataset_x, dataset_y, bin_names, self.term_names)
 
 
-def cytomine_translated_with_groups(
-    annotation_project_id: int,
-    annotation_image_id: int,
-    zarr_path: str,
-    bin_idx: int,
-    tiff_path: str,
-    tiff_page_idx: int,
+def get_overlay_annotations(
+    project_id: int,
+    image_id: int,
+    classes: Mapping[str, Iterable[int]],
+    *,
+    select_users: Iterable[int] = (),
+) -> Dict[str, List[ParsedAnnotation]]:
+
+    # get unique list of terms to fetch
+    select_terms = []
+    for ids in classes.values():
+        select_terms.extend(ids)
+    select_terms = list(set(select_terms))
+
+    # fetch all annotations
+    annotations = AnnotationCollection()
+    annotations.project = project_id
+    annotations.image = image_id
+    annotations.users = list(select_users)
+    annotations.terms = select_terms
+    annotations.showTerm = True
+    annotations.showWKT = True
+    annotations.fetch()
+    image = ImageInstance().fetch(id=image_id)
+
+    annotation_mapping = get_annotation_mapping(annotations, classes)
+
+    return parse_annotation_mapping(annotation_mapping, image.height, image.width)
+
+
+@functools.lru_cache(maxsize=8)
+def __overlay_template_matching_cached(
+    zarr_template_path: str,
+    zarr_channel_index: int,
+    overlay_tiff_path: str,
+    overlay_tiff_page: int,
     transform_template_rot90: int = 0,
     transform_template_flip_ud: bool = False,
     transform_template_flip_lr: bool = False,
-    select_users: Iterable[int] = (),
-    select_terms: Iterable[int] = (),
-    attribute_names: List[str] = (),
+):
+    template_transform = TemplateTransform(
+        transform_template_rot90,
+        transform_template_flip_ud,
+        transform_template_flip_lr,
+    )
+
+    ms_template_group = open_group_ro(zarr_template_path)
+
+    # template matching between the template and overlay
+    matching_result, crop_idx = match_template_ms_overlay(
+        ms_group=ms_template_group,
+        bin_idx=zarr_channel_index,
+        tiff_path=overlay_tiff_path,
+        tiff_page_idx=overlay_tiff_page,
+        transform=template_transform,
+    )
+
+    logging.info("crop_idx: %s", crop_idx)
+    logging.info("ms_template.shape: %s", ms_template_group["/0"].shape)
+    logging.info("matching_results: %s", matching_result)
+
+    return template_transform, matching_result, crop_idx
+
+
+def translate_annotation_mapping_overlay_to_template(
+    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
+    zarr_template_path: str,
+    zarr_channel_index: int,
+    overlay_tiff_path: str,
+    overlay_tiff_page: int,
+    transform_template_rot90: int = 0,
+    transform_template_flip_ud: bool = False,
+    transform_template_flip_lr: bool = False,
     *,
-    term_list: List[str] = None,
-    zarr_template_path: str = None,
+    clear_cache: bool = False,
+) -> Dict[str, List[ParsedAnnotation]]:
+
+    if clear_cache:
+        __overlay_template_matching_cached.cache_clear()
+
+    template_transform, matching_result, crop_idx = __overlay_template_matching_cached(
+        zarr_template_path,
+        zarr_channel_index,
+        overlay_tiff_path,
+        overlay_tiff_page,
+        transform_template_rot90,
+        transform_template_flip_ud,
+        transform_template_flip_lr,
+    )
+
+    return translate_parsed_annotation_mapping(
+        annotation_mapping, template_transform, matching_result, crop_idx
+    )
+
+
+def collect_spectra_zarr(
+    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
+    attribute_names: Iterable[str],
+    zarr_path: str,
+    *,
     allow_duplicates: bool = False,
 ) -> GroupCollection:
-    """build a dataset after doing template matching on an overlay
-
-    Args:
-        annotation_project_id (int): ID of the Cytomine project containing the images
-        annotation_image_id (int): ID of the annotated Cytomine ID
-        zarr_path (str): path to the Zarr dataset to use for the dataset instances
-        bin_idx (int): channel index of the zarr image /0 in zarr_path
-        tiff_path (str): path to the tiff file that contains the overlay
-        tiff_page_idx (int): index of the page of the tiff_path to perform the overlay on
-        transform_template_rot90 (int, optional): How many time the template should be rotated counter clockwise before doing the template matching. Defaults to 0.
-        transform_template_flip_ud (bool, optional): Whether the template should be flipped in the vertical dimension before doing the template matching. Defaults to False.
-        transform_template_flip_lr (bool, optional): Whether the template should be flipped in the horizontal dimension before doing the template matching. Defaults to False.
-        select_users (Iterable[int], optional): List of users to select the annotation, leave empty to avoid any filtering. Defaults to ().
-        select_terms (Iterable[int], optional): List of terms to select the annotations, leave empty to avoid any filtering. Defaults to ().
-        attribute_names (List[str], optional): Names of each of the features, leave empty to guess from the zarr path. Defaults to ().
-        term_list (List[str], optional): Names of the term to use. Defaults to None.
-        zarr_template_path (str, optional): path to the Zarr dataset to use for the template matching, use zarr_path if this value is falsy. Defaults to None.
-        allow_duplicates (bool, optional): Whether duplicate spectra should be allowed for the same class. Defaults to False.
-
-    Returns:
-        GroupCollection: a dataset with groups corresponding to every annotations
-    """
 
     if allow_duplicates:
         logging.warning(
@@ -365,86 +430,39 @@ def cytomine_translated_with_groups(
             "biases in the dataset"
         )
 
-    transform_template = TemplateTransform(
-        transform_template_rot90,
-        transform_template_flip_ud,
-        transform_template_flip_lr,
-    )
-
     ms_group = open_group_ro(zarr_path)
-    ms_template_group = ms_group
-
-    if zarr_template_path:
-        ms_template_group = open_group_ro(zarr_template_path)
-        if ms_group["/0"].shape != ms_template_group["/0"].shape:
-            raise ValueError("inconsistent shape between template and value groups")
-
-    # template matching between the template and overlay
-    matching_result, crop_idx = match_template_ms_overlay(
-        ms_group=ms_template_group,
-        bin_idx=bin_idx,
-        tiff_path=tiff_path,
-        tiff_page_idx=tiff_page_idx,
-        transform=transform_template,
-    )
-
-    # fetch all annotations
-    annotations = AnnotationCollection()
-    annotations.project = annotation_project_id
-    annotations.image = annotation_image_id
-    annotations.users = list(select_users)
-    annotations.terms = list(select_terms)
-    annotations.showTerm = True
-    annotations.showWKT = True
-    annotations.fetch()
-    image_instance = ImageInstance().fetch(id=annotation_image_id)
-
-    # filter matching annotation & correct geometry
-    annotation_dict = load_annotation(
-        annotations,
-        image_height=image_instance.height,
-        term_list=term_list,
-    )
+    image_dimensions = ms_group["/0"].shape[-2:]
 
     # class names
-    class_names = term_list
-    if not class_names:
-        class_names = list(annotation_dict.keys())
+    class_names = list(annotation_mapping.keys())
 
     # attribute names
     attribute_names = list(attribute_names)
     if not attribute_names:
         attribute_names = [str(v) for v in ms_group["/labels/mzs/0"][:, 0, 0, 0]]
 
-    # update values from the annotation dict
-    translate_annotation_dict(
-        annotation_dict,
-        template_transform=transform_template,
-        matching_result=matching_result,
-        crop_idx=crop_idx,
-    )
-
     # have a numpy array like the template for each annotation
-    rasterized_dict = rasterize_annotation_dict(
-        annotation_dict, ms_template_group["/0"].shape[-2:]
+    rasterized_annotations = rasterize_annotation_mapping(
+        annotation_mapping,
+        image_dimensions,
     )
 
     # ROI for the annotation : select all interesting pixels
     selection = 0
-    for annotation_lst in rasterized_dict.values():
-        for mask in annotation_lst:
-            selection = np.logical_or(mask, selection)
+    for annotation_lst in rasterized_annotations.values():
+        for annotation in annotation_lst:
+            selection = np.logical_or(annotation.raster, selection)
     spectrum_dict = load_spectra(ms_group, selection)
 
     # collect all annotations as independent Tabular datasets
     dataset_lst: List[Tabular] = []
-    for class_idx, annotation_lst in enumerate(rasterized_dict.values()):
+    for class_idx, annotation_lst in enumerate(rasterized_annotations.values()):
 
         # gather spectrum info into a dict (y, x) -> {group_idx...}
         spectra_choices: Dict[Tuple[int, int], List[int]] = defaultdict(list)
-        for annotation_idx, mask in enumerate(annotation_lst):
+        for annotation_idx, annotation in enumerate(annotation_lst):
             # [(y, x)]
-            coordinates = list(zip(*mask.nonzero()))
+            coordinates = list(zip(*annotation.raster.nonzero()))
 
             for coord in coordinates:
                 spectra_choices[coord].append(annotation_idx)
@@ -491,3 +509,70 @@ def cytomine_translated_with_groups(
     logging.info("merged.target.shape=%s", merged.target.shape)
 
     return merged
+
+
+def cytomine_translated_with_groups(
+    annotation_project_id: int,
+    annotation_image_id: int,
+    zarr_path: str,
+    bin_idx: int,
+    tiff_path: str,
+    tiff_page_idx: int,
+    transform_template_rot90: int = 0,
+    transform_template_flip_ud: bool = False,
+    transform_template_flip_lr: bool = False,
+    select_users: Iterable[int] = (),
+    select_terms: Iterable[int] = (),
+    attribute_names: List[str] = (),
+    *,
+    term_list: List[str] = None,
+    zarr_template_path: str = None,
+    allow_duplicates: bool = False,
+) -> GroupCollection:
+    """build a dataset after doing template matching on an overlay
+
+    Args:
+        annotation_project_id (int): ID of the Cytomine project containing the images
+        annotation_image_id (int): ID of the annotated Cytomine ID
+        zarr_path (str): path to the Zarr dataset to use for the dataset instances
+        bin_idx (int): channel index of the zarr image /0 in zarr_path
+        tiff_path (str): path to the tiff file that contains the overlay
+        tiff_page_idx (int): index of the page of the tiff_path to perform the overlay on
+        transform_template_rot90 (int, optional): How many time the template should be rotated counter clockwise before doing the template matching. Defaults to 0.
+        transform_template_flip_ud (bool, optional): Whether the template should be flipped in the vertical dimension before doing the template matching. Defaults to False.
+        transform_template_flip_lr (bool, optional): Whether the template should be flipped in the horizontal dimension before doing the template matching. Defaults to False.
+        select_users (Iterable[int], optional): List of users to select the annotation, leave empty to avoid any filtering. Defaults to ().
+        select_terms (Iterable[int], optional): List of terms to select the annotations, leave empty to avoid any filtering. Defaults to ().
+        attribute_names (List[str], optional): Names of each of the features, leave empty to guess from the zarr path. Defaults to ().
+        term_list (List[str], optional): Names of the term to use. Defaults to None.
+        zarr_template_path (str, optional): path to the Zarr dataset to use for the template matching, use zarr_path if this value is falsy. Defaults to None.
+        allow_duplicates (bool, optional): Whether duplicate spectra should be allowed for the same class. Defaults to False.
+
+    Returns:
+        GroupCollection: a dataset with groups corresponding to every annotations
+    """
+
+    annotation_dict = get_overlay_annotations(
+        annotation_project_id,
+        annotation_image_id,
+        classes={term: [id_] for term, id_ in zip(term_list, select_terms)},
+        select_users=select_users,
+    )
+
+    annotation_dict = translate_annotation_mapping_overlay_to_template(
+        annotation_mapping=annotation_dict,
+        zarr_template_path=zarr_template_path or zarr_path,
+        zarr_channel_index=bin_idx,
+        overlay_tiff_path=tiff_path,
+        overlay_tiff_page=tiff_page_idx,
+        transform_template_rot90=transform_template_rot90,
+        transform_template_flip_ud=transform_template_flip_ud,
+        transform_template_flip_lr=transform_template_flip_lr,
+    )
+
+    return collect_spectra_zarr(
+        annotation_dict,
+        attribute_names,
+        zarr_path,
+        allow_duplicates=allow_duplicates,
+    )
