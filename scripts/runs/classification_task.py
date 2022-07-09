@@ -3,18 +3,22 @@ import logging
 import time
 from typing import Dict, NamedTuple, Optional, List, Union, Tuple, Any
 
-import cytomine
-import cytomine.models
 import numpy as np
 
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, GroupKFold, StratifiedKFold
+from sklearn.model_selection import (
+    GridSearchCV,
+    StratifiedGroupKFold,
+    StratifiedKFold,
+)
 from sklearn.tree import DecisionTreeClassifier
 
 from msi_zarr_analysis import VERSION
-from msi_zarr_analysis.ml.dataset import Dataset, GroupCollection, MergedDS
-from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import CytomineTranslated, cytomine_translated_with_groups
+from msi_zarr_analysis.ml.dataset import GroupCollection
+from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
+    cytomine_translated_with_groups,
+)
 from msi_zarr_analysis.utils.cytomine_utils import (
     get_lipid_dataframe,
     get_page_bin_indices,
@@ -56,6 +60,7 @@ def run(
     ml_config: MLConfig,
     bin_csv_path: str,
     *ds_config: DSConfig,
+    grouped_cv: bool,
 ):
     if not ds_config:
         raise ValueError("a list of dataset configuration is required")
@@ -109,29 +114,31 @@ def run(
     model_selection_assessment(
         ds,
         ml_config,
+        grouped_cv=grouped_cv,
     )
 
 
 def model_selection_assessment(
     collection: GroupCollection,
     ml_config: MLConfig,
+    *,
+    grouped_cv: bool,
 ):
     logger = logging.getLogger()
-    
+
     collection.dataset.check_dataset(print_=True)
     class_names = collection.dataset.class_names()
     logger.info(f"terms: {class_names}")
 
-    outer = StratifiedKFold(
-        n_splits=ml_config.cv_fold_outer, shuffle=True, random_state=31
-    )
-    inner = StratifiedKFold(
-        n_splits=ml_config.cv_fold_inner, shuffle=True, random_state=32
-    )
+    # StratifiedKFold ignores groups
+    CVType = StratifiedGroupKFold if grouped_cv else StratifiedKFold
+    # one for each loop
+    outer = CVType(n_splits=ml_config.cv_fold_outer, shuffle=True, random_state=31)
+    inner = CVType(n_splits=ml_config.cv_fold_inner, shuffle=True, random_state=32)
 
     def select_model_(ds_x: np.ndarray, ds_y: np.ndarray, groups: np.ndarray):
         "select one model that best fits a dataset"
-        
+
         best_res = None
         best_model = None
         best_score = -1
@@ -141,24 +148,26 @@ def model_selection_assessment(
             folds = list(inner.split(ds_x, ds_y, groups))
             search = GridSearchCV(model(), arg_dict, cv=folds, n_jobs=-1)
             search.fit(ds_x, ds_y)
-            
-            logger.debug("in-loop: %s, %s, %s", model, search.best_params_, search.best_score_)
-            
+
+            logger.debug(
+                "in-loop: %s, %s, %s", model, search.best_params_, search.best_score_
+            )
+
             if search.best_score_ > best_score:
                 best_res = search
                 best_model = model
                 best_score = search.best_score_
-        
+
         if best_model is None or best_res is None:
             raise ValueError("empty choice dict!")
-            
+
         return best_model, best_res
 
     def assessment_(ds_x: np.ndarray, ds_y: np.ndarray, groups: np.ndarray):
         "assess the quality of the selection procedure"
-        
+
         scores = []
-        
+
         for train_idx, test_idx in outer.split(ds_x, ds_y, groups):
             train_set = (ds_x[train_idx], ds_y[train_idx])
             test_set = (ds_x[test_idx], ds_y[test_idx])
@@ -167,32 +176,32 @@ def model_selection_assessment(
 
             estimator = model(**res.best_params_)
             estimator.fit(*train_set)
-            
+
             scores.append(estimator.score(*test_set))
-        
+
         return np.array(scores)
 
     logger.info("starting assessment procedure")
     start = time.time()
     scores = assessment_(collection.data, collection.target, collection.groups)
-    logger.info("duration: %s", time.time()-start)
+    logger.info("duration: %s", time.time() - start)
     logger.info("scores: %s (%s pm %s)", scores, scores.mean(), scores.std(ddof=1))
-    
+
     logger.info("starting selection procedure")
     start = time.time()
     model, res = select_model_(collection.data, collection.target, collection.groups)
-    logger.info("duration: %s", time.time()-start)
+    logger.info("duration: %s", time.time() - start)
     logger.info("model: %s, parameters: %s", model, res.best_params_)
-    
+
     logging.info("training model")
     estimator = model(**res.best_params_).fit(collection.data, collection.target)
-    
+
     # 1: feature importance
     logging.info("feature importances:")
     logging.info(estimator.feature_importances_)
-    
+
     # TODO 2: segmentation mask for the whole image
-    
+
     pass
 
 
@@ -200,18 +209,17 @@ def main():
     def filter(record: logging.LogRecord) -> bool:
         if record.name == "root":
             return True
-        
+
         if record.name == "cytomine.client":
             record.name = "cyt-client"
             return record.levelno != logging.DEBUG
-        
+
         return False
 
     # setup logger
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     logger.addFilter(filter)
-    
 
     formatter = logging.Formatter(
         "%(asctime)s.%(msecs)03d [%(name)s] [%(levelname)s] : %(message)s",
@@ -308,7 +316,6 @@ def main():
     for normalization in normalizations:
 
         for name, class_problem in classification_problems.items():
-            base = name + (normalization or "_no_norm")
 
             ds_lst = []
             for source in data_sources:
@@ -322,44 +329,52 @@ def main():
                     )
                 )
 
-            file_handler = logging.FileHandler(
-                f"logs/classification_task/{base}.log", mode="a"
-            )
-            file_handler.setLevel(logging.INFO)
-            file_handler.setFormatter(formatter)
-            file_handler.addFilter(filter)
-            logger.addHandler(file_handler)
+            for grouped_cv in [True, False]:
 
-            logger.info("norm: '%s', problem: '%s'", normalization, name)
+                base = (
+                    name
+                    + (normalization or "_no_norm")
+                    + ("_gcv" if grouped_cv else "_cv")
+                )
+                file_handler = logging.FileHandler(
+                    f"logs/classification_task/{base}.log", mode="a"
+                )
+                file_handler.setLevel(logging.INFO)
+                file_handler.setFormatter(formatter)
+                file_handler.addFilter(filter)
+                logger.addHandler(file_handler)
 
-            run(
-                "config_cytomine.json",
-                MLConfig(
-                    choices={
-                        ExtraTreesClassifier: {
-                            "n_estimators": [200, 500, 1000],
-                            "max_features": ["sqrt", None],
-                            "max_depth": [20, None],
+                logger.info("norm: '%s', problem: '%s'", normalization, name)
+
+                run(
+                    "config_cytomine.json",
+                    MLConfig(
+                        choices={
+                            ExtraTreesClassifier: {
+                                "n_estimators": [200, 500, 1000],
+                                "max_features": ["sqrt", None],
+                                "max_depth": [20, None],
+                            },
+                            RandomForestClassifier: {
+                                "n_estimators": [200, 500, 1000],
+                                "max_features": ["sqrt", None],
+                                "max_depth": [20, None],
+                            },
+                            DecisionTreeClassifier: {
+                                "max_depth": [1, 20, None],
+                            },
                         },
-                        RandomForestClassifier: {
-                            "n_estimators": [200, 500, 1000],
-                            "max_features": ["sqrt", None],
-                            "max_depth": [20, None],
-                        },
-                        DecisionTreeClassifier: {
-                            "max_depth": [1, 20, None],
-                        },
-                    },
-                    cv_fold_inner=5,
-                    cv_fold_outer=5,
-                ),
-                "mz value + lipid name.csv",
-                *ds_lst,
-            )
+                        cv_fold_inner=5,
+                        cv_fold_outer=5,
+                    ),
+                    "mz value + lipid name.csv",
+                    *ds_lst,
+                    grouped_cv=grouped_cv,
+                )
 
-            logger.info("done")
+                logger.info("done")
 
-            logger.removeHandler(file_handler)
+                logger.removeHandler(file_handler)
 
 
 if __name__ == "__main__":
