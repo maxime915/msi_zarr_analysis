@@ -538,18 +538,12 @@ def load_ms_template(
     "use m/Z bounds ? use the CSV ? use the binned array directly ?"
 
     ms_data = z_group["/0"][bin_idx, 0, ...]
-    nz_y, nz_x = ms_data.nonzero()
 
-    # .min() will raise an Exception on empty array
-    if nz_y.size == 0:
-        return ms_data, (slice(None), slice(None))
-
-    crop_idx = (
-        slice(nz_y.min(), 1 + nz_y.max()),
-        slice(nz_x.min(), 1 + nz_x.max()),
-    )
-
+    crop_idx = autocrop(ms_data)
     ms_data = ms_data[crop_idx]
+
+    if ms_data.size == 0:
+        raise ValueError("unexpected empty template")
 
     return crop_idx, ms_data
 
