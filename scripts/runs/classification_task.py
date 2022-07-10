@@ -1,7 +1,11 @@
+import datetime
+import functools
 import json
 import logging
+import pathlib
 import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Type, Union
+from matplotlib import pyplot as plt
 
 import numpy as np
 from msi_zarr_analysis import VERSION
@@ -11,6 +15,7 @@ from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
     get_overlay_annotations,
     translate_annotation_mapping_overlay_to_template,
 )
+from msi_zarr_analysis.utils.autocrop import autocrop
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.cytomine_utils import (
     get_lipid_dataframe,
@@ -20,6 +25,52 @@ from sklearn.base import BaseEstimator
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
+
+
+@functools.lru_cache(maxsize=1)
+def datetime_str() -> str:
+    "return a datetime representation, constant through the program"
+    return datetime.datetime.now().strftime("%W-%w_%H-%M-%S")
+
+
+def build_segmentation_mask(
+    zarr_path: str,
+    estimator: BaseEstimator,
+) -> np.ndarray:
+    pass
+
+    z_group = open_group_ro(zarr_path)
+    z_ints = z_group["/0"]
+    z_lens = z_group["/labels/lengths/0"]
+
+    # assume small dataset
+    n_ints = z_ints[:, 0, ...]
+    n_lens = z_lens[0, 0, ...]
+    selection_mask = n_lens > 0
+
+    # select valid spectra only
+    dataset = n_ints[:, selection_mask].T
+    prediction = estimator.predict(dataset)
+
+    # build prediction 2D mask
+    prediction_mask = np.zeros(shape=n_lens.shape, dtype=np.uint8)
+    prediction_mask[selection_mask] = 255 * prediction
+
+    # build colored mask
+    #   transparent: no prediction
+    #   red: class 0
+    #   white: class 1
+    mask = np.stack(
+        [
+            255 * np.ones(n_lens.shape, np.uint8),  # R
+            prediction_mask,  # G
+            prediction_mask,  # B
+            np.where(n_lens, 150, 0),  # A
+        ],
+        axis=-1,
+    )
+
+    return mask
 
 
 class MLConfig(NamedTuple):
@@ -52,6 +103,7 @@ class DSConfig(NamedTuple):
 
 
 def run(
+    base: str,
     config_path: str,
     ml_config: MLConfig,
     bin_csv_path: str,
@@ -87,7 +139,7 @@ def run(
                 ds_config_itm.project_id,
                 ds_config_itm.image_id_overlay,
                 ds_config_itm.classes,
-                ds_config_itm.annotation_users_id,
+                select_users=ds_config_itm.annotation_users_id,
             )
 
             annotation_dict = translate_annotation_mapping_overlay_to_template(
@@ -114,11 +166,44 @@ def run(
         else:
             ds = GroupCollection.merge_collections(*dataset_to_be_merged)
 
-    model_selection_assessment(
+    estimator = model_selection_assessment(
         ds,
         ml_config,
         grouped_cv=grouped_cv,
     )
+
+    dir = pathlib.Path("results") / datetime_str() / "class_masks"
+    dir.mkdir(parents=True, exist_ok=True)
+    path = str(dir / base)
+
+    with Cytomine(host_url, pub_key, priv_key):
+
+        for ds_config_itm in ds_config:
+            mask = build_segmentation_mask(ds_config_itm.zarr_path, estimator)
+            stem = pathlib.Path(ds_config_itm.zarr_path).stem
+
+            # build all datasets and merge them if there are more than one
+            page_idx, bin_idx, *_ = get_page_bin_indices(
+                ds_config_itm.image_id_overlay, ds_config_itm.lipid_tm, bin_csv_path
+            )
+
+            template_group = open_group_ro(ds_config_itm.zarr_template_path)
+            template_lipid = template_group["/0"][bin_idx, 0, ...]
+
+            fig, ax = plt.subplots(dpi=150)
+
+            ax.imshow(template_lipid, interpolation="nearest")
+            ax.imshow(mask, interpolation="nearest")
+
+            # xlim, ylim
+            crop_idx = autocrop(template_lipid)
+            ax.set_ylim((crop_idx[0].stop, crop_idx[0].start))  # backward y axis
+            ax.set_xlim((crop_idx[1].start, crop_idx[1].stop))
+            ax.set_title(f"Classification mask on {stem}")
+
+            fig.tight_layout()
+            fig.savefig(path + "_" + stem + ".png")
+            plt.close(fig)
 
 
 def model_selection_assessment(
@@ -200,7 +285,11 @@ def model_selection_assessment(
     logger.info("model: %s, parameters: %s", model, res.best_params_)
 
     logging.info("training model")
-    estimator = model(**res.best_params_).fit(collection.data, collection.target)
+    try:
+        estimator = model(**res.best_params_, n_jobs=-1)
+    except TypeError:
+        estimator = model(**res.best_params_)
+    estimator.fit(collection.data, collection.target)
 
     # 1: feature importance
     logging.info("feature importances:")
@@ -211,9 +300,7 @@ def model_selection_assessment(
             feature = feature[:17] + "..."
         logging.info("  %02d (%20s) : %.4f", idx, feature, importance)
 
-    # TODO 2: segmentation mask for the whole image
-
-    pass
+    return estimator
 
 
 def main():
@@ -382,6 +469,7 @@ def main():
                 logger.info("norm: '%s', problem: '%s'", normalization, name)
 
                 run(
+                    base,
                     "config_cytomine.json",
                     ml_config,
                     "mz value + lipid name.csv",
