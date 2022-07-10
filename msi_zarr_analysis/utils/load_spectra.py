@@ -8,7 +8,7 @@ import zarr
 
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
 
-def load_spectra(
+def load_intensities(
     ms_group: zarr.Group,
     selection: np.ndarray,
 ) -> Dict[Tuple[int, int], np.ndarray]:
@@ -40,7 +40,7 @@ def load_spectra(
         c_int = intensities[:len_cap, 0, cy, cx]
 
         c_mask = selection[cy, cx]
-        
+            
         for y, x in zip(*c_mask.nonzero()):
             length = c_len[y, x]
             if length == 0:

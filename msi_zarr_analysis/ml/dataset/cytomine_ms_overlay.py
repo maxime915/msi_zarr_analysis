@@ -25,7 +25,7 @@ from msi_zarr_analysis.ml.dataset.translate_annotation import (
 from msi_zarr_analysis.preprocessing.binning import bin_and_flatten
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
-from msi_zarr_analysis.utils.load_spectra import load_spectra
+from msi_zarr_analysis.utils.load_spectra import load_intensities
 
 from . import Dataset, GroupCollection, Tabular
 
@@ -452,7 +452,7 @@ def collect_spectra_zarr(
     for annotation_lst in rasterized_annotations.values():
         for annotation in annotation_lst:
             selection = np.logical_or(annotation.raster, selection)
-    spectrum_dict = load_spectra(ms_group, selection)
+    spectrum_dict = load_intensities(ms_group, selection)
 
     # collect all annotations as independent Tabular datasets
     dataset_lst: List[Tabular] = []

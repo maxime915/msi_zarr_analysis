@@ -13,6 +13,7 @@ import rasterio.features
 import tifffile
 import zarr
 from cytomine.models import Annotation, AnnotationCollection, TermCollection
+from msi_zarr_analysis.utils.autocrop import autocrop
 from msi_zarr_analysis.utils.cytomine_utils import iter_annotation_single_term
 from PIL import Image
 from scipy.optimize import minimize_scalar
@@ -288,7 +289,7 @@ def get_image_geometry(
     geometry = wkt.loads(annotation.location)
     # change the coordinate system
     geometry = affinity.affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
-   
+
     return geometry
 
 
@@ -298,7 +299,7 @@ def get_annotation_mapping(
 ) -> Dict[str, List[Annotation]]:
     """read annotation without duplicates from an annotation collection, grouping
     them by terms to perform classification.
-    
+
     All ID in a set will correspond to one class.
 
     Args:
@@ -407,7 +408,7 @@ def translate_parsed_annotation_mapping(
 
 class RasterizedAnnotation(NamedTuple):
     "A tuple of one ParsedAnnotation and a raster of its geometry"
-    
+
     annotation: ParsedAnnotation
     raster: np.ndarray
 
