@@ -28,6 +28,7 @@ def saga(
     groups: np.ndarray = None,
     cv=None,
     rng=None,
+    low_variance_threshold: float = 0.0,
 ) -> Tuple[np.ndarray, float]:
     """Perform the SAGA algorithm for `time_budget` seconds to find an optimal
     feature selection for the  classification problem `(data, target)|,
@@ -43,16 +44,28 @@ def saga(
         data (np.ndarray): Inputs (n_samples, n_features)
         target (np.ndarray): Targets (n_samples, n_outputs) or (n_samples,)
         groups (np.ndarray, optional): Grouping of samples (n_samples,). Defaults to None.
-        cv (_type_, optional): Folding strategy used to evaluate the score, \
+        cv (Any, optional): Folding strategy used to evaluate the score, \
             may be an int or KFold or GroupKFold, etc. \
             NOTE: To have group cross validation, it is **necessary** that cv \
             is either a GroupKFold or StratifiedGroupKFold instance, passing groups \
             is not sufficient. Defaults to None (scikit-learn's default).
-        rng (_type_, optional): Random number generator. Defaults to None.
+        rng (Any, optional): Random number generator. Defaults to None.
+        low_variance_threshold (float, optional): remove features for which the variance \
+            is <= low_variance_threshold. A 0 value only remove constant features, \
+            a negative value won't remove any feature. Defaults to 0.0.
 
     Returns:
         Tuple[np.ndarray, float]: best found solution (n_features,) and its score
     """
+
+    # store which feature will be selected
+    solution = np.zeros(data.shape[1:], dtype=bool)
+
+    # remove features which have a variance <=
+    if low_variance_threshold >= 0:
+        pre_selection = np.var(data, axis=0) > low_variance_threshold
+        logging.debug("removed feature before SAGA: %s", np.argwhere(~pre_selection))
+        data = data[:, pre_selection]
 
     # scorer to assess the fitness of a feature selection solution
     scorer = Scorer(model, data, target, groups, cv)
@@ -72,7 +85,13 @@ def saga(
         scorer, population, scores, 0.2 * time_budget, 10000, rng
     )
 
-    return individual, score
+    # report the solution with the right shape (i.e. including removed features)
+    if low_variance_threshold >= 0:
+        solution[pre_selection] = individual
+    else:
+        solution = individual
+
+    return solution, score
 
 
 class Array(NamedTuple):
