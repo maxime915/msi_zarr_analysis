@@ -100,6 +100,12 @@ class Scorer(NamedTuple):
     target: np.ndarray
     groups: np.ndarray
     cv: Any
+    
+    def __eq__(self, __o: object) -> bool:
+        return id(self) == id(__o)
+
+    def __hash__(self) -> int:
+        return id(self)
 
     @functools.lru_cache(maxsize=2**14)
     def __score_feature_selection_cached(self, array: Array) -> float:
