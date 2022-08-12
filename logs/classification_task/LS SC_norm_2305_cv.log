@@ -1,0 +1,63 @@
+190 14:55:38.810 [root] [INFO] : norm: '_norm_2305', problem: 'LS SC'
+190 14:55:40.109 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+190 14:55:40.249 [root] [INFO] : merged.data.shape=(216, 37)
+190 14:55:40.249 [root] [INFO] : merged.target.shape=(216,)
+190 14:55:41.321 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+190 14:55:41.456 [root] [INFO] : merged.data.shape=(213, 37)
+190 14:55:41.456 [root] [INFO] : merged.target.shape=(213,)
+190 14:55:42.372 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+190 14:55:42.401 [root] [INFO] : merged.data.shape=(48, 37)
+190 14:55:42.402 [root] [INFO] : merged.target.shape=(48,)
+190 14:55:42.402 [root] [INFO] : ds_x.shape=(477, 37)
+190 14:55:42.402 [root] [INFO] : checking for class imbalance:
+190 14:55:42.402 [root] [INFO] : occurrence_per_class: {'LS': 304, 'SC': 173}
+190 14:55:42.402 [root] [INFO] : max rel. occurrence = 0.6373
+190 14:55:42.402 [root] [INFO] : min rel. occurrence = 0.3627
+190 14:55:42.402 [root] [INFO] : . . .  1 / #classes = 0.5000
+190 14:55:42.402 [root] [INFO] : terms: ['LS', 'SC']
+190 14:55:42.403 [root] [INFO] : starting assessment procedure
+190 14:57:42.744 [root] [INFO] : duration: 120.34151363372803
+190 14:57:42.744 [root] [INFO] : scores: [0.8125     0.9375     0.92631579 0.87368421 0.8       ] (0.8700000000000001 pm 0.06314178796812482)
+190 14:57:42.745 [root] [INFO] : starting selection procedure
+190 14:58:08.998 [root] [INFO] : duration: 26.252859354019165
+190 14:58:08.998 [root] [INFO] : model: <class 'sklearn.ensemble._forest.ExtraTreesClassifier'>, parameters: {'max_depth': 20, 'max_features': None, 'n_estimators': 500}
+190 14:58:08.998 [root] [INFO] : training model
+190 14:58:09.418 [root] [INFO] : feature importances:
+190 14:58:09.462 [root] [INFO] :   00 (     X-X-x-farnesene) : 0.0098
+190 14:58:09.462 [root] [INFO] :   01 (         hexadecanol) : 0.0145
+190 14:58:09.462 [root] [INFO] :   02 (  hexcadecyl acetate) : 0.0024
+190 14:58:09.462 [root] [INFO] :   03 (                  AA) : 0.0075
+190 14:58:09.462 [root] [INFO] :   04 (            15d PGJ2) : 0.0000
+190 14:58:09.462 [root] [INFO] :   05 (          12/15sHETE) : 0.0003
+190 14:58:09.462 [root] [INFO] :   06 (                PGJ2) : 0.0004
+190 14:58:09.462 [root] [INFO] :   07 (                LTB4) : 0.0002
+190 14:58:09.462 [root] [INFO] :   08 (         PGD2 / PGE2) : 0.0005
+190 14:58:09.462 [root] [INFO] :   09 (               PGF2a) : 0.0000
+190 14:58:09.462 [root] [INFO] :   10 (   Neuroprotectin D1) : 0.0059
+190 14:58:09.462 [root] [INFO] :   11 (                TXB2) : 0.0006
+190 14:58:09.463 [root] [INFO] :   12 (         Resolvin D1) : 0.0017
+190 14:58:09.463 [root] [INFO] :   13 (Sphingosine-1-pho...) : 0.0000
+190 14:58:09.463 [root] [INFO] :   14 (             LysoPPC) : 0.0937
+190 14:58:09.463 [root] [INFO] :   15 (LysoSPC/  PAF -O-...) : 0.0493
+190 14:58:09.463 [root] [INFO] :   16 (       PC 20:3, Lyso) : 0.0141
+190 14:58:09.463 [root] [INFO] :   17 ( PC 18:1 C1 Carbonyl) : 0.0153
+190 14:58:09.463 [root] [INFO] :   18 (         PAF -O-18:0) : 0.0066
+190 14:58:09.463 [root] [INFO] :   19 (               POVPC) : 0.0015
+190 14:58:09.463 [root] [INFO] :   20 ( PC 22:6 C1 Carbonyl) : 0.0019
+190 14:58:09.463 [root] [INFO] :   21 (                PGPC) : 0.0128
+190 14:58:09.463 [root] [INFO] :   22 (               PONPC) : 0.0167
+190 14:58:09.463 [root] [INFO] :   23 (PC 16:0 C9 Carbon...) : 0.0146
+190 14:58:09.463 [root] [INFO] :   24 (               PAzPC) : 0.0711
+190 14:58:09.463 [root] [INFO] :   25 (                DPPC) : 0.1056
+190 14:58:09.463 [root] [INFO] :   26 (                PLPC) : 0.1060
+190 14:58:09.463 [root] [INFO] :   27 (                PAPC) : 0.1110
+190 14:58:09.463 [root] [INFO] :   28 (                SLPC) : 0.1102
+190 14:58:09.463 [root] [INFO] :   29 (             PAPC-OH) : 0.0376
+190 14:58:09.463 [root] [INFO] :   30 (               PDHPC) : 0.1072
+190 14:58:09.463 [root] [INFO] :   31 (               PECPC) : 0.0088
+190 14:58:09.463 [root] [INFO] :   32 (                SAPC) : 0.0470
+190 14:58:09.463 [root] [INFO] :   33 (             isoPGJ2) : 0.0067
+190 14:58:09.463 [root] [INFO] :   34 (            PAPC-OOH) : 0.0102
+190 14:58:09.463 [root] [INFO] :   35 (               PEIPC) : 0.0034
+190 14:58:09.463 [root] [INFO] :   36 (          isoPGF-PPC) : 0.0047
+190 14:58:12.119 [root] [INFO] : done

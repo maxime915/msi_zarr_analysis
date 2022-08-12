@@ -1,0 +1,72 @@
+190 14:30:53.201 [root] [INFO] : norm: '', problem: 'LS SC'
+190 14:31:01.687 [root] [INFO] : crop_idx: (slice(616, 643, None), slice(414, 653, None))
+190 14:31:01.687 [root] [INFO] : ms_template.shape: (37, 1, 644, 758)
+190 14:31:01.687 [root] [INFO] : matching_results: MatchingResult(x_top_left=243, y_top_left=126, scale=6.998395336086913, y_slice=slice(126, 1799, None), x_slice=slice(243, 432, None))
+190 14:31:01.740 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+190 14:31:01.883 [root] [INFO] : merged.data.shape=(216, 37)
+190 14:31:01.883 [root] [INFO] : merged.target.shape=(216,)
+190 14:31:09.915 [root] [INFO] : crop_idx: (slice(594, 622, None), slice(447, 678, None))
+190 14:31:09.915 [root] [INFO] : ms_template.shape: (37, 1, 623, 763)
+190 14:31:09.915 [root] [INFO] : matching_results: MatchingResult(x_top_left=205, y_top_left=283, scale=6.786607519439346, y_slice=slice(283, 1851, None), x_slice=slice(205, 395, None))
+190 14:31:09.987 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+190 14:31:10.122 [root] [INFO] : merged.data.shape=(213, 37)
+190 14:31:10.122 [root] [INFO] : merged.target.shape=(213,)
+190 14:31:15.376 [root] [INFO] : crop_idx: (slice(590, 613, None), slice(712, 756, None))
+190 14:31:15.376 [root] [INFO] : ms_template.shape: (37, 1, 679, 821)
+190 14:31:15.376 [root] [INFO] : matching_results: MatchingResult(x_top_left=230, y_top_left=316, scale=8.17379800672557, y_slice=slice(316, 676, None), x_slice=slice(230, 418, None))
+190 14:31:15.395 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+190 14:31:15.426 [root] [INFO] : merged.data.shape=(48, 37)
+190 14:31:15.426 [root] [INFO] : merged.target.shape=(48,)
+190 14:31:15.426 [root] [INFO] : ds_x.shape=(477, 37)
+190 14:31:15.427 [root] [INFO] : checking for class imbalance:
+190 14:31:15.427 [root] [INFO] : occurrence_per_class: {'LS': 304, 'SC': 173}
+190 14:31:15.427 [root] [INFO] : max rel. occurrence = 0.6373
+190 14:31:15.427 [root] [INFO] : min rel. occurrence = 0.3627
+190 14:31:15.427 [root] [INFO] : . . .  1 / #classes = 0.5000
+190 14:31:15.427 [root] [INFO] : terms: ['LS', 'SC']
+190 14:31:15.428 [root] [INFO] : starting assessment procedure
+190 14:33:17.500 [root] [INFO] : duration: 122.07242727279663
+190 14:33:17.500 [root] [INFO] : scores: [0.7721519  0.80172414 0.7826087  0.73728814 0.65263158] (0.749280889371595 pm 0.05888343444652642)
+190 14:33:17.501 [root] [INFO] : starting selection procedure
+190 14:33:45.741 [root] [INFO] : duration: 28.240551948547363
+190 14:33:45.741 [root] [INFO] : model: <class 'sklearn.ensemble._forest.ExtraTreesClassifier'>, parameters: {'max_depth': 20, 'max_features': None, 'n_estimators': 500}
+190 14:33:45.741 [root] [INFO] : training model
+190 14:33:46.168 [root] [INFO] : feature importances:
+190 14:33:46.213 [root] [INFO] :   00 (     X-X-x-farnesene) : 0.0165
+190 14:33:46.213 [root] [INFO] :   01 (         hexadecanol) : 0.0107
+190 14:33:46.213 [root] [INFO] :   02 (  hexcadecyl acetate) : 0.0072
+190 14:33:46.213 [root] [INFO] :   03 (                  AA) : 0.0046
+190 14:33:46.213 [root] [INFO] :   04 (            15d PGJ2) : 0.0000
+190 14:33:46.213 [root] [INFO] :   05 (          12/15sHETE) : 0.0032
+190 14:33:46.213 [root] [INFO] :   06 (                PGJ2) : 0.0024
+190 14:33:46.213 [root] [INFO] :   07 (                LTB4) : 0.0062
+190 14:33:46.214 [root] [INFO] :   08 (         PGD2 / PGE2) : 0.0009
+190 14:33:46.214 [root] [INFO] :   09 (               PGF2a) : 0.0000
+190 14:33:46.214 [root] [INFO] :   10 (   Neuroprotectin D1) : 0.0057
+190 14:33:46.214 [root] [INFO] :   11 (                TXB2) : 0.0007
+190 14:33:46.214 [root] [INFO] :   12 (         Resolvin D1) : 0.0014
+190 14:33:46.214 [root] [INFO] :   13 (Sphingosine-1-pho...) : 0.0000
+190 14:33:46.214 [root] [INFO] :   14 (             LysoPPC) : 0.0674
+190 14:33:46.214 [root] [INFO] :   15 (LysoSPC/  PAF -O-...) : 0.0444
+190 14:33:46.214 [root] [INFO] :   16 (       PC 20:3, Lyso) : 0.0204
+190 14:33:46.214 [root] [INFO] :   17 ( PC 18:1 C1 Carbonyl) : 0.0225
+190 14:33:46.214 [root] [INFO] :   18 (         PAF -O-18:0) : 0.0136
+190 14:33:46.214 [root] [INFO] :   19 (               POVPC) : 0.0070
+190 14:33:46.214 [root] [INFO] :   20 ( PC 22:6 C1 Carbonyl) : 0.0038
+190 14:33:46.214 [root] [INFO] :   21 (                PGPC) : 0.0108
+190 14:33:46.214 [root] [INFO] :   22 (               PONPC) : 0.0170
+190 14:33:46.214 [root] [INFO] :   23 (PC 16:0 C9 Carbon...) : 0.0157
+190 14:33:46.214 [root] [INFO] :   24 (               PAzPC) : 0.0584
+190 14:33:46.214 [root] [INFO] :   25 (                DPPC) : 0.1065
+190 14:33:46.214 [root] [INFO] :   26 (                PLPC) : 0.0855
+190 14:33:46.214 [root] [INFO] :   27 (                PAPC) : 0.1099
+190 14:33:46.214 [root] [INFO] :   28 (                SLPC) : 0.0911
+190 14:33:46.214 [root] [INFO] :   29 (             PAPC-OH) : 0.0305
+190 14:33:46.214 [root] [INFO] :   30 (               PDHPC) : 0.1144
+190 14:33:46.214 [root] [INFO] :   31 (               PECPC) : 0.0117
+190 14:33:46.215 [root] [INFO] :   32 (                SAPC) : 0.0646
+190 14:33:46.215 [root] [INFO] :   33 (             isoPGJ2) : 0.0181
+190 14:33:46.215 [root] [INFO] :   34 (            PAPC-OOH) : 0.0144
+190 14:33:46.215 [root] [INFO] :   35 (               PEIPC) : 0.0051
+190 14:33:46.215 [root] [INFO] :   36 (          isoPGF-PPC) : 0.0077
+190 14:33:49.000 [root] [INFO] : done
