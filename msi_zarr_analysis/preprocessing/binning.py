@@ -10,7 +10,7 @@ from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks, clean_slice_
 
 
 @nb.jit(nopython=True)
-def bin_band(bins, mzs, ints, bin_lo, bin_hi, reduction):
+def bin_band(bins, mzs, ints, bin_lo, bin_hi):
 
     lows = np.searchsorted(mzs, bin_lo, side="left")
     highs = np.searchsorted(mzs, bin_hi, side="right")
@@ -19,7 +19,7 @@ def bin_band(bins, mzs, ints, bin_lo, bin_hi, reduction):
         lo = lows[idx]
         hi = highs[idx]
 
-        bins[idx] = reduction(ints[lo:hi])
+        bins[idx] = np.sum(ints[lo:hi])
 
 
 @nb.jit(nopython=True, parallel=True)
@@ -50,7 +50,6 @@ def bin_processed_chunk(
             int_band,
             bin_lo,
             bin_hi,
-            reduction=np.sum,
         )
 
 
@@ -129,7 +128,6 @@ def bin_and_flatten_chunk(
             int_band,
             bin_lo,
             bin_hi,
-            reduction=np.sum,
         )
 
         dataset_y[row_offset] = c
