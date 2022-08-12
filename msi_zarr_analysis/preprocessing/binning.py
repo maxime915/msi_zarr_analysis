@@ -1,5 +1,6 @@
 "mz_slice: extract single lipids"
 
+from typing import Dict, Tuple, TypeVar
 import numpy as np
 import numpy.typing as npt
 import numba as nb
@@ -133,6 +134,28 @@ def bin_and_flatten_chunk(
         dataset_y[row_offset] = c
 
     return start_idx + count
+
+
+KeyType = TypeVar("KeyType")
+
+
+def bin_spectrum_dict(
+    spectrum_dict: Dict[KeyType, Tuple[np.ndarray, np.ndarray]],
+    bin_lo: npt.NDArray,  # (bins,)
+    bin_hi: npt.NDArray,  # (bins,)
+) -> Dict[KeyType, np.ndarray]:
+    "NOTE: to save memory, spectrum_dict will be consumed"
+
+    binned_spectrum_dict = {}
+    while spectrum_dict:
+        key, (s_mzs, s_int) = spectrum_dict.popitem()
+
+        binned_spectra = np.zeros(shape=bin_lo.shape, dtype=s_int.dtype)
+        bin_band(binned_spectra, s_mzs, s_int, bin_lo, bin_hi)
+
+        binned_spectrum_dict[key] = binned_spectra
+
+    return binned_spectrum_dict
 
 
 def bin_and_flatten(
