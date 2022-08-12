@@ -119,7 +119,7 @@ class Scorer(NamedTuple):
     target: np.ndarray
     groups: np.ndarray
     cv: Any
-    
+
     def __eq__(self, __o: object) -> bool:
         return id(self) == id(__o)
 
@@ -298,16 +298,19 @@ def hill_climbing(
     best_score = start_scores[best_idx]
     best_individual = start_population[best_idx]
 
-    queue = deque([(best_individual, best_score)])
+    end_time = time.time() + time_budget
 
-    while time_budget > 0:
-        start = time.time()
+    while time.time() < end_time:
 
-        individual, score = queue.popleft()
+        individual = best_individual
 
         _log_stats(best_score, "HC")
 
         for _ in range(branching_factor):
+
+            # avoid running out of time
+            if time.time() >= end_time:
+                break
 
             # Step 2.
             trial = individual.copy()
@@ -317,21 +320,16 @@ def hill_climbing(
             # Step 3.
             trial_score = scorer.score_feature_selection(trial)
 
-            # Step 4.
-            if trial_score > score:
-                queue.append((trial, trial_score))
-
-                # Step 5.
-                if trial_score > best_score:
-                    best_score = trial_score
-                    best_individual = trial
-
-                break
+            # Step 4-5.
+            if trial_score > best_score or (
+                # if the trial removed a feature and has the same score, that feature is useless
+                trial_score == best_score and trial[mutate_idx] == 0
+            ):
+                best_score = trial_score
+                best_individual = trial
         else:
+            # if not improving found, break the loop
             break
-
-        end = time.time()
-        time_budget -= end - start
 
     _log_stats(best_score, "HC")
 
