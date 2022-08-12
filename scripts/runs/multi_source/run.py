@@ -118,8 +118,6 @@ def run(
                 ds_config_itm.image_id_overlay, ds_config_itm.lipid_tm, bin_csv_path
             )
 
-            print(f"{ds_config_itm.save_image=}")
-
             ds = CytomineTranslated(
                 annotation_project_id=ds_config_itm.project_id,
                 annotation_image_id=ds_config_itm.annotated_image_id,
