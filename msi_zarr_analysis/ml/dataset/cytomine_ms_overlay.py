@@ -25,7 +25,7 @@ from msi_zarr_analysis.ml.dataset.translate_annotation import (
 from msi_zarr_analysis.preprocessing.binning import bin_and_flatten
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks
-from msi_zarr_analysis.utils.load_spectra import load_intensities
+from msi_zarr_analysis.utils.load_spectra import load_intensities, load_spectra
 
 from . import Dataset, GroupCollection, Tabular
 
@@ -414,6 +414,111 @@ def translate_annotation_mapping_overlay_to_template(
     return translate_parsed_annotation_mapping(
         annotation_mapping, template_transform, matching_result, crop_idx
     )
+
+
+def build_spectrum_dict(
+    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
+    zarr_path: str,
+    *,
+    allow_duplicates: bool = False,
+) -> Tuple[
+    Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray]],
+    Dict[str, Dict[int, List[Tuple[int, int]]]],
+]:
+
+    ms_group = open_group_ro(zarr_path)
+    image_dimensions = ms_group["/0"].shape[-2:]
+
+    # have a numpy array like the template for each annotation
+    rasterized_annotations = rasterize_annotation_mapping(
+        annotation_mapping,
+        image_dimensions,
+    )
+
+    # ROI for the annotation : select all interesting pixels
+    selection = 0
+    for annotation_lst in rasterized_annotations.values():
+        for annotation in annotation_lst:
+            selection = np.logical_or(annotation.raster, selection)
+    spectrum_dict = load_spectra(ms_group, selection)
+
+    # collect all annotations as independent Tabular datasets
+    annotation_coordinates: Dict[str, Dict[int, List[Tuple[int, int]]]] = {}
+    for class_name, annotation_lst in rasterized_annotations.items():
+
+        # gather spectrum info into a dict (y, x) -> {group_idx...}
+        spectra_choices: Dict[Tuple[int, int], List[int]] = defaultdict(list)
+        for annotation_idx, annotation in enumerate(annotation_lst):
+            # [(y, x)]
+            coordinates = list(zip(*annotation.raster.nonzero()))
+
+            for coord in coordinates:
+                spectra_choices[coord].append(annotation_idx)
+
+        # regroup per annotation index
+        groups: Dict[int, List[Tuple[int, int]]] = defaultdict(list)
+        for coord, group_choices in spectra_choices.items():
+
+            if allow_duplicates:
+                for idx in group_choices:
+                    groups[idx].append(coord)
+            else:
+                if len(group_choices) > 1:
+                    logging.info(
+                        "spectrum at %s was randomly assigned"
+                        " to one of its annotations",
+                        coord,
+                    )
+                idx = random.choice(group_choices)
+                groups[idx].append(coord)
+
+        # convert to a normal dict
+        annotation_coordinates[class_name] = dict(groups)
+
+    return spectrum_dict, annotation_coordinates
+
+
+def make_collection(
+    spectrum_dict: Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray]],
+    annotation_coordinates: Dict[str, Dict[int, List[Tuple[int, int]]]],
+    attribute_names: Iterable[str],
+) -> GroupCollection:
+
+    # class names
+    class_names = list(annotation_coordinates.keys())
+
+    # attribute names
+    attribute_names = list(attribute_names)
+
+    # collect all annotations as independent Tabular datasets
+    dataset_lst: List[Tabular] = []
+    for class_idx, groups in enumerate(annotation_coordinates.values()):
+
+        # build dataset for each annotation
+        for _, coord_set in groups.items():
+
+            if not coord_set:
+                logging.info("empty mask found")
+                continue
+
+            spectra = (spectrum_dict.get(c, None) for c in coord_set)
+            spectra = [spectrum for spectrum in spectra if spectrum is not None]
+
+            if not spectra:
+                logging.info("annotation mapped to no spectra")
+                continue
+
+            ds_x = np.stack(spectra)
+            ds_y = np.full(shape=ds_x.shape[:1], fill_value=class_idx, dtype=int)
+
+            ds = Tabular(ds_x, ds_y, attribute_names, class_names)
+            dataset_lst.append(ds)
+
+    merged = GroupCollection.merge_datasets(*dataset_lst)
+    logging.info("merged.data.shape=%s", merged.data.shape)
+    logging.info("merged.target.shape=%s", merged.target.shape)
+
+    return merged
 
 
 def collect_spectra_zarr(
