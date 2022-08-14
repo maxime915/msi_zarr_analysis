@@ -5,6 +5,7 @@ import time
 from typing import Dict, List, NamedTuple, Tuple, Union
 
 import numpy as np
+import pandas as pd
 import requests
 from msi_zarr_analysis import VERSION
 from msi_zarr_analysis.ml.dataset import GroupCollection
@@ -223,7 +224,8 @@ def non_targeted_assessment(
     logging.info("training model")
     model_ = clone(ml_config.model)
     model_.fit(collection.data[:, selection], collection.target)
-
+    feature_names = pd.Series(collection.dataset.attribute_names())
+    feature_names = feature_names[selection]
 
     fi_mean = model_.feature_importances_
     if hasattr(model_, "estimators_"):
@@ -234,7 +236,7 @@ def non_targeted_assessment(
     # 1: feature importance
     logging.info("feature importances:")
     for idx, (feature, importance, importance_std) in enumerate(
-        zip(collection.dataset.attribute_names(), fi_mean, fi_std)
+        zip(feature_names, fi_mean, fi_std)
     ):
         if len(feature) > 20:
             feature = feature[:17] + "..."
