@@ -8,6 +8,7 @@ Some references:
     - https://uomustansiriyah.edu.iq/media/lectures/6/6_2021_11_29!08_04_39_AM.pdf
 """
 
+import base64
 import functools
 import logging
 import time
@@ -135,6 +136,25 @@ class Scorer(NamedTuple):
         return self.__score_feature_selection_cached(Array(array))
 
 
+def _log_selection(population: np.ndarray, scores: np.ndarray, parent: str) -> None:
+    return
+    
+    scores = np.asarray(scores)
+    if scores.ndim == 1 and len(scores) > 1:
+        
+        best_idx = np.argmax(scores)
+        individual = population[best_idx, :]
+        score = scores[best_idx]
+    elif scores.ndim == 0:
+        individual = population
+        score = scores
+    else:
+        raise ValueError("invalid arguments")
+    
+    repr = base64.b64encode(np.packbits(individual)).decode('ascii')
+    logging.debug("%s: %.3f ; '%s'", parent, score, repr)
+    
+
 def simulated_annealing(
     scorer: Scorer,
     time_budget: float,
@@ -165,6 +185,7 @@ def simulated_annealing(
     temp_curr -= duration
 
     _log_stats(scores, "SA")
+    _log_selection(population, scores, "[SA]")
 
     while temp_curr > 0:
 
@@ -184,6 +205,7 @@ def simulated_annealing(
         scores[acceptance] = next_scores[acceptance]
 
         _log_stats(scores, "SA")
+        _log_selection(population, scores, "[SA]")
 
         # Step 9. update temperature
         temp_curr -= duration
@@ -265,6 +287,7 @@ def genetic_algorithms(
     scores = start_scores
 
     _log_stats(scores, "GA")
+    _log_selection(population, scores, "[GA]")
 
     # repeat the update process until the time budget is exhausted
     while time_budget > 0:
@@ -273,6 +296,7 @@ def genetic_algorithms(
         end = time.time()
 
         _log_stats(scores, "GA")
+        _log_selection(population, scores, "[GA]")
 
         # Step 7.
         time_budget -= end - start
@@ -297,6 +321,8 @@ def hill_climbing(
     # Step 1.
     best_score = start_scores[best_idx]
     best_individual = start_population[best_idx]
+    
+    _log_selection(best_individual, best_score, "[HC]")
 
     end_time = time.time() + time_budget
 
@@ -327,11 +353,13 @@ def hill_climbing(
             ):
                 best_score = trial_score
                 best_individual = trial
+                _log_selection(best_individual, best_score, "[HC]")
         else:
             # if not improving found, break the loop
             break
 
     _log_stats(best_score, "HC")
+    _log_selection(best_individual, best_score, "[HC]")
 
     return best_individual, best_score
 
