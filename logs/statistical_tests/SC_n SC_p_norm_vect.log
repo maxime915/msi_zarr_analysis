@@ -1,0 +1,23 @@
+233 13:19:17.889 [root] [INFO] : norm: '_norm_vect', problem: 'SC_n SC_p'
+233 13:19:19.040 [root] [INFO] : y_slice: slice(625, 641, None), x_slice: slice(448, 654, None)
+233 13:19:19.155 [root] [INFO] : merged.data.shape=(102, 37)
+233 13:19:19.156 [root] [INFO] : merged.target.shape=(102,)
+233 13:19:20.115 [root] [INFO] : y_slice: slice(599, 617, None), x_slice: slice(534, 679, None)
+233 13:19:20.198 [root] [INFO] : merged.data.shape=(50, 37)
+233 13:19:20.199 [root] [INFO] : merged.target.shape=(50,)
+233 13:19:21.016 [root] [INFO] : y_slice: slice(608, 611, None), x_slice: slice(706, 738, None)
+233 13:19:21.037 [root] [INFO] : merged.data.shape=(21, 37)
+233 13:19:21.037 [root] [INFO] : merged.target.shape=(21,)
+233 13:19:21.059 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:21.059 [root] [INFO] : done

@@ -1,0 +1,30 @@
+233 13:18:49.262 [root] [INFO] : norm: '_norm_max', problem: 'LS_n SC_n'
+233 13:18:50.403 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:18:50.517 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:18:50.517 [root] [INFO] : merged.target.shape=(98,)
+233 13:18:51.391 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:18:51.485 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:18:51.485 [root] [INFO] : merged.target.shape=(110,)
+233 13:18:52.254 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:18:52.275 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:18:52.275 [root] [INFO] : merged.target.shape=(23,)
+233 13:18:52.298 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 0.001 \\
+		25 & DPPC & 3.88E-12 \\
+		26 & PLPC & 1.30E-10 \\
+		27 & PAPC & 4.29E-09 \\
+		28 & SLPC & 1.19E-04 \\
+		30 & PDHPC & 7.24E-12 \\
+		32 & SAPC & 0.001 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:52.298 [root] [INFO] : done

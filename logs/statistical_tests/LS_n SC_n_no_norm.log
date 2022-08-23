@@ -1,0 +1,27 @@
+233 13:18:16.597 [root] [INFO] : norm: '', problem: 'LS_n SC_n'
+233 13:18:17.777 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:18:17.891 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:18:17.891 [root] [INFO] : merged.target.shape=(98,)
+233 13:18:18.775 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:18:18.871 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:18:18.871 [root] [INFO] : merged.target.shape=(110,)
+233 13:18:19.688 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:18:19.709 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:18:19.710 [root] [INFO] : merged.target.shape=(23,)
+233 13:18:19.732 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		25 & DPPC & 2.14E-10 \\
+		26 & PLPC & 4.27E-09 \\
+		27 & PAPC & 4.01E-08 \\
+		30 & PDHPC & 2.51E-11 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:19.733 [root] [INFO] : done

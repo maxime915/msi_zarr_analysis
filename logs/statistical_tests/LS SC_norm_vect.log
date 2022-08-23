@@ -1,0 +1,33 @@
+233 13:19:11.184 [root] [INFO] : norm: '_norm_vect', problem: 'LS SC'
+233 13:19:12.482 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+233 13:19:12.679 [root] [INFO] : merged.data.shape=(216, 37)
+233 13:19:12.679 [root] [INFO] : merged.target.shape=(216,)
+233 13:19:13.751 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:19:13.896 [root] [INFO] : merged.data.shape=(213, 37)
+233 13:19:13.896 [root] [INFO] : merged.target.shape=(213,)
+233 13:19:14.760 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:19:14.796 [root] [INFO] : merged.data.shape=(48, 37)
+233 13:19:14.796 [root] [INFO] : merged.target.shape=(48,)
+233 13:19:14.821 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 7.35E-08 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 3.30E-07 \\
+		25 & DPPC & 3.16E-23 \\
+		26 & PLPC & 3.86E-20 \\
+		27 & PAPC & 3.60E-21 \\
+		28 & SLPC & 2.53E-08 \\
+		29 & PAPC-OH & 1.07E-06 \\
+		30 & PDHPC & 1.54E-22 \\
+		32 & SAPC & 1.34E-09 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:14.821 [root] [INFO] : done

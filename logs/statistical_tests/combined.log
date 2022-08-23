@@ -1,0 +1,1038 @@
+233 13:17:47.921 [root] [INFO] : starting scripts/runs/statistical_test.py (VERSION: 0.0.1)
+233 13:17:47.921 [root] [INFO] : norm: '', problem: 'LS SC'
+233 13:17:48.218 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:17:48.555 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:17:48.953 [cyt-client] [INFO] : [GET] [annotation collection] 396 objects | 200 OK
+233 13:17:49.083 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:17:49.258 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:17:56.176 [root] [INFO] : crop_idx: (slice(616, 643, None), slice(414, 653, None))
+233 13:17:56.177 [root] [INFO] : ms_template.shape: (37, 1, 644, 758)
+233 13:17:56.177 [root] [INFO] : matching_results: MatchingResult(x_top_left=243, y_top_left=126, scale=6.998395336086913, y_slice=slice(126, 1799, None), x_slice=slice(243, 432, None))
+233 13:17:56.322 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+233 13:17:56.464 [root] [INFO] : merged.data.shape=(216, 37)
+233 13:17:56.464 [root] [INFO] : merged.target.shape=(216,)
+233 13:17:56.834 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:17:57.295 [cyt-client] [INFO] : [GET] [annotation collection] 672 objects | 200 OK
+233 13:17:57.406 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:17:57.560 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:04.437 [root] [INFO] : crop_idx: (slice(594, 622, None), slice(447, 678, None))
+233 13:18:04.438 [root] [INFO] : ms_template.shape: (37, 1, 623, 763)
+233 13:18:04.438 [root] [INFO] : matching_results: MatchingResult(x_top_left=205, y_top_left=283, scale=6.786607519439346, y_slice=slice(283, 1851, None), x_slice=slice(205, 395, None))
+233 13:18:04.509 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:04.646 [root] [INFO] : merged.data.shape=(213, 37)
+233 13:18:04.646 [root] [INFO] : merged.target.shape=(213,)
+233 13:18:04.995 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:05.300 [cyt-client] [INFO] : [GET] [annotation collection] 165 objects | 200 OK
+233 13:18:05.447 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:05.604 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:10.001 [root] [INFO] : crop_idx: (slice(590, 613, None), slice(712, 756, None))
+233 13:18:10.002 [root] [INFO] : ms_template.shape: (37, 1, 679, 821)
+233 13:18:10.002 [root] [INFO] : matching_results: MatchingResult(x_top_left=230, y_top_left=316, scale=8.17379800672557, y_slice=slice(316, 676, None), x_slice=slice(230, 418, None))
+233 13:18:10.021 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:10.054 [root] [INFO] : merged.data.shape=(48, 37)
+233 13:18:10.054 [root] [INFO] : merged.target.shape=(48,)
+233 13:18:10.079 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 2.47E-07 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 8.28E-07 \\
+		25 & DPPC & 3.55E-22 \\
+		26 & PLPC & 5.46E-19 \\
+		27 & PAPC & 6.56E-20 \\
+		28 & SLPC & 1.68E-07 \\
+		29 & PAPC-OH & 1.35E-06 \\
+		30 & PDHPC & 6.09E-22 \\
+		32 & SAPC & 1.22E-08 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:10.080 [root] [INFO] : done
+233 13:18:10.080 [root] [INFO] : norm: '', problem: 'LS_n LS_p'
+233 13:18:10.395 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:10.761 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:11.013 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:11.129 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:11.320 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:11.386 [root] [INFO] : y_slice: slice(623, 638, None), x_slice: slice(476, 653, None)
+233 13:18:11.491 [root] [INFO] : merged.data.shape=(114, 37)
+233 13:18:11.491 [root] [INFO] : merged.target.shape=(114,)
+233 13:18:11.830 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:12.160 [cyt-client] [INFO] : [GET] [annotation collection] 392 objects | 200 OK
+233 13:18:12.260 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:12.412 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:12.496 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:12.602 [root] [INFO] : merged.data.shape=(163, 37)
+233 13:18:12.602 [root] [INFO] : merged.target.shape=(163,)
+233 13:18:12.931 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:13.139 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:18:13.257 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:13.391 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:13.436 [root] [INFO] : y_slice: slice(603, 608, None), x_slice: slice(711, 752, None)
+233 13:18:13.459 [root] [INFO] : merged.data.shape=(27, 37)
+233 13:18:13.459 [root] [INFO] : merged.target.shape=(27,)
+233 13:18:13.483 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:13.483 [root] [INFO] : done
+233 13:18:13.483 [root] [INFO] : norm: '', problem: 'SC_n SC_p'
+233 13:18:13.790 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:14.135 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:14.417 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:18:14.516 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:14.667 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:14.737 [root] [INFO] : y_slice: slice(625, 641, None), x_slice: slice(448, 654, None)
+233 13:18:14.853 [root] [INFO] : merged.data.shape=(102, 37)
+233 13:18:14.853 [root] [INFO] : merged.target.shape=(102,)
+233 13:18:15.173 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:15.406 [cyt-client] [INFO] : [GET] [annotation collection] 280 objects | 200 OK
+233 13:18:15.507 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:15.622 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:15.694 [root] [INFO] : y_slice: slice(599, 617, None), x_slice: slice(534, 679, None)
+233 13:18:15.777 [root] [INFO] : merged.data.shape=(50, 37)
+233 13:18:15.777 [root] [INFO] : merged.target.shape=(50,)
+233 13:18:16.119 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:16.296 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:18:16.397 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:16.512 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:16.554 [root] [INFO] : y_slice: slice(608, 611, None), x_slice: slice(706, 738, None)
+233 13:18:16.575 [root] [INFO] : merged.data.shape=(21, 37)
+233 13:18:16.575 [root] [INFO] : merged.target.shape=(21,)
+233 13:18:16.597 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:16.597 [root] [INFO] : done
+233 13:18:16.597 [root] [INFO] : norm: '', problem: 'LS_n SC_n'
+233 13:18:16.887 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:17.224 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:17.450 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:17.552 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:17.711 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:17.777 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:18:17.891 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:18:17.891 [root] [INFO] : merged.target.shape=(98,)
+233 13:18:18.202 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:18.473 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:18:18.577 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:18.698 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:18.775 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:18:18.871 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:18:18.871 [root] [INFO] : merged.target.shape=(110,)
+233 13:18:19.196 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:19.394 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:18:19.491 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:19.644 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:19.688 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:18:19.709 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:18:19.710 [root] [INFO] : merged.target.shape=(23,)
+233 13:18:19.732 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		25 & DPPC & 2.14E-10 \\
+		26 & PLPC & 4.27E-09 \\
+		27 & PAPC & 4.01E-08 \\
+		30 & PDHPC & 2.51E-11 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:19.733 [root] [INFO] : done
+233 13:18:19.733 [root] [INFO] : norm: '', problem: 'LS_p SC_p'
+233 13:18:20.022 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:20.347 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:20.597 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:18:20.695 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:20.838 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:20.908 [root] [INFO] : y_slice: slice(624, 641, None), x_slice: slice(452, 653, None)
+233 13:18:21.023 [root] [INFO] : merged.data.shape=(118, 37)
+233 13:18:21.023 [root] [INFO] : merged.target.shape=(118,)
+233 13:18:21.347 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:21.617 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:18:21.714 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:21.869 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:21.949 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:22.048 [root] [INFO] : merged.data.shape=(103, 37)
+233 13:18:22.048 [root] [INFO] : merged.target.shape=(103,)
+233 13:18:22.405 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:22.607 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:18:22.705 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:22.851 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:22.896 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:22.921 [root] [INFO] : merged.data.shape=(25, 37)
+233 13:18:22.921 [root] [INFO] : merged.target.shape=(25,)
+233 13:18:22.944 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 8.40E-05 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 4.76E-06 \\
+		25 & DPPC & 7.56E-12 \\
+		26 & PLPC & 3.99E-10 \\
+		27 & PAPC & 7.01E-12 \\
+		28 & SLPC & 1.56E-04 \\
+		29 & PAPC-OH & 1.37E-05 \\
+		30 & PDHPC & 2.23E-10 \\
+		32 & SAPC & 4.73E-06 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:22.945 [root] [INFO] : done
+233 13:18:22.945 [root] [INFO] : norm: '_norm_2305', problem: 'LS SC'
+233 13:18:23.237 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:23.575 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:23.914 [cyt-client] [INFO] : [GET] [annotation collection] 396 objects | 200 OK
+233 13:18:24.008 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:24.141 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:24.240 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+233 13:18:24.409 [root] [INFO] : merged.data.shape=(216, 37)
+233 13:18:24.409 [root] [INFO] : merged.target.shape=(216,)
+233 13:18:24.752 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:25.175 [cyt-client] [INFO] : [GET] [annotation collection] 672 objects | 200 OK
+233 13:18:25.277 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:25.384 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:25.509 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:25.665 [root] [INFO] : merged.data.shape=(213, 37)
+233 13:18:25.665 [root] [INFO] : merged.target.shape=(213,)
+233 13:18:25.982 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:26.233 [cyt-client] [INFO] : [GET] [annotation collection] 165 objects | 200 OK
+233 13:18:26.329 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:26.443 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:26.507 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:26.542 [root] [INFO] : merged.data.shape=(48, 37)
+233 13:18:26.543 [root] [INFO] : merged.target.shape=(48,)
+233 13:18:26.568 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 1.02E-11 \\
+		23 & PC 16:0 C9 Carbon... & 4.94E-04 \\
+		24 & PAzPC & 2.88E-08 \\
+		25 & DPPC & 1.05E-21 \\
+		26 & PLPC & 3.10E-22 \\
+		27 & PAPC & 2.70E-20 \\
+		28 & SLPC & 2.68E-14 \\
+		29 & PAPC-OH & 7.58E-06 \\
+		30 & PDHPC & 7.18E-16 \\
+		32 & SAPC & 4.00E-11 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:26.568 [root] [INFO] : done
+233 13:18:26.569 [root] [INFO] : norm: '_norm_2305', problem: 'LS_n LS_p'
+233 13:18:26.856 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:27.177 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:27.395 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:27.491 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:27.644 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:27.711 [root] [INFO] : y_slice: slice(623, 638, None), x_slice: slice(476, 653, None)
+233 13:18:27.817 [root] [INFO] : merged.data.shape=(114, 37)
+233 13:18:27.817 [root] [INFO] : merged.target.shape=(114,)
+233 13:18:28.131 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:28.442 [cyt-client] [INFO] : [GET] [annotation collection] 392 objects | 200 OK
+233 13:18:28.542 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:28.650 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:28.736 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:28.842 [root] [INFO] : merged.data.shape=(163, 37)
+233 13:18:28.842 [root] [INFO] : merged.target.shape=(163,)
+233 13:18:29.151 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:29.341 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:18:29.436 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:29.547 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:29.592 [root] [INFO] : y_slice: slice(603, 608, None), x_slice: slice(711, 752, None)
+233 13:18:29.614 [root] [INFO] : merged.data.shape=(27, 37)
+233 13:18:29.615 [root] [INFO] : merged.target.shape=(27,)
+233 13:18:29.638 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:29.638 [root] [INFO] : done
+233 13:18:29.639 [root] [INFO] : norm: '_norm_2305', problem: 'SC_n SC_p'
+233 13:18:29.927 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:30.254 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:30.477 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:18:30.574 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:30.708 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:30.774 [root] [INFO] : y_slice: slice(625, 641, None), x_slice: slice(448, 654, None)
+233 13:18:30.892 [root] [INFO] : merged.data.shape=(102, 37)
+233 13:18:30.892 [root] [INFO] : merged.target.shape=(102,)
+233 13:18:31.205 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:31.470 [cyt-client] [INFO] : [GET] [annotation collection] 280 objects | 200 OK
+233 13:18:31.570 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:31.687 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:31.726 [root] [INFO] : y_slice: slice(599, 617, None), x_slice: slice(534, 679, None)
+233 13:18:31.808 [root] [INFO] : merged.data.shape=(50, 37)
+233 13:18:31.808 [root] [INFO] : merged.target.shape=(50,)
+233 13:18:32.120 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:32.309 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:18:32.400 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:32.497 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:32.539 [root] [INFO] : y_slice: slice(608, 611, None), x_slice: slice(706, 738, None)
+233 13:18:32.561 [root] [INFO] : merged.data.shape=(21, 37)
+233 13:18:32.561 [root] [INFO] : merged.target.shape=(21,)
+233 13:18:32.583 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:32.583 [root] [INFO] : done
+233 13:18:32.583 [root] [INFO] : norm: '_norm_2305', problem: 'LS_n SC_n'
+233 13:18:32.870 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:33.196 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:33.430 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:33.529 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:33.673 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:33.737 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:18:33.851 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:18:33.851 [root] [INFO] : merged.target.shape=(98,)
+233 13:18:34.163 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:34.453 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:18:34.558 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:34.711 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:34.790 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:18:34.885 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:18:34.885 [root] [INFO] : merged.target.shape=(110,)
+233 13:18:35.210 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:35.395 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:18:35.496 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:35.616 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:35.659 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:18:35.680 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:18:35.680 [root] [INFO] : merged.target.shape=(23,)
+233 13:18:35.703 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 2.91E-04 \\
+		25 & DPPC & 3.68E-09 \\
+		26 & PLPC & 8.83E-09 \\
+		27 & PAPC & 1.87E-07 \\
+		28 & SLPC & 2.17E-05 \\
+		30 & PDHPC & 1.27E-07 \\
+		32 & SAPC & 0.001 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:35.703 [root] [INFO] : done
+233 13:18:35.703 [root] [INFO] : norm: '_norm_2305', problem: 'LS_p SC_p'
+233 13:18:36.013 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:36.363 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:36.671 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:18:36.811 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:37.058 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:37.091 [root] [INFO] : y_slice: slice(624, 641, None), x_slice: slice(452, 653, None)
+233 13:18:37.205 [root] [INFO] : merged.data.shape=(118, 37)
+233 13:18:37.206 [root] [INFO] : merged.target.shape=(118,)
+233 13:18:37.522 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:37.836 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:18:37.936 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:38.090 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:38.170 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:38.270 [root] [INFO] : merged.data.shape=(103, 37)
+233 13:18:38.270 [root] [INFO] : merged.target.shape=(103,)
+233 13:18:38.578 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:38.885 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:18:39.060 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:39.239 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:39.286 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:39.309 [root] [INFO] : merged.data.shape=(25, 37)
+233 13:18:39.309 [root] [INFO] : merged.target.shape=(25,)
+233 13:18:39.332 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 6.71E-08 \\
+		23 & PC 16:0 C9 Carbon... & 3.95E-04 \\
+		24 & PAzPC & 8.32E-07 \\
+		25 & DPPC & 8.15E-13 \\
+		26 & PLPC & 1.31E-13 \\
+		27 & PAPC & 6.29E-13 \\
+		28 & SLPC & 2.54E-09 \\
+		29 & PAPC-OH & 2.53E-05 \\
+		30 & PDHPC & 4.16E-08 \\
+		32 & SAPC & 6.11E-08 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:39.332 [root] [INFO] : done
+233 13:18:39.332 [root] [INFO] : norm: '_norm_max', problem: 'LS SC'
+233 13:18:39.682 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:40.067 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:40.528 [cyt-client] [INFO] : [GET] [annotation collection] 396 objects | 200 OK
+233 13:18:40.616 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:40.745 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:40.846 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+233 13:18:41.001 [root] [INFO] : merged.data.shape=(216, 37)
+233 13:18:41.001 [root] [INFO] : merged.target.shape=(216,)
+233 13:18:41.327 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:41.702 [cyt-client] [INFO] : [GET] [annotation collection] 672 objects | 200 OK
+233 13:18:41.819 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:42.020 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:42.146 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:42.308 [root] [INFO] : merged.data.shape=(213, 37)
+233 13:18:42.308 [root] [INFO] : merged.target.shape=(213,)
+233 13:18:42.628 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:42.916 [cyt-client] [INFO] : [GET] [annotation collection] 165 objects | 200 OK
+233 13:18:43.016 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:43.128 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:43.188 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:43.222 [root] [INFO] : merged.data.shape=(48, 37)
+233 13:18:43.223 [root] [INFO] : merged.target.shape=(48,)
+233 13:18:43.248 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 6.87E-09 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 7.15E-08 \\
+		25 & DPPC & 7.55E-25 \\
+		26 & PLPC & 1.31E-21 \\
+		27 & PAPC & 1.78E-22 \\
+		28 & SLPC & 6.56E-10 \\
+		29 & PAPC-OH & 4.77E-07 \\
+		30 & PDHPC & 5.59E-23 \\
+		32 & SAPC & 1.66E-10 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:43.249 [root] [INFO] : done
+233 13:18:43.249 [root] [INFO] : norm: '_norm_max', problem: 'LS_n LS_p'
+233 13:18:43.522 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:43.842 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:44.062 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:44.161 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:44.299 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:44.367 [root] [INFO] : y_slice: slice(623, 638, None), x_slice: slice(476, 653, None)
+233 13:18:44.473 [root] [INFO] : merged.data.shape=(114, 37)
+233 13:18:44.473 [root] [INFO] : merged.target.shape=(114,)
+233 13:18:44.789 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:45.104 [cyt-client] [INFO] : [GET] [annotation collection] 392 objects | 200 OK
+233 13:18:45.195 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:45.304 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:45.388 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:45.493 [root] [INFO] : merged.data.shape=(163, 37)
+233 13:18:45.493 [root] [INFO] : merged.target.shape=(163,)
+233 13:18:45.809 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:45.998 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:18:46.096 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:46.206 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:46.252 [root] [INFO] : y_slice: slice(603, 608, None), x_slice: slice(711, 752, None)
+233 13:18:46.274 [root] [INFO] : merged.data.shape=(27, 37)
+233 13:18:46.274 [root] [INFO] : merged.target.shape=(27,)
+233 13:18:46.298 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:46.298 [root] [INFO] : done
+233 13:18:46.298 [root] [INFO] : norm: '_norm_max', problem: 'SC_n SC_p'
+233 13:18:46.587 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:46.909 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:47.140 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:18:47.229 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:47.358 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:47.425 [root] [INFO] : y_slice: slice(625, 641, None), x_slice: slice(448, 654, None)
+233 13:18:47.539 [root] [INFO] : merged.data.shape=(102, 37)
+233 13:18:47.539 [root] [INFO] : merged.target.shape=(102,)
+233 13:18:47.869 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:48.102 [cyt-client] [INFO] : [GET] [annotation collection] 280 objects | 200 OK
+233 13:18:48.205 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:48.318 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:48.390 [root] [INFO] : y_slice: slice(599, 617, None), x_slice: slice(534, 679, None)
+233 13:18:48.473 [root] [INFO] : merged.data.shape=(50, 37)
+233 13:18:48.473 [root] [INFO] : merged.target.shape=(50,)
+233 13:18:48.797 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:48.967 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:18:49.065 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:49.175 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:49.218 [root] [INFO] : y_slice: slice(608, 611, None), x_slice: slice(706, 738, None)
+233 13:18:49.240 [root] [INFO] : merged.data.shape=(21, 37)
+233 13:18:49.240 [root] [INFO] : merged.target.shape=(21,)
+233 13:18:49.262 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:49.262 [root] [INFO] : done
+233 13:18:49.262 [root] [INFO] : norm: '_norm_max', problem: 'LS_n SC_n'
+233 13:18:49.549 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:49.873 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:50.100 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:50.200 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:50.337 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:50.403 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:18:50.517 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:18:50.517 [root] [INFO] : merged.target.shape=(98,)
+233 13:18:50.838 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:51.104 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:18:51.197 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:51.311 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:51.391 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:18:51.485 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:18:51.485 [root] [INFO] : merged.target.shape=(110,)
+233 13:18:51.806 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:51.987 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:18:52.087 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:52.210 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:52.254 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:18:52.275 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:18:52.275 [root] [INFO] : merged.target.shape=(23,)
+233 13:18:52.298 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 0.001 \\
+		25 & DPPC & 3.88E-12 \\
+		26 & PLPC & 1.30E-10 \\
+		27 & PAPC & 4.29E-09 \\
+		28 & SLPC & 1.19E-04 \\
+		30 & PDHPC & 7.24E-12 \\
+		32 & SAPC & 0.001 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:52.298 [root] [INFO] : done
+233 13:18:52.298 [root] [INFO] : norm: '_norm_max', problem: 'LS_p SC_p'
+233 13:18:52.581 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:52.902 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:53.167 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:18:53.259 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:53.388 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:53.455 [root] [INFO] : y_slice: slice(624, 641, None), x_slice: slice(452, 653, None)
+233 13:18:53.571 [root] [INFO] : merged.data.shape=(118, 37)
+233 13:18:53.571 [root] [INFO] : merged.target.shape=(118,)
+233 13:18:53.892 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:54.154 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:18:54.249 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:54.360 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:54.441 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:54.540 [root] [INFO] : merged.data.shape=(103, 37)
+233 13:18:54.540 [root] [INFO] : merged.target.shape=(103,)
+233 13:18:54.859 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:55.062 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:18:55.169 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:55.284 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:55.328 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:55.350 [root] [INFO] : merged.data.shape=(25, 37)
+233 13:18:55.350 [root] [INFO] : merged.target.shape=(25,)
+233 13:18:55.373 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 9.78E-06 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 1.08E-06 \\
+		25 & DPPC & 7.84E-13 \\
+		26 & PLPC & 2.88E-11 \\
+		27 & PAPC & 4.51E-13 \\
+		28 & SLPC & 8.65E-06 \\
+		29 & PAPC-OH & 6.99E-06 \\
+		30 & PDHPC & 1.00E-10 \\
+		32 & SAPC & 5.22E-07 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:55.373 [root] [INFO] : done
+233 13:18:55.373 [root] [INFO] : norm: '_norm_tic', problem: 'LS SC'
+233 13:18:55.648 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:55.976 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:56.308 [cyt-client] [INFO] : [GET] [annotation collection] 396 objects | 200 OK
+233 13:18:56.403 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:18:56.539 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:56.637 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+233 13:18:56.833 [root] [INFO] : merged.data.shape=(216, 37)
+233 13:18:56.833 [root] [INFO] : merged.target.shape=(216,)
+233 13:18:57.153 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:18:57.552 [cyt-client] [INFO] : [GET] [annotation collection] 672 objects | 200 OK
+233 13:18:57.645 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:18:57.797 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:57.922 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:18:58.078 [root] [INFO] : merged.data.shape=(213, 37)
+233 13:18:58.078 [root] [INFO] : merged.target.shape=(213,)
+233 13:18:58.394 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:18:58.715 [cyt-client] [INFO] : [GET] [annotation collection] 165 objects | 200 OK
+233 13:18:58.820 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:18:58.929 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:18:58.988 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:18:59.024 [root] [INFO] : merged.data.shape=(48, 37)
+233 13:18:59.024 [root] [INFO] : merged.target.shape=(48,)
+233 13:18:59.050 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 3.64E-07 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 8.74E-07 \\
+		25 & DPPC & 8.95E-23 \\
+		26 & PLPC & 1.56E-19 \\
+		27 & PAPC & 7.83E-21 \\
+		28 & SLPC & 1.47E-07 \\
+		29 & PAPC-OH & 1.52E-06 \\
+		30 & PDHPC & 2.00E-22 \\
+		32 & SAPC & 5.50E-09 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:18:59.050 [root] [INFO] : done
+233 13:18:59.050 [root] [INFO] : norm: '_norm_tic', problem: 'LS_n LS_p'
+233 13:18:59.333 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:18:59.649 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:18:59.870 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:18:59.963 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:00.095 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:00.162 [root] [INFO] : y_slice: slice(623, 638, None), x_slice: slice(476, 653, None)
+233 13:19:00.268 [root] [INFO] : merged.data.shape=(114, 37)
+233 13:19:00.268 [root] [INFO] : merged.target.shape=(114,)
+233 13:19:00.600 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:00.905 [cyt-client] [INFO] : [GET] [annotation collection] 392 objects | 200 OK
+233 13:19:01.002 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:01.112 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:01.198 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:19:01.303 [root] [INFO] : merged.data.shape=(163, 37)
+233 13:19:01.303 [root] [INFO] : merged.target.shape=(163,)
+233 13:19:01.625 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:01.821 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:19:01.921 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:02.036 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:02.083 [root] [INFO] : y_slice: slice(603, 608, None), x_slice: slice(711, 752, None)
+233 13:19:02.105 [root] [INFO] : merged.data.shape=(27, 37)
+233 13:19:02.105 [root] [INFO] : merged.target.shape=(27,)
+233 13:19:02.129 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:02.129 [root] [INFO] : done
+233 13:19:02.129 [root] [INFO] : norm: '_norm_tic', problem: 'SC_n SC_p'
+233 13:19:02.417 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:02.744 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:02.995 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:19:03.093 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:03.233 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:03.300 [root] [INFO] : y_slice: slice(625, 641, None), x_slice: slice(448, 654, None)
+233 13:19:03.416 [root] [INFO] : merged.data.shape=(102, 37)
+233 13:19:03.416 [root] [INFO] : merged.target.shape=(102,)
+233 13:19:03.737 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:03.988 [cyt-client] [INFO] : [GET] [annotation collection] 280 objects | 200 OK
+233 13:19:04.086 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:04.186 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:04.225 [root] [INFO] : y_slice: slice(599, 617, None), x_slice: slice(534, 679, None)
+233 13:19:04.307 [root] [INFO] : merged.data.shape=(50, 37)
+233 13:19:04.307 [root] [INFO] : merged.target.shape=(50,)
+233 13:19:04.622 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:04.798 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:19:04.893 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:05.002 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:05.045 [root] [INFO] : y_slice: slice(608, 611, None), x_slice: slice(706, 738, None)
+233 13:19:05.066 [root] [INFO] : merged.data.shape=(21, 37)
+233 13:19:05.066 [root] [INFO] : merged.target.shape=(21,)
+233 13:19:05.088 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:05.088 [root] [INFO] : done
+233 13:19:05.088 [root] [INFO] : norm: '_norm_tic', problem: 'LS_n SC_n'
+233 13:19:05.372 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:05.698 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:05.940 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:19:06.042 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:06.172 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:06.238 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:19:06.353 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:19:06.353 [root] [INFO] : merged.target.shape=(98,)
+233 13:19:06.673 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:06.944 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:19:07.036 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:07.150 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:07.227 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:19:07.321 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:19:07.321 [root] [INFO] : merged.target.shape=(110,)
+233 13:19:07.637 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:07.844 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:19:07.943 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:08.055 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:08.099 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:19:08.121 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:19:08.121 [root] [INFO] : merged.target.shape=(23,)
+233 13:19:08.143 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		25 & DPPC & 6.81E-11 \\
+		26 & PLPC & 2.24E-09 \\
+		27 & PAPC & 1.46E-08 \\
+		30 & PDHPC & 5.83E-12 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:08.144 [root] [INFO] : done
+233 13:19:08.144 [root] [INFO] : norm: '_norm_tic', problem: 'LS_p SC_p'
+233 13:19:08.425 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:08.745 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:08.974 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:19:09.071 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:09.205 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:09.274 [root] [INFO] : y_slice: slice(624, 641, None), x_slice: slice(452, 653, None)
+233 13:19:09.391 [root] [INFO] : merged.data.shape=(118, 37)
+233 13:19:09.391 [root] [INFO] : merged.target.shape=(118,)
+233 13:19:09.707 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:09.988 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:19:10.083 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:10.197 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:10.277 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:19:10.376 [root] [INFO] : merged.data.shape=(103, 37)
+233 13:19:10.376 [root] [INFO] : merged.target.shape=(103,)
+233 13:19:10.694 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:10.884 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:19:10.981 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:11.094 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:11.139 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:19:11.161 [root] [INFO] : merged.data.shape=(25, 37)
+233 13:19:11.161 [root] [INFO] : merged.target.shape=(25,)
+233 13:19:11.183 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 1.19E-04 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 4.40E-06 \\
+		25 & DPPC & 5.86E-12 \\
+		26 & PLPC & 2.48E-10 \\
+		27 & PAPC & 3.71E-12 \\
+		28 & SLPC & 1.53E-04 \\
+		29 & PAPC-OH & 1.73E-05 \\
+		30 & PDHPC & 2.31E-10 \\
+		32 & SAPC & 4.15E-06 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:11.183 [root] [INFO] : done
+233 13:19:11.184 [root] [INFO] : norm: '_norm_vect', problem: 'LS SC'
+233 13:19:11.479 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:11.795 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:12.153 [cyt-client] [INFO] : [GET] [annotation collection] 396 objects | 200 OK
+233 13:19:12.251 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:12.382 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:12.482 [root] [INFO] : y_slice: slice(623, 641, None), x_slice: slice(448, 654, None)
+233 13:19:12.679 [root] [INFO] : merged.data.shape=(216, 37)
+233 13:19:12.679 [root] [INFO] : merged.target.shape=(216,)
+233 13:19:12.990 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:13.418 [cyt-client] [INFO] : [GET] [annotation collection] 672 objects | 200 OK
+233 13:19:13.510 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:13.626 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:13.751 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:19:13.896 [root] [INFO] : merged.data.shape=(213, 37)
+233 13:19:13.896 [root] [INFO] : merged.target.shape=(213,)
+233 13:19:14.215 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:14.490 [cyt-client] [INFO] : [GET] [annotation collection] 165 objects | 200 OK
+233 13:19:14.589 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:14.701 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:14.760 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:19:14.796 [root] [INFO] : merged.data.shape=(48, 37)
+233 13:19:14.796 [root] [INFO] : merged.target.shape=(48,)
+233 13:19:14.821 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 7.35E-08 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 3.30E-07 \\
+		25 & DPPC & 3.16E-23 \\
+		26 & PLPC & 3.86E-20 \\
+		27 & PAPC & 3.60E-21 \\
+		28 & SLPC & 2.53E-08 \\
+		29 & PAPC-OH & 1.07E-06 \\
+		30 & PDHPC & 1.54E-22 \\
+		32 & SAPC & 1.34E-09 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:14.821 [root] [INFO] : done
+233 13:19:14.821 [root] [INFO] : norm: '_norm_vect', problem: 'LS_n LS_p'
+233 13:19:15.097 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:15.413 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:15.640 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:19:15.737 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:15.870 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:15.902 [root] [INFO] : y_slice: slice(623, 638, None), x_slice: slice(476, 653, None)
+233 13:19:16.007 [root] [INFO] : merged.data.shape=(114, 37)
+233 13:19:16.007 [root] [INFO] : merged.target.shape=(114,)
+233 13:19:16.320 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:16.626 [cyt-client] [INFO] : [GET] [annotation collection] 392 objects | 200 OK
+233 13:19:16.720 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:16.846 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:16.932 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:19:17.037 [root] [INFO] : merged.data.shape=(163, 37)
+233 13:19:17.038 [root] [INFO] : merged.target.shape=(163,)
+233 13:19:17.368 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:17.570 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:19:17.681 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:17.796 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:17.843 [root] [INFO] : y_slice: slice(603, 608, None), x_slice: slice(711, 752, None)
+233 13:19:17.865 [root] [INFO] : merged.data.shape=(27, 37)
+233 13:19:17.865 [root] [INFO] : merged.target.shape=(27,)
+233 13:19:17.889 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:17.889 [root] [INFO] : done
+233 13:19:17.889 [root] [INFO] : norm: '_norm_vect', problem: 'SC_n SC_p'
+233 13:19:18.154 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:18.471 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:18.723 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:19:18.827 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:18.970 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:19.040 [root] [INFO] : y_slice: slice(625, 641, None), x_slice: slice(448, 654, None)
+233 13:19:19.155 [root] [INFO] : merged.data.shape=(102, 37)
+233 13:19:19.156 [root] [INFO] : merged.target.shape=(102,)
+233 13:19:19.491 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:19.780 [cyt-client] [INFO] : [GET] [annotation collection] 280 objects | 200 OK
+233 13:19:19.900 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:20.042 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:20.115 [root] [INFO] : y_slice: slice(599, 617, None), x_slice: slice(534, 679, None)
+233 13:19:20.198 [root] [INFO] : merged.data.shape=(50, 37)
+233 13:19:20.199 [root] [INFO] : merged.target.shape=(50,)
+233 13:19:20.538 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:20.714 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:19:20.819 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:20.974 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:21.016 [root] [INFO] : y_slice: slice(608, 611, None), x_slice: slice(706, 738, None)
+233 13:19:21.037 [root] [INFO] : merged.data.shape=(21, 37)
+233 13:19:21.037 [root] [INFO] : merged.target.shape=(21,)
+233 13:19:21.059 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:21.059 [root] [INFO] : done
+233 13:19:21.059 [root] [INFO] : norm: '_norm_vect', problem: 'LS_n SC_n'
+233 13:19:21.363 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:21.713 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:21.964 [cyt-client] [INFO] : [GET] [annotation collection] 192 objects | 200 OK
+233 13:19:22.085 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:22.257 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:22.323 [root] [INFO] : y_slice: slice(623, 640, None), x_slice: slice(448, 654, None)
+233 13:19:22.438 [root] [INFO] : merged.data.shape=(98, 37)
+233 13:19:22.438 [root] [INFO] : merged.target.shape=(98,)
+233 13:19:22.773 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:23.089 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:19:23.205 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:23.354 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:23.432 [root] [INFO] : y_slice: slice(598, 617, None), x_slice: slice(506, 679, None)
+233 13:19:23.526 [root] [INFO] : merged.data.shape=(110, 37)
+233 13:19:23.527 [root] [INFO] : merged.target.shape=(110,)
+233 13:19:23.878 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:24.088 [cyt-client] [INFO] : [GET] [annotation collection] 75 objects | 200 OK
+233 13:19:24.212 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:24.362 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:24.405 [root] [INFO] : y_slice: slice(603, 610, None), x_slice: slice(711, 750, None)
+233 13:19:24.427 [root] [INFO] : merged.data.shape=(23, 37)
+233 13:19:24.427 [root] [INFO] : merged.target.shape=(23,)
+233 13:19:24.449 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		25 & DPPC & 3.69E-11 \\
+		26 & PLPC & 1.04E-09 \\
+		27 & PAPC & 1.03E-08 \\
+		28 & SLPC & 0.001 \\
+		30 & PDHPC & 5.40E-12 \\
+		32 & SAPC & 0.001 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:24.449 [root] [INFO] : done
+233 13:19:24.450 [root] [INFO] : norm: '_norm_vect', problem: 'LS_p SC_p'
+233 13:19:24.751 [cyt-client] [INFO] : [GET] [currentuser] CURRENT USER - 534530561 : mamodei | 200 OK
+233 13:19:25.107 [cyt-client] [INFO] : [GET] [sliceinstance collection] 12 objects | 200 OK
+233 13:19:25.364 [cyt-client] [INFO] : [GET] [annotation collection] 204 objects | 200 OK
+233 13:19:25.488 [cyt-client] [INFO] : [GET] [imageinstance] 545025763 : Adjusted Cytomine MSI 3103/Region013-Viridis-stacked.ome.tif | 200 OK
+233 13:19:25.666 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:25.735 [root] [INFO] : y_slice: slice(624, 641, None), x_slice: slice(452, 653, None)
+233 13:19:25.850 [root] [INFO] : merged.data.shape=(118, 37)
+233 13:19:25.850 [root] [INFO] : merged.target.shape=(118,)
+233 13:19:26.199 [cyt-client] [INFO] : [GET] [sliceinstance collection] 14 objects | 200 OK
+233 13:19:26.512 [cyt-client] [INFO] : [GET] [annotation collection] 336 objects | 200 OK
+233 13:19:26.634 [cyt-client] [INFO] : [GET] [imageinstance] 548365416 : Region014-Viridis-stacked.ome.tif | 200 OK
+233 13:19:26.792 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:26.872 [root] [INFO] : y_slice: slice(596, 617, None), x_slice: slice(501, 679, None)
+233 13:19:26.970 [root] [INFO] : merged.data.shape=(103, 37)
+233 13:19:26.970 [root] [INFO] : merged.target.shape=(103,)
+233 13:19:27.312 [cyt-client] [INFO] : [GET] [sliceinstance collection] 15 objects | 200 OK
+233 13:19:27.527 [cyt-client] [INFO] : [GET] [annotation collection] 90 objects | 200 OK
+233 13:19:27.653 [cyt-client] [INFO] : [GET] [imageinstance] 548365463 : Region015-Viridis-stacked.ome.tif | 200 OK
+233 13:19:27.814 [cyt-client] [INFO] : [GET] [term collection] 35 objects | 200 OK
+233 13:19:27.859 [root] [INFO] : y_slice: slice(603, 611, None), x_slice: slice(706, 752, None)
+233 13:19:27.880 [root] [INFO] : merged.data.shape=(25, 37)
+233 13:19:27.881 [root] [INFO] : merged.target.shape=(25,)
+233 13:19:27.903 [root] [INFO] : results for feature selection: 
+	\begin{subtable}[ht]{0.3\textwidth}
+		\begin{tabular}{clc}
+			\toprule
+			{}  Index & Label & $p$ value \\
+			\midrule
+		14 & LysoPPC & 4.58E-05 \\
+		23 & PC 16:0 C9 Carbon... & 0.001 \\
+		24 & PAzPC & 2.98E-06 \\
+		25 & DPPC & 4.05E-12 \\
+		26 & PLPC & 1.23E-10 \\
+		27 & PAPC & 2.98E-12 \\
+		28 & SLPC & 5.97E-05 \\
+		29 & PAPC-OH & 1.28E-05 \\
+		30 & PDHPC & 2.15E-10 \\
+		32 & SAPC & 1.82E-06 \\
+			\bottomrule
+		\end{tabular}
+		\caption{}
+		\label{}
+	\end{subtable}
+
+233 13:19:27.904 [root] [INFO] : done
