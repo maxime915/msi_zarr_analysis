@@ -5,9 +5,9 @@ import logging
 import pathlib
 import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Type, Union
-from matplotlib import pyplot as plt
 
 import numpy as np
+from matplotlib import pyplot as plt
 from msi_zarr_analysis import VERSION
 from msi_zarr_analysis.ml.dataset import GroupCollection
 from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
@@ -37,7 +37,6 @@ def build_segmentation_mask(
     zarr_path: str,
     estimator: BaseEstimator,
 ) -> np.ndarray:
-    pass
 
     z_group = open_group_ro(zarr_path)
     z_ints = z_group["/0"]
@@ -54,18 +53,18 @@ def build_segmentation_mask(
 
     # build prediction 2D mask
     prediction_mask = np.zeros(shape=n_lens.shape, dtype=np.uint8)
-    prediction_mask[selection_mask] = 255 * prediction
+    prediction_mask[selection_mask] = prediction
 
     # build colored mask
-    #   transparent: no prediction
-    #   red: class 0
-    #   white: class 1
+    #   no prediction: transparent
+    #   red: class 1
+    #   green: class 2
     mask = np.stack(
         [
-            255 * np.ones(n_lens.shape, np.uint8),  # R
-            prediction_mask,  # G
-            prediction_mask,  # B
-            np.where(n_lens, 150, 0),  # A
+            np.where(prediction_mask, 200, 50),  # R
+            np.where(prediction_mask, 50, 200),  # G
+            np.where(prediction_mask, 50, 30),  # B
+            np.where(n_lens, 255, 0),  # A
         ],
         axis=-1,
     )
@@ -190,16 +189,28 @@ def run(
             template_group = open_group_ro(ds_config_itm.zarr_template_path)
             template_lipid = template_group["/0"][bin_idx, 0, ...]
 
-            fig, ax = plt.subplots(dpi=150)
+            crop_idx = autocrop(template_lipid)
+            mask = mask[crop_idx]
+            template_lipid = template_lipid[crop_idx]
+
+            fig, ax = plt.subplots(dpi=250)
 
             ax.imshow(template_lipid, interpolation="nearest")
-            ax.imshow(mask, interpolation="nearest")
+            ax.imshow(mask, interpolation="nearest", alpha=0.4)
 
-            # xlim, ylim
-            crop_idx = autocrop(template_lipid)
-            ax.set_ylim((crop_idx[0].stop, crop_idx[0].start))  # backward y axis
-            ax.set_xlim((crop_idx[1].start, crop_idx[1].stop))
-            ax.set_title(f"Classification mask on {stem}")
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
+
+            fig.tight_layout()
+            fig.savefig(path + "_" + stem + "_annotated.png")
+            plt.close(fig)
+
+            fig, ax = plt.subplots(dpi=250)
+
+            ax.imshow(template_lipid, interpolation="nearest")
+
+            ax.get_xaxis().set_visible(False)
+            ax.get_yaxis().set_visible(False)
 
             fig.tight_layout()
             fig.savefig(path + "_" + stem + ".png")
