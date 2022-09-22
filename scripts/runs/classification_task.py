@@ -291,14 +291,22 @@ def model_selection_assessment(
         estimator = model(**res.best_params_)
     estimator.fit(collection.data, collection.target)
 
+    avg_gini = estimator.feature_importances_
+    if hasattr(estimator, "estimators_"):
+        std_gini = np.std(
+            [tree.feature_importances_ for tree in estimator.estimators_], axis=0
+        )
+    else:
+        std_gini = np.full_like(avg_gini, np.nan)
+
     # 1: feature importance
     logging.info("feature importances:")
-    for idx, (feature, importance) in enumerate(
-        zip(collection.dataset.attribute_names(), estimator.feature_importances_)
+    for idx, (feature, importance, stddev) in enumerate(
+        zip(collection.dataset.attribute_names(), avg_gini, std_gini)
     ):
         if len(feature) > 20:
             feature = feature[:17] + "..."
-        logging.info("  %02d (%20s) : %.4f", idx, feature, importance)
+        logging.info("  %02d (%20s) : %.4f +/- %.4f", idx, feature, importance, stddev)
 
     return estimator
 
