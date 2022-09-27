@@ -371,6 +371,29 @@ def parse_annotation_mapping(
         for class_name, annotation_list in annotation_dict.items()
     }
 
+def scale_annotation_mapping(
+    annotation_dict: Mapping[str, Iterable[Annotation]],
+    scale: float
+) -> Dict[str, List[ParsedAnnotation]]:
+    """scale annotation mapping to match an up-scaled image via cv2.resize()
+
+    Args:
+        annotation_dict (Mapping[str, Iterable[Annotation]]): annotations
+        scale: scale factor
+
+    Returns:
+        Dict[str, List[ParsedAnnotation]]: scaled up annotations
+    """
+    
+    def _scale_geometry(annotation: ParsedAnnotation) -> ParsedAnnotation:
+        scaled_annotation = affinity.scale(annotation.geometry, scale, scale, origin=(0, 0))
+        return ParsedAnnotation(annotation.annotation, scaled_annotation)
+
+    return {
+        class_name: [_scale_geometry(annotation) for annotation in annotation_lst]
+        for class_name, annotation_lst in annotation_dict.items()
+    }
+
 
 def translate_parsed_annotation_mapping(
     annotation_dict: Mapping[str, Iterable[ParsedAnnotation]],
