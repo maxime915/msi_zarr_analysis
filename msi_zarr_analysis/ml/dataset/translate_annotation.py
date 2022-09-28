@@ -293,6 +293,13 @@ def get_image_geometry(
     return geometry
 
 
+def get_cytomine_geometry(
+    geometry,
+    image_height: int,
+):
+    return affinity.affine_transform(geometry, [1, 0, 0, -1, 0, image_height])
+
+
 def get_annotation_mapping(
     annotation_collection: AnnotationCollection,
     classes: Mapping[str, Container[int]],
@@ -599,6 +606,7 @@ def rgb_to_grayscale(rgb):
 
 
 def colorize_data(intensity, cmap=plt.cm.viridis):
+    # TODO to_rgba has a parameter to convert to bytes
     # H, W, C=[RGBA]
     colored = plt.cm.ScalarMappable(cmap=plt.cm.viridis).to_rgba(intensity)
     colored = np.uint8(np.round(255 * colored))  # as 8bit color
