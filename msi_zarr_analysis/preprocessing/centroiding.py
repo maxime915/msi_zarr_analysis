@@ -40,13 +40,12 @@ def centroid_dict(
     spectrum_dict: Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray]],
     picker_kind: PickerKind = PickerKind.PeakPickerHiRes,
 ) -> Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray]]:
-    "NOTE: to save memory, spectrum_dict will be consumed"
+    "Apply centroiding on a dict that maps keys to spectra"
 
     picked_dict: Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray]] = {}
 
     peak_picker = __PICKER_MAPPING[picker_kind]()
-    while spectrum_dict:
-        coord, spectrum = spectrum_dict.popitem()
+    for coord, spectrum in spectrum_dict.items():
 
         ms_spectrum = MSSpectrum()
         ms_spectrum.set_peaks(spectrum)
