@@ -159,7 +159,7 @@ def iter_spatial_chunks(
     for the channel axis.
 
     Args:
-        array (Array): an array corresponsing to the image (or one of its labels)
+        array (Array): an array corresponding to the image (or one of its labels)
         z (slice, optional): the range for the Z axis. Defaults to slice(None).
         y (slice, optional): the range for the Y axis. Defaults to slice(None).
         x (slice, optional): the range for the X axis. Defaults to slice(None).
