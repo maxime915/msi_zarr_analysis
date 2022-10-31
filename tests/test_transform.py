@@ -1,8 +1,10 @@
+import context
+
 import itertools
 
 import numpy as np
 
-from msi_zarr_analysis.ml.dataset.translated_t_m import TemplateTransform
+from msi_zarr_analysis.ml.dataset.translate_annotation import TemplateTransform
 
 
 def test_coordinates():
