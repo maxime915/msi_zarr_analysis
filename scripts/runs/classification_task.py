@@ -329,35 +329,25 @@ def model_selection_assessment(
     return estimator
 
 
-def do_runs(res_dir: pathlib.Path, logs_dir: pathlib.Path):
-    def filter(record: logging.LogRecord) -> bool:
-        if record.name == "root":
-            return True
-
-        if record.name == "cytomine.client":
-            record.name = "cyt-client"
-            return record.levelno != logging.DEBUG
-
-        return False
-
-    # setup logger
-    logger = logging.getLogger()
-    logger.setLevel(logging.DEBUG)
-    logger.addFilter(filter)
-
-    formatter = logging.Formatter(
+def _get_log_formatter():
+    return logging.Formatter(
         "%(asctime)s.%(msecs)03d [%(name)s] [%(levelname)s] : %(message)s",
         datefmt="%j %H:%M:%S",
     )
 
-    # main handler is stdout
-    stream_handler = logging.StreamHandler()
-    stream_handler.setLevel(logging.NOTSET)
-    stream_handler.setFormatter(formatter)
-    stream_handler.addFilter(filter)
-    logger.addHandler(stream_handler)
 
-    logger.info("starting %s (VERSION: %s)", __file__, str(VERSION))
+def _logger_filter(record: logging.LogRecord) -> bool:
+    if record.name == "root":
+        return True
+
+    if record.name == "cytomine.client":
+        record.name = "cyt-client"
+        return record.levelno != logging.DEBUG
+
+    return False
+
+
+def do_runs(res_dir: pathlib.Path, logs_dir: pathlib.Path, logger: logging.Logger):
 
     USE_SLIM_DATASETS = bool(os.environ.get("SLIM", ""))
     pf = "slim_" if USE_SLIM_DATASETS else ""
@@ -491,8 +481,8 @@ def do_runs(res_dir: pathlib.Path, logs_dir: pathlib.Path):
                 )
                 file_handler = logging.FileHandler(logs_dir / (base + ".log"), mode="a")
                 file_handler.setLevel(logging.INFO)
-                file_handler.setFormatter(formatter)
-                file_handler.addFilter(filter)
+                file_handler.setFormatter(_get_log_formatter())
+                file_handler.addFilter(_logger_filter)
                 logger.addHandler(file_handler)
 
                 logger.info("norm: '%s', problem: '%s'", normalization, name)
@@ -519,10 +509,27 @@ def main():
     logs_dir = res_dir / "logs"
     logs_dir.mkdir()
 
+    # setup logger
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
+    logger.addFilter(_logger_filter)
+
+    # main handler is stdout
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.NOTSET)
+    stream_handler.setFormatter(_get_log_formatter())
+    stream_handler.addFilter(_logger_filter)
+    logger.addHandler(stream_handler)
+
+    logger.info("starting %s (VERSION: %s)", __file__, str(VERSION))
+
     with open(logs_dir / "combined.log", mode="w") as log_file:
         with contextlib.redirect_stdout(log_file):
-            with contextlib.redirect_stderr(log_file):
-                do_runs(res_dir, logs_dir)
+            with contextlib.redirect_stderr(sys.stdout):
+                try:
+                    do_runs(res_dir, logs_dir)
+                except Exception as e:
+                    logger.exception(e)
 
 
 if __name__ == "__main__":
