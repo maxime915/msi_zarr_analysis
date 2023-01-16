@@ -1,13 +1,29 @@
+import contextlib
 import datetime
-import functools
 import json
 import logging
+import os
 import pathlib
+import sys
 import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 import numpy as np
 from matplotlib import pyplot as plt
+from sklearn.base import BaseEstimator
+from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
+from sklearn.tree import DecisionTreeClassifier
+
+try:
+    import msi_zarr_analysis
+except (ModuleNotFoundError, ImportError):
+    # add msi_zarr_analysis to the path if it was not imported
+    package_path = pathlib.Path(__file__).parent.parent.parent.resolve().as_posix()
+    if package_path not in sys.path:
+        sys.path.append(package_path)
+
+
 from msi_zarr_analysis import VERSION
 from msi_zarr_analysis.ml.dataset import GroupCollection
 from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
@@ -21,16 +37,6 @@ from msi_zarr_analysis.utils.cytomine_utils import (
     get_lipid_dataframe,
     get_page_bin_indices,
 )
-from sklearn.base import BaseEstimator
-from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
-from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
-from sklearn.tree import DecisionTreeClassifier
-
-
-@functools.lru_cache(maxsize=1)
-def datetime_str() -> str:
-    "return a datetime representation, constant through the program"
-    return datetime.datetime.now().strftime("%W-%w_%H-%M-%S")
 
 
 def build_segmentation_mask(
@@ -108,6 +114,7 @@ def run(
     bin_csv_path: str,
     *ds_config: DSConfig,
     grouped_cv: bool,
+    res_dir: pathlib.Path,
 ):
     if not ds_config:
         raise ValueError("a list of dataset configuration is required")
@@ -171,9 +178,9 @@ def run(
         grouped_cv=grouped_cv,
     )
 
-    dir = pathlib.Path("results") / datetime_str() / "class_masks"
-    dir.mkdir(parents=True, exist_ok=True)
-    path = str(dir / base)
+    class_masks_dir = res_dir / "class_masks"
+    class_masks_dir.mkdir(exist_ok=True)
+    path = str(class_masks_dir / base)
 
     with Cytomine(host_url, pub_key, priv_key):
 
@@ -322,7 +329,7 @@ def model_selection_assessment(
     return estimator
 
 
-def main():
+def do_runs(res_dir: pathlib.Path, logs_dir: pathlib.Path):
     def filter(record: logging.LogRecord) -> bool:
         if record.name == "root":
             return True
@@ -352,6 +359,9 @@ def main():
 
     logger.info("starting %s (VERSION: %s)", __file__, str(VERSION))
 
+    USE_SLIM_DATASETS = bool(os.environ.get("SLIM", ""))
+    pf = "slim_" if USE_SLIM_DATASETS else ""
+
     data_sources = [
         {
             "name": "region_13",
@@ -365,9 +375,9 @@ def main():
                 "transform_flip_ud": True,
                 "transform_flip_lr": False,
                 "annotation_users_id": (),
-                "zarr_template_path": "datasets/comulis13_binned.zarr",
+                "zarr_template_path": f"datasets/{pf}comulis13_binned.zarr",
             },
-            "base": "datasets/comulis13",
+            "base": f"datasets/{pf}comulis13",
         },
         {
             "name": "region_14",
@@ -381,9 +391,9 @@ def main():
                 "transform_flip_ud": True,
                 "transform_flip_lr": False,
                 "annotation_users_id": (),
-                "zarr_template_path": "datasets/comulis14_binned.zarr",
+                "zarr_template_path": f"datasets/{pf}comulis14_binned.zarr",
             },
-            "base": "datasets/comulis14",
+            "base": f"datasets/{pf}comulis14",
         },
         {
             "name": "region_15",
@@ -397,19 +407,21 @@ def main():
                 "transform_flip_ud": True,
                 "transform_flip_lr": False,
                 "annotation_users_id": (),
-                "zarr_template_path": "datasets/comulis15_binned.zarr",
+                "zarr_template_path": f"datasets/{pf}comulis15_binned.zarr",
             },
-            "base": "datasets/comulis15",
+            "base": f"datasets/{pf}comulis15",
         },
     ]
 
     normalizations = [
         "",
         "_norm_2305",
-        "_norm_max",
-        "_norm_tic",
-        "_norm_vect",
+        # "_norm_max",
+        # "_norm_tic",
+        # "_norm_vect",
     ]
+    if USE_SLIM_DATASETS:
+        normalizations = ["", "_norm_317"]
 
     problem_classes = {
         "LS SC": {  # both merged
@@ -477,9 +489,7 @@ def main():
                     + (normalization or "_no_norm")
                     + ("_gcv" if grouped_cv else "_cv")
                 )
-                file_handler = logging.FileHandler(
-                    f"logs/classification_task/{base}.log", mode="a"
-                )
+                file_handler = logging.FileHandler(logs_dir / (base + ".log"), mode="a")
                 file_handler.setLevel(logging.INFO)
                 file_handler.setFormatter(formatter)
                 file_handler.addFilter(filter)
@@ -494,11 +504,25 @@ def main():
                     "mz value + lipid name.csv",
                     *ds_lst,
                     grouped_cv=grouped_cv,
+                    res_dir=res_dir,
                 )
 
                 logger.info("done")
 
                 logger.removeHandler(file_handler)
+
+
+def main():
+    exp_dir = pathlib.Path(__file__).parent / "exp-res" / "classification-task"
+    res_dir = exp_dir / datetime.datetime.now().strftime("%y-%m-%d_%H-%M-%S")
+    res_dir.mkdir(parents=True)
+    logs_dir = res_dir / "logs"
+    logs_dir.mkdir()
+
+    with open(logs_dir / "combined.log", mode="w") as log_file:
+        with contextlib.redirect_stdout(log_file):
+            with contextlib.redirect_stderr(log_file):
+                do_runs(res_dir, logs_dir)
 
 
 if __name__ == "__main__":
