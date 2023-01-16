@@ -9,11 +9,14 @@ import time
 from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Type, Union
 
 import numpy as np
+import matplotlib as mpl
 from matplotlib import pyplot as plt
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
+
+from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
 
 try:
     import msi_zarr_analysis
@@ -30,6 +33,7 @@ from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
     collect_spectra_zarr,
     get_overlay_annotations,
     translate_annotation_mapping_overlay_to_template,
+    make_rasterized_mask,
 )
 from msi_zarr_analysis.utils.autocrop import autocrop
 from msi_zarr_analysis.utils.check import open_group_ro
@@ -76,6 +80,42 @@ def build_segmentation_mask(
     )
 
     return mask
+
+
+def save_ground_truths(
+    annotation_dict: Dict[str, List[ParsedAnnotation]],
+    attribute_names: List[str],
+    zarr_path: str,
+    gt_path: str,
+    colors_per_class: Dict[str, np.ndarray],
+):
+    pass
+    stem = pathlib.Path(zarr_path).stem
+
+    foreground, yx_tic, rasterized_annotations = make_rasterized_mask(
+        annotation_dict, attribute_names, zarr_path
+    )
+    yx_tic[~foreground] = np.nan
+
+    fig, ax = plt.subplots(dpi=250)
+    cmap = mpl.cm.get_cmap().copy()
+    cmap.set_bad(color="#DDDDDD")
+    ax.matshow(yx_tic, interpolation="nearest", cmap=cmap)
+
+    for cls_, an_lst in rasterized_annotations.items():
+        col_ = colors_per_class[cls_]
+        col_[-1] = 0.4
+        for an in an_lst:
+            rgba_mask = np.stack([an.raster] * 4, axis=-1)
+            rgba_mask = np.where(rgba_mask, col_, 0)
+            ax.matshow(rgba_mask, interpolation="nearest")
+
+    ax.get_xaxis().set_visible(False)
+    ax.get_yaxis().set_visible(False)
+
+    fig.tight_layout()
+    fig.savefig(gt_path + "_" + stem + ".png")
+    plt.close(fig)
 
 
 class MLConfig(NamedTuple):
@@ -129,6 +169,17 @@ def run(
 
     lipid_df = get_lipid_dataframe(bin_csv_path)
 
+    all_classes = set()
+    for ds_config_itm in ds_config:
+        all_classes.update(ds_config_itm.classes.keys())
+    colors_per_class = dict(
+        zip(all_classes, mpl.cm.rainbow(np.linspace(0, 1, len(all_classes))))
+    )
+
+    gt_mask_dir = res_dir / "ground_truth"
+    gt_mask_dir.mkdir(exist_ok=True)
+    gt_path = str(gt_mask_dir / base)
+
     # build ds
     with Cytomine(host_url, pub_key, priv_key):
 
@@ -157,6 +208,14 @@ def run(
                 ds_config_itm.transform_rot90,
                 ds_config_itm.transform_flip_ud,
                 ds_config_itm.transform_flip_lr,
+            )
+
+            save_ground_truths(
+                annotation_dict,
+                lipid_df.Name,
+                ds_config_itm.zarr_path,
+                gt_path,
+                colors_per_class,
             )
 
             dataset_to_be_merged.append(

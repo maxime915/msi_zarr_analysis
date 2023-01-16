@@ -521,6 +521,35 @@ def make_collection(
     return merged
 
 
+def make_rasterized_mask(
+    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
+    attribute_names: Iterable[str],
+    zarr_path: str,
+):
+    ms_group = open_group_ro(zarr_path)
+    dataset: zarr.Array = ms_group["/0"]
+    image_dimensions = dataset.shape[-2:]
+
+    # class names
+    class_names = list(annotation_mapping.keys())
+
+    # attribute names
+    attribute_names = list(attribute_names)
+    if not attribute_names:
+        attribute_names = [str(v) for v in ms_group["/labels/mzs/0"][:, 0, 0, 0]]
+
+    # have a numpy array like the template for each annotation
+    rasterized_annotations = rasterize_annotation_mapping(
+        annotation_mapping,
+        image_dimensions,
+    )
+
+    yx_tic: np.ndarray = dataset[:, 0, :, :].sum(axis=0)
+    foreground: np.ndarray = ms_group["/labels/lengths/0"][0, 0, :, :] > 0
+
+    return foreground, yx_tic, rasterized_annotations
+
+
 def collect_spectra_zarr(
     annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
     attribute_names: Iterable[str],
