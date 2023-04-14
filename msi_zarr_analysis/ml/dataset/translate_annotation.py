@@ -3,10 +3,11 @@
 from collections import defaultdict
 import logging
 import warnings
-from typing import Container, Dict, Iterable, List, Mapping, NamedTuple, Tuple
+from typing import Container, Dict, Iterable, List, Mapping, NamedTuple, Tuple, Sequence
 
 import cv2
 import matplotlib.pyplot as plt
+import matplotlib.cm as cm
 import numpy as np
 import numpy.typing as npt
 import rasterio.features
@@ -184,8 +185,8 @@ def translate_geometry(
 
     # 1.2 scale
     f = 1 / matching_result.scale
-    geometry = affinity.scale(geometry, f, f, origin=(0, 0))
-    rect = affinity.scale(rect, f, f, origin=(0, 0))
+    geometry = affinity.scale(geometry, f, f, origin=(0, 0))  # type: ignore
+    rect = affinity.scale(rect, f, f, origin=(0, 0))  # type: ignore
 
     # 2. (template) transform
 
@@ -198,12 +199,12 @@ def translate_geometry(
     geometry = affinity.rotate(
         geometry,
         template_transform.rotate_90 * 90,
-        origin=(0, 0),
+        origin=(0, 0),  # type: ignore
     )
     rect = affinity.rotate(
         rect,
         template_transform.rotate_90 * 90,
-        origin=(0, 0),
+        origin=(0, 0),  # type: ignore
     )
 
     # 2.2. apply flipping
@@ -273,8 +274,8 @@ def translate_annotation_dict(
 ):
     for annotation_lst in annotation_dict.values():
         for annotation_item in annotation_lst:
-            annotation_item.template_geometry = translate_geometry(
-                annotation_item.image_geometry,
+            annotation_item.template_geometry = translate_geometry(  # type: ignore
+                annotation_item.image_geometry,  # type: ignore
                 template_transform,
                 matching_result,
                 crop_idx,
@@ -323,8 +324,10 @@ def get_annotation_mapping(
     term_collection = TermCollection().fetch_with_filter(
         "project", annotation_collection.project
     )
+    if term_collection is False:
+        raise ValueError("unable to fetch terms")
 
-    polygon_sets_per_term: Dict[str, set] = defaultdict(set)
+    polygon_sets_per_term: Dict[int, set] = defaultdict(set)
     annotation_dict = {key: [] for key in classes}
 
     for annotation, term in iter_annotation_single_term(
@@ -332,9 +335,9 @@ def get_annotation_mapping(
         term_collection,
     ):
         # avoid duplicate annotations
-        if annotation.location in polygon_sets_per_term[term.id]:
+        if annotation.location in polygon_sets_per_term[term.id]:  # type: ignore
             continue
-        polygon_sets_per_term[term.id].add(annotation.location)
+        polygon_sets_per_term[term.id].add(annotation.location)  # type: ignore
 
         for class_name, id_set in classes.items():
             if term.id in id_set:
@@ -376,29 +379,6 @@ def parse_annotation_mapping(
     return {
         class_name: [_add_image_geometry(annotation) for annotation in annotation_list]
         for class_name, annotation_list in annotation_dict.items()
-    }
-
-def scale_annotation_mapping(
-    annotation_dict: Mapping[str, Iterable[Annotation]],
-    scale: float
-) -> Dict[str, List[ParsedAnnotation]]:
-    """scale annotation mapping to match an up-scaled image via cv2.resize()
-
-    Args:
-        annotation_dict (Mapping[str, Iterable[Annotation]]): annotations
-        scale: scale factor
-
-    Returns:
-        Dict[str, List[ParsedAnnotation]]: scaled up annotations
-    """
-    
-    def _scale_geometry(annotation: ParsedAnnotation) -> ParsedAnnotation:
-        scaled_annotation = affinity.scale(annotation.geometry, scale, scale, origin=(0, 0))
-        return ParsedAnnotation(annotation.annotation, scaled_annotation)
-
-    return {
-        class_name: [_scale_geometry(annotation) for annotation in annotation_lst]
-        for class_name, annotation_lst in annotation_dict.items()
     }
 
 
@@ -475,49 +455,20 @@ def rasterize_annotation_mapping(
     }
 
 
-def load_annotation(
-    annotation_collection: AnnotationCollection,
-    image_height: int,
-    *,
-    term_list: List[str],
-) -> Dict[str, List[Annotation]]:
-
-    term_collection = TermCollection().fetch_with_filter(
-        "project", annotation_collection.project
-    )
-
-    polygon_sets_per_term: Dict[str, set] = defaultdict(set)
-    annotation_dict = {term: [] for term in term_list}
-
-    for annotation, term in iter_annotation_single_term(
-        annotation_collection, term_collection
-    ):
-        # avoid duplicate annotations
-        if annotation.location in polygon_sets_per_term[term.id]:
-            continue
-        polygon_sets_per_term[term.id].add(annotation.location)
-
-        annotation.image_geometry = get_image_geometry(annotation, image_height)
-
-        try:
-            annotation_dict[term.name].append(annotation)
-        except KeyError as e:
-            raise ValueError(f"invalid term {term} found") from e
-    return annotation_dict
-
-
 def build_onehot_annotation(
     annotation_collection: AnnotationCollection,
     image_height: int,
     image_width: int,
     *,
-    term_list: List[str] = None,
-) -> Tuple[List[str], npt.NDArray]:
+    term_list: Sequence[str] = (),
+) -> Tuple[Sequence[str], npt.NDArray]:
     # [classes], np[dims..., classes]
 
     term_collection = TermCollection().fetch_with_filter(
         "project", annotation_collection.project
     )
+    if term_collection is False:
+        raise ValueError("unable to fetch terms of project")
 
     mask_dict = {}
 
@@ -568,7 +519,7 @@ def load_ms_template(
 ) -> Tuple[Tuple[slice, slice], npt.NDArray]:
     "use m/Z bounds ? use the CSV ? use the binned array directly ?"
 
-    ms_data = z_group["/0"][bin_idx, 0, ...]
+    ms_data: np.ndarray = z_group["/0"][bin_idx, 0, ...]  # type: ignore
 
     crop_idx = autocrop(ms_data)
     ms_data = ms_data[crop_idx]
@@ -586,7 +537,7 @@ def load_tif_file(page_idx: int, disk_path: str):
     z = zarr.open(store)  # pages, chan, height, width
 
     # first page
-    image = z[page_idx, ...]  # C=[RGB], H, W
+    image: np.ndarray = z[page_idx, ...]  # C=[RGB], H, W  # type:ignore
     image = np.transpose(image, (1, 2, 0))  # H, W, C
 
     if len(image.shape) != 3:
@@ -600,15 +551,15 @@ def load_tif_file(page_idx: int, disk_path: str):
 # Image transformation
 
 
-def rgb_to_grayscale(rgb):
+def rgb_to_grayscale(rgb: np.ndarray) -> np.ndarray:
     "H, W, C=[RGB]"
     return 0.299 * rgb[..., 0] + 0.587 * rgb[..., 1] + 0.114 * rgb[..., 2]
 
 
-def colorize_data(intensity, cmap=plt.cm.viridis):
+def colorize_data(intensity: np.ndarray, cmap=cm.get_cmap("viridis")):
     # TODO to_rgba has a parameter to convert to bytes
     # H, W, C=[RGBA]
-    colored = plt.cm.ScalarMappable(cmap=plt.cm.viridis).to_rgba(intensity)
+    colored = cm.ScalarMappable(cmap=cmap).to_rgba(intensity)
     colored = np.uint8(np.round(255 * colored))  # as 8bit color
     colored = colored[:, :, :3]  # strip alpha
     return colored
@@ -627,7 +578,7 @@ def scale_image(
     Returns:
         npt.NDArray: scaled image
     """
-    return cv2.resize(image, dsize=None, fx=scale, fy=scale, interpolation=mode)
+    return cv2.resize(image, dsize=None, fx=scale, fy=scale, interpolation=mode)  # type: ignore
 
 
 # pre-processing
@@ -636,10 +587,10 @@ def scale_image(
 def filter_hsv(
     image_hsv: np.ndarray,
     *,
-    threshold_hue_low: np.uint8 = 0,
-    threshold_hue_high: np.uint8 = 180,
-    threshold_saturation_low: np.uint8 = 0,
-    threshold_value_low: np.uint8 = 0,
+    threshold_hue_low: int = 0,
+    threshold_hue_high: int = 180,
+    threshold_saturation_low: int = 0,
+    threshold_value_low: int = 0,
 ) -> np.ndarray:
     image_hsv[image_hsv[..., 0] < threshold_hue_low] = 0
     image_hsv[image_hsv[..., 0] > threshold_hue_high] = 0
@@ -648,7 +599,7 @@ def filter_hsv(
     return image_hsv
 
 
-def threshold_overlay(overlay_img):
+def threshold_overlay(overlay_img: np.ndarray) -> np.ndarray:
     "select MS peaks from the overlay based on the colormap (assuming default)"
 
     overlay_hsv = cv2.cvtColor(overlay_img, cv2.COLOR_RGB2HSV)
@@ -661,20 +612,21 @@ def threshold_overlay(overlay_img):
     return cv2.cvtColor(filtered, cv2.COLOR_HSV2RGB)
 
 
-def threshold_ms(color_ms_data):
+def threshold_ms(color_ms_data: np.ndarray) -> np.ndarray:
 
     template_hsv = cv2.cvtColor(color_ms_data, cv2.COLOR_RGB2HSV)
     filtered = filter_hsv(
         template_hsv,
-        threshold_hue_high=110,
+        threshold_hue_high=110,  # maybe a bit low
     )
     return cv2.cvtColor(filtered, cv2.COLOR_HSV2RGB)
 
 
 # Template matching implementation
 
-
-def get_template_matching_score(grayscale_overlay, grayscale_ms_data):
+def get_template_matching_score(
+    grayscale_overlay, grayscale_ms_data
+) -> Tuple[float, Tuple[int, int]]:
     "template matching via best translation"
 
     # translate the image and compute the correlation score
@@ -686,12 +638,12 @@ def get_template_matching_score(grayscale_overlay, grayscale_ms_data):
     y, x = ij
 
     max_score = result[ij]
-    return max_score, (x, y)
+    return max_score, (x, y)  # type: ignore
 
 
 def match_template_multiscale_scipy(
-    grayscale_overlay,
-    grayscale_ms_data,
+    grayscale_overlay: np.ndarray,
+    grayscale_ms_data: np.ndarray,
     max_scale: float,
     tol: float = 1e-3,
 ):
@@ -922,7 +874,7 @@ def save_bin_class_image(
         return
 
     # take the nonzeros of both tic and mask (axis class)
-    nzy, nzx = np.nonzero(tic + ms_mask.max(axis=2))
+    nzy, nzx = np.nonzero(np.logical_or(tic != 0, ms_mask.max(axis=2) != 0))
 
     crop = (
         slice(nzy.min(), nzy.max() + 1),

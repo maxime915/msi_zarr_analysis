@@ -6,17 +6,15 @@ import os
 import pathlib
 import sys
 import time
-from typing import Any, Dict, List, NamedTuple, Optional, Tuple, Type, Union
+from typing import Any, Dict, List, Mapping, NamedTuple, Sequence, Type, Union
 
-import numpy as np
 import matplotlib as mpl
+import numpy as np
 from matplotlib import pyplot as plt
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
-
-from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
 
 try:
     import msi_zarr_analysis
@@ -32,9 +30,10 @@ from msi_zarr_analysis.ml.dataset import GroupCollection
 from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
     collect_spectra_zarr,
     get_overlay_annotations,
-    translate_annotation_mapping_overlay_to_template,
     make_rasterized_mask,
+    translate_annotation_mapping_overlay_to_template,
 )
+from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
 from msi_zarr_analysis.utils.autocrop import autocrop
 from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.cytomine_utils import (
@@ -53,8 +52,8 @@ def build_segmentation_mask(
     z_lens = z_group["/labels/lengths/0"]
 
     # assume small dataset
-    n_ints = z_ints[:, 0, ...]
-    n_lens = z_lens[0, 0, ...]
+    n_ints: np.ndarray = z_ints[:, 0, ...]  # type: ignore
+    n_lens: np.ndarray = z_lens[0, 0, ...]  # type: ignore
     selection_mask = n_lens > 0
 
     # select valid spectra only
@@ -83,8 +82,8 @@ def build_segmentation_mask(
 
 
 def save_ground_truths(
-    annotation_dict: Dict[str, List[ParsedAnnotation]],
-    attribute_names: List[str],
+    annotation_dict: Mapping[str, Sequence[ParsedAnnotation]],
+    attribute_names: Sequence[str],
     zarr_path: str,
     gt_path: str,
     colors_per_class: Dict[str, np.ndarray],
@@ -120,8 +119,8 @@ def save_ground_truths(
 
 class MLConfig(NamedTuple):
     choices: Dict[Type[BaseEstimator], Dict[str, Any]]
-    cv_fold_outer: Optional[int] = None
-    cv_fold_inner: Optional[int] = None
+    cv_fold_outer: int = 5
+    cv_fold_inner: int = 5
 
 
 class DSConfig(NamedTuple):
@@ -142,9 +141,9 @@ class DSConfig(NamedTuple):
     transform_flip_ud: bool = False
     transform_flip_lr: bool = False
 
-    annotation_users_id: Tuple[int] = ()  # select these users only
+    annotation_users_id: Sequence[int] = ()  # select these users only
 
-    zarr_template_path: str = None  # use another group for the template matching
+    zarr_template_path: str = ""  # use another group for the template matching
 
 
 def run(
@@ -253,7 +252,7 @@ def run(
             )
 
             template_group = open_group_ro(ds_config_itm.zarr_template_path)
-            template_lipid = template_group["/0"][bin_idx, 0, ...]
+            template_lipid: np.ndarray = template_group["/0"][bin_idx, 0, ...]  # type: ignore
 
             crop_idx = autocrop(template_lipid)
             mask = mask[crop_idx]
@@ -586,7 +585,7 @@ def main():
         with contextlib.redirect_stdout(log_file):
             with contextlib.redirect_stderr(sys.stdout):
                 try:
-                    do_runs(res_dir, logs_dir)
+                    do_runs(res_dir, logs_dir, logger)
                 except Exception as e:
                     logger.exception(e)
 

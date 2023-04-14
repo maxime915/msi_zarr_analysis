@@ -4,7 +4,7 @@ import functools
 import logging
 import random
 from collections import defaultdict
-from typing import Dict, Iterable, Iterator, List, Mapping, Tuple
+from typing import Dict, Iterator, List, Mapping, Tuple, Sequence, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -52,7 +52,7 @@ def generate_spectra(
     )
 
     if save_to:
-        tic = ms_template_group["/0"][:, 0, ...].sum(axis=0)
+        tic: np.ndarray = ms_template_group["/0"][:, 0, ...].sum(axis=0)  # type: ignore
 
         save_bin_class_image(
             transform.inverse_transform_mask(tic),
@@ -61,8 +61,8 @@ def generate_spectra(
         )
 
     # map the results to the zarr arrays
-    intensities = ms_group["/0"]
-    lengths = ms_group["/labels/lengths/0"]
+    intensities: zarr.Array = ms_group["/0"]  # type: ignore
+    lengths: zarr.Array = ms_group["/labels/lengths/0"]  # type:ignore
 
     # yield all rows
     for cy, cx in iter_loaded_chunks(intensities, *roi, skip=2):
@@ -98,14 +98,14 @@ class CytomineTranslated(Dataset):
         transform_template_rot90: int = 0,
         transform_template_flip_ud: bool = False,
         transform_template_flip_lr: bool = False,
-        select_users: Iterable[int] = (),
-        select_terms: Iterable[int] = (),
+        select_users: Sequence[int] = (),
+        select_terms: Sequence[int] = (),
         cache_data: bool = True,
-        attribute_name_list: List[str] = (),
-        save_image: bool = False,
+        attribute_name_list: Sequence[str] = (),
+        save_image: Union[bool, str] = False,
         *,
-        term_list: List[str] = None,
-        zarr_template_path: str = None,
+        term_list: Sequence[str] = (),
+        zarr_template_path: str = "",
     ) -> None:
         super().__init__()
 
@@ -207,7 +207,7 @@ class CytomineTranslated(Dataset):
             return self.attribute_name_list
         return [str(v) for v in self.ms_group["/labels/mzs/0"][:, 0, 0, 0]]
 
-    def class_names(self) -> List[str]:
+    def class_names(self) -> Sequence[str]:
         return self.term_names
 
 
@@ -223,8 +223,8 @@ class CytomineTranslatedProgressiveBinningFactory:
         transform_template_rot90: int = 0,
         transform_template_flip_ud: bool = False,
         transform_template_flip_lr: bool = False,
-        select_users: Iterable[int] = (),
-        select_terms: Iterable[int] = (),
+        select_users: Sequence[int] = (),
+        select_terms: Sequence[int] = (),
     ) -> None:
         super().__init__()
 
@@ -302,7 +302,7 @@ class CytomineTranslatedProgressiveBinningFactory:
 
         z_ints = processed_group["/0"]
 
-        dataset_x = np.empty((n_rows, n_bins), dtype=z_ints.dtype)
+        dataset_x = np.empty((n_rows, n_bins), dtype=z_ints.dtype)  # type: ignore
         dataset_y = np.empty((n_rows,), dtype=int)
 
         bin_and_flatten(
@@ -324,9 +324,9 @@ class CytomineTranslatedProgressiveBinningFactory:
 def get_overlay_annotations(
     project_id: int,
     image_id: int,
-    classes: Mapping[str, Iterable[int]],
+    classes: Mapping[str, Sequence[int]],
     *,
-    select_users: Iterable[int] = (),
+    select_users: Sequence[int] = (),
 ) -> Dict[str, List[ParsedAnnotation]]:
 
     # get unique list of terms to fetch
@@ -386,7 +386,7 @@ def __overlay_template_matching_cached(
 
 
 def translate_annotation_mapping_overlay_to_template(
-    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
+    annotation_mapping: Mapping[str, Sequence[ParsedAnnotation]],
     zarr_template_path: str,
     zarr_channel_index: int,
     overlay_tiff_path: str,
@@ -417,7 +417,7 @@ def translate_annotation_mapping_overlay_to_template(
 
 
 def build_spectrum_dict(
-    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
+    annotation_mapping: Mapping[str, Sequence[ParsedAnnotation]],
     zarr_path: str,
     *,
     allow_duplicates: bool = False,
@@ -427,7 +427,7 @@ def build_spectrum_dict(
 ]:
 
     ms_group = open_group_ro(zarr_path)
-    image_dimensions = ms_group["/0"].shape[-2:]
+    image_dimensions: Tuple[int, int] = ms_group["/0"].shape[-2:]  # type: ignore
 
     # have a numpy array like the template for each annotation
     rasterized_annotations = rasterize_annotation_mapping(
@@ -436,7 +436,7 @@ def build_spectrum_dict(
     )
 
     # ROI for the annotation : select all interesting pixels
-    selection = 0
+    selection = np.zeros(image_dimensions, dtype=int)
     for annotation_lst in rasterized_annotations.values():
         for annotation in annotation_lst:
             selection = np.logical_or(annotation.raster, selection)
@@ -450,7 +450,7 @@ def build_spectrum_dict(
         spectra_choices: Dict[Tuple[int, int], List[int]] = defaultdict(list)
         for annotation_idx, annotation in enumerate(annotation_lst):
             # [(y, x)]
-            coordinates = list(zip(*annotation.raster.nonzero()))
+            coordinates: List[Tuple[int, int]] = list(zip(*annotation.raster.nonzero()))  # type: ignore
 
             for coord in coordinates:
                 spectra_choices[coord].append(annotation_idx)
@@ -481,7 +481,7 @@ def build_spectrum_dict(
 def make_collection(
     spectrum_dict: Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray]],
     annotation_coordinates: Dict[str, Dict[int, List[Tuple[int, int]]]],
-    attribute_names: Iterable[str],
+    attribute_names: Sequence[str],
 ) -> GroupCollection:
 
     # class names
@@ -522,12 +522,12 @@ def make_collection(
 
 
 def make_rasterized_mask(
-    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
-    attribute_names: Iterable[str],
+    annotation_mapping: Mapping[str, Sequence[ParsedAnnotation]],
+    attribute_names: Sequence[str],
     zarr_path: str,
 ):
     ms_group = open_group_ro(zarr_path)
-    dataset: zarr.Array = ms_group["/0"]
+    dataset: zarr.Array = ms_group["/0"]  # type: ignore
     image_dimensions = dataset.shape[-2:]
 
     # class names
@@ -545,14 +545,14 @@ def make_rasterized_mask(
     )
 
     yx_tic: np.ndarray = dataset[:, 0, :, :].sum(axis=0)
-    foreground: np.ndarray = ms_group["/labels/lengths/0"][0, 0, :, :] > 0
+    foreground: np.ndarray = ms_group["/labels/lengths/0"][0, 0, :, :] > 0  # type: ignore
 
     return foreground, yx_tic, rasterized_annotations
 
 
 def collect_spectra_zarr(
-    annotation_mapping: Mapping[str, Iterable[ParsedAnnotation]],
-    attribute_names: Iterable[str],
+    annotation_mapping: Mapping[str, Sequence[ParsedAnnotation]],
+    attribute_names: Sequence[str],
     zarr_path: str,
     *,
     allow_duplicates: bool = False,
@@ -565,7 +565,7 @@ def collect_spectra_zarr(
         )
 
     ms_group = open_group_ro(zarr_path)
-    image_dimensions = ms_group["/0"].shape[-2:]
+    image_dimensions: Tuple[int, int] = ms_group["/0"].shape[-2:]  # type: ignore
 
     # class names
     class_names = list(annotation_mapping.keys())
@@ -582,7 +582,7 @@ def collect_spectra_zarr(
     )
 
     # ROI for the annotation : select all interesting pixels
-    selection = 0
+    selection = np.zeros(image_dimensions, int)
     for annotation_lst in rasterized_annotations.values():
         for annotation in annotation_lst:
             selection = np.logical_or(annotation.raster, selection)
@@ -596,7 +596,7 @@ def collect_spectra_zarr(
         spectra_choices: Dict[Tuple[int, int], List[int]] = defaultdict(list)
         for annotation_idx, annotation in enumerate(annotation_lst):
             # [(y, x)]
-            coordinates = list(zip(*annotation.raster.nonzero()))
+            coordinates: List[Tuple[int, int]] = list(zip(*annotation.raster.nonzero()))  # type: ignore
 
             for coord in coordinates:
                 spectra_choices[coord].append(annotation_idx)
@@ -655,12 +655,12 @@ def cytomine_translated_with_groups(
     transform_template_rot90: int = 0,
     transform_template_flip_ud: bool = False,
     transform_template_flip_lr: bool = False,
-    select_users: Iterable[int] = (),
-    select_terms: Iterable[int] = (),
-    attribute_names: List[str] = (),
+    select_users: Sequence[int] = (),
+    select_terms: Sequence[int] = (),
+    attribute_names: Sequence[str] = (),
     *,
-    term_list: List[str] = None,
-    zarr_template_path: str = None,
+    term_list: Sequence[str] = (),
+    zarr_template_path: str = "",
     allow_duplicates: bool = False,
 ) -> GroupCollection:
     """build a dataset after doing template matching on an overlay

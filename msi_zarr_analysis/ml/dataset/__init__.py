@@ -3,7 +3,7 @@
 import abc
 import logging
 import pathlib
-from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Dict, Iterator, NamedTuple, Optional, Set, Tuple, Union, Sequence
 
 import numpy as np
 import numpy.typing as npt
@@ -66,10 +66,10 @@ class Dataset(abc.ABC):
         Tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]
             X_train, X_test, y_train, y_test
         """
-        return train_test_split(*self.as_table(), **kwargs)
+        return train_test_split(*self.as_table(), **kwargs)  # type: ignore
 
     @abc.abstractmethod
-    def attribute_names(self) -> List[str]:
+    def attribute_names(self) -> Sequence[str]:
         """List of names matching the attributes.
         May raise an error for datasets where the number of attribute is not
         constant. See Dataset.is_table_like .
@@ -82,7 +82,7 @@ class Dataset(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def class_names(self) -> List[str]:
+    def class_names(self) -> Sequence[str]:
         """List of names matching the classes.
         May return an empty list if no names are found.
 
@@ -177,8 +177,8 @@ class Tabular(Dataset):
         self,
         dataset_x: np.ndarray,
         dataset_y: np.ndarray,
-        attributes_names: List[str],
-        classes_names: List[str],
+        attributes_names: Sequence[str],
+        classes_names: Sequence[str],
     ) -> None:
         super().__init__()
 
@@ -196,12 +196,12 @@ class Tabular(Dataset):
     def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
         return self.dataset_x, self.dataset_y
 
-    def attribute_names(self) -> List[str]:
+    def attribute_names(self) -> Sequence[str]:
         if not self.attribute_names_:
             raise ValueError("no attribute name found")
         return self.attribute_names_
 
-    def class_names(self) -> List[str]:
+    def class_names(self) -> Sequence[str]:
         if not self.classes_names_:
             raise ValueError("no class name found")
         return self.classes_names_
@@ -342,10 +342,10 @@ class MergedDS(Dataset):
         ds_x, ds_y = zip(*(ds.as_table() for ds in self.datasets))
         return np.concatenate(ds_x), np.concatenate(ds_y)
 
-    def attribute_names(self) -> List[str]:
+    def attribute_names(self) -> Sequence[str]:
         return self.attribute_names_
 
-    def class_names(self) -> List[str]:
+    def class_names(self) -> Sequence[str]:
         return self.class_names_
 
 
@@ -354,11 +354,11 @@ class ZarrAbstractDataset(Dataset):
         self,
         data_zarr_path: str,
         classes: Union[
-            Dict[str, npt.NDArray[np.dtype("bool")]],
+            Dict[str, npt.NDArray[np.bool_]],
             Dict[str, str],
-            List[Union[str, pathlib.Path]],
+            Sequence[Union[str, pathlib.Path]],
         ],
-        roi_mask: Union[str, None, npt.NDArray[np.dtype("bool")]] = None,
+        roi_mask: Union[str, None, npt.NDArray[np.bool_]] = None,
         background_class: bool = False,
         y_slice: slice = slice(None),
         x_slice: slice = slice(None),
@@ -376,14 +376,15 @@ class ZarrAbstractDataset(Dataset):
                     )
             classes = {pathlib.Path(cls).stem: load_img_mask(cls) for cls in classes}
         elif isinstance(classes, dict):
-            classes = classes.copy()
-            for key, value in classes.items():
+            def _normalize(key: str, value: Union[str, npt.NDArray[np.bool_]]):
                 if isinstance(value, (pathlib.Path, str)):
-                    classes[key] = load_img_mask(value)
+                    return load_img_mask(value)
                 elif isinstance(value, np.ndarray):
-                    continue
+                    return value
                 else:
-                    raise ValueError(f"classes[{key}] has invalid type {type(value)}")
+                    raise ValueError(f"classes[{key}] has invalid type={type(value)}")
+            
+            classes = {k: _normalize(k, v) for k, v in classes.items()}
 
         else:
             raise ValueError(f"classes has invalid type {type(classes)}")
@@ -407,7 +408,7 @@ class ZarrAbstractDataset(Dataset):
 
         self._cached_ds = None
 
-    def class_names(self) -> List[str]:
+    def class_names(self) -> Sequence[str]:
         return self.class_names_
 
 
@@ -431,11 +432,11 @@ class ZarrContinuousNonBinned(ZarrAbstractDataset):
         self,
         data_zarr_path: str,
         classes: Union[
-            Dict[str, npt.NDArray[np.dtype("bool")]],
+            Dict[str, npt.NDArray[np.bool_]],
             Dict[str, str],
-            List[Union[str, pathlib.Path]],
+            Sequence[Union[str, pathlib.Path]],
         ],
-        roi_mask: Union[str, None, npt.NDArray[np.dtype("bool")]] = None,
+        roi_mask: Union[str, None, npt.NDArray[np.bool_]] = None,
         background_class: bool = False,
         y_slice: slice = slice(None),
         x_slice: slice = slice(None),
@@ -467,13 +468,13 @@ class ZarrContinuousNonBinned(ZarrAbstractDataset):
             self._cached_ds = self.__load_ds()
         return self._cached_ds
 
-    def get_dataset_x(self) -> Tuple[npt.NDArray]:
+    def get_dataset_x(self) -> npt.NDArray:
         return self.as_table()[0]
 
-    def get_dataset_y(self) -> Tuple[npt.NDArray]:
+    def get_dataset_y(self) -> npt.NDArray:
         return self.as_table()[1]
 
-    def attribute_names(self) -> List[str]:
+    def attribute_names(self) -> Sequence[str]:
         return [str(v) for v in self.z["/labels/mzs/0"][:, 0, 0, 0]]
 
 
@@ -498,13 +499,13 @@ class ZarrProcessedBinned(ZarrAbstractDataset):
         self,
         data_zarr_path: str,
         classes: Union[
-            Dict[str, npt.NDArray[np.dtype("bool")]],
+            Dict[str, npt.NDArray[np.bool_]],
             Dict[str, str],
-            List[Union[str, pathlib.Path]],
+            Sequence[Union[str, pathlib.Path]],
         ],
         bin_lo: npt.NDArray,
         bin_hi: npt.NDArray,
-        roi_mask: Union[str, None, npt.NDArray[np.dtype("bool")]] = None,
+        roi_mask: Union[str, None, npt.NDArray[np.bool_]] = None,
         background_class: bool = False,
         y_slice: slice = slice(None),
         x_slice: slice = slice(None),
@@ -544,13 +545,13 @@ class ZarrProcessedBinned(ZarrAbstractDataset):
             self._cached_ds = self.__load_ds()
         return self._cached_ds
 
-    def get_dataset_x(self) -> Tuple[npt.NDArray]:
+    def get_dataset_x(self) -> npt.NDArray:
         return self.as_table()[0]
 
-    def get_dataset_y(self) -> Tuple[npt.NDArray]:
+    def get_dataset_y(self) -> npt.NDArray:
         return self.as_table()[1]
 
-    def attribute_names(self) -> List[str]:
+    def attribute_names(self) -> Sequence[str]:
         return [
             f"{0.5*(lo + hi)} ± {0.5*(hi - lo)}"
             for lo, hi in zip(self.bin_lo, self.bin_hi)
@@ -585,7 +586,7 @@ class CytomineNonBinned(Dataset):
 
         self.cached_term_lst = None
 
-    def iter_rows(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
+    def iter_rows(self) -> Iterator[Tuple[npt.NDArray, int]]:
 
         if self.cache_data:
             for row in zip(*self.as_table()):
@@ -595,19 +596,23 @@ class CytomineNonBinned(Dataset):
         for profile, class_idx in self.__raw_iter():
             yield np.array(profile), class_idx
 
-    def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, npt.NDArray]]:
+    def __raw_iter(self) -> Iterator[Tuple[npt.NDArray, int]]:
         term_collection = TermCollection().fetch_with_filter("project", self.project_id)
+        if term_collection is False:
+            raise ValueError("cannot fetch term collection")
         annotations = AnnotationCollection(
             project=self.project_id, image=self.image_id, showTerm=True, showWKT=True
         ).fetch()
+        if annotations is False:
+            raise ValueError("cannot fetch annotations")
 
-        term_lst = []
+        term_lst: Sequence[str] = []
 
         for annotation, term in iter_annotation_single_term(
             annotations,
             term_collection,
         ):
-            term_name = term.name
+            term_name: str = term.name  # type: ignore
 
             if term_name not in self.term_set:
                 continue
@@ -618,14 +623,17 @@ class CytomineNonBinned(Dataset):
                 term_idx = len(term_lst)
                 term_lst.append(term_name)
 
-            for profile in annotation.profile():
+            profile_ = annotation.profile()
+            if profile_ is False:
+                raise ValueError("cannot get profile")
+            for profile in profile_:
                 yield profile["profile"], term_idx
 
         self.cached_term_lst = term_lst
 
     def __load_ds(self) -> Tuple[npt.NDArray, npt.NDArray]:
         attributes, classes = zip(*self.__raw_iter())
-        dtype = type(attributes[0][0])
+        dtype = type(attributes[0][0])  # type: ignore
         return np.array(attributes, dtype=dtype), np.array(classes)
 
     def as_table(self) -> Tuple[npt.NDArray, npt.NDArray]:
@@ -646,17 +654,16 @@ class CytomineNonBinned(Dataset):
         except (ValueError, IndexError):
             return False
 
-    def attribute_names(self) -> List[str]:
-        return [
-            xySlice.zName
-            for xySlice in SliceInstanceCollection().fetch_with_filter(
-                "imageinstance", self.image_id
-            )
-        ]
+    def attribute_names(self) -> Sequence[str]:
+        slices = SliceInstanceCollection().fetch_with_filter("imageinstance", self.image_id)
+        if slices is False:
+            raise ValueError("cannot fetch slices of image")
+        return [xySlice.zName for xySlice in slices]
 
-    def class_names(self) -> List[str]:
+    def class_names(self) -> Sequence[str]:
         if self.cached_term_lst is None:
             for _ in self.__raw_iter():
                 pass
+            return self.class_names()
 
         return self.cached_term_lst

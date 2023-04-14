@@ -1,5 +1,6 @@
 "utils for the CLI tool"
 
+from pathlib import Path
 from typing import List, Tuple, Union
 from PIL import Image
 import numpy as np
@@ -55,7 +56,7 @@ def split_csl(csl: str) -> List[int]:
         raise ValueError(f"invalid comma separated list: {csl!r}")
 
 
-def load_img_mask(path: str) -> npt.NDArray[np.dtype("bool")]:
+def load_img_mask(path: Union[str, Path]) -> npt.NDArray[np.bool_]:
     # load data from the image
     mask = Image.open(path)
     mask_np = np.array(mask.getdata()).reshape(mask.size[::-1])
@@ -159,7 +160,7 @@ class BinningParam:
 
     def get_bins(
         self,
-    ) -> Tuple[npt.NDArray[np.dtype("f8")], npt.NDArray[np.dtype("f8")]]:
+    ) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
 
         if self.bin_csv_path:
             return bins_from_csv(self.bin_csv_path)
@@ -169,7 +170,7 @@ class BinningParam:
 
 def uniform_bins(
     mz_low: float, mz_high: float, n_bins: int
-) -> Tuple[npt.NDArray[np.dtype("f8")], npt.NDArray[np.dtype("f8")]]:
+) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
     edges = np.histogram_bin_edges(0, bins=n_bins, range=(mz_low, mz_high))
     bin_lo = edges[:-1]
     bin_hi = edges[1:]
@@ -180,16 +181,18 @@ def bins_from_csv(
     csv_path: str,
     mz_column: Union[int, str] = 0,
     tol_column: Union[int, str] = 1,
-) -> Tuple[npt.NDArray[np.dtype("f8")], npt.NDArray[np.dtype("f8")]]:
+) -> Tuple[npt.NDArray[np.float_], npt.NDArray[np.float_]]:
 
     dataframe: pd.DataFrame = pd.read_csv(csv_path, sep=None, engine="python")
 
     if isinstance(mz_column, int):
-        mz_column = dataframe.columns[mz_column]
-    if isinstance(tol_column, int):
-        tol_column = dataframe.columns[tol_column]
+        mz_series = dataframe[dataframe.columns[mz_column]]
+    else:
+        mz_series = dataframe[mz_column]
 
-    mz_series = dataframe[mz_column]
-    tol_series = dataframe[tol_column]
+    if isinstance(tol_column, int):        
+        tol_series = dataframe[dataframe.columns[tol_column]]
+    else:
+        tol_series = dataframe[tol_column]
 
     return (mz_series - tol_series).to_numpy(), (mz_series + tol_series).to_numpy()
