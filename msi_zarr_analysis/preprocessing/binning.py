@@ -102,7 +102,7 @@ def bin_and_flatten_chunk(
     dataset_y: npt.NDArray,  # (rows,)
     ints: npt.NDArray,  # (max-chan, y, x)
     mzs: npt.NDArray,  # (max-chan, y, x)
-    lengths: npt.NDArray,  # (max-chan, y, x)
+    lengths: npt.NDArray,  # (y, x)
     cls: npt.NDArray,  # (y, x, classes)
     bin_lo: npt.NDArray,  # (bins,)
     bin_hi: npt.NDArray,  # (bins,)
@@ -134,6 +134,38 @@ def bin_and_flatten_chunk(
         dataset_y[row_offset] = c
 
     return start_idx + count
+
+
+def bin_and_flatten_chunk_v2(
+    dataset_x: npt.NDArray,  # (rows, bins)
+    ints: npt.NDArray,  # (max-chan, y, x)
+    mzs: npt.NDArray,  # (max-chan, y, x)
+    lengths: npt.NDArray,  # (y, x)
+    mask: npt.NDArray[np.bool_],  # (y, x)
+    bin_lo: npt.NDArray,  # (bins,)
+    bin_hi: npt.NDArray,  # (bins,)
+    start_idx: int,
+):
+    "bin and flatten a processed array"
+
+    # only consider (y, x) coordinates valid wrt the mask
+    idx_y, idx_x = mask.nonzero()
+
+    for row_offset, (y, x) in enumerate(
+        zip(idx_y, idx_x, strict=True),
+        start=start_idx,
+    ):
+        _len = lengths[y, x]
+
+        bin_band(
+            dataset_x[row_offset],
+            mzs[:_len, y, x],
+            ints[:_len, y, x],
+            bin_lo,
+            bin_hi,
+        )
+
+    return start_idx + len(idx_y), idx_y, idx_x
 
 
 KeyType = TypeVar("KeyType")
@@ -197,6 +229,51 @@ def bin_and_flatten(
         )
 
     assert row_idx == dataset_x.shape[0], f"{row_idx=} mismatch for {dataset_x.shape=}"
+
+
+def bin_and_flatten_v2(
+    dataset_x: npt.NDArray[np.float64],  # (rows, bins)
+    z: zarr.Group,
+    mask: npt.NDArray[np.bool_],  # (y, x)
+    bin_lo: npt.NDArray[np.float64],  # (bins,)
+    bin_hi: npt.NDArray[np.float64],  # (bins,)
+):
+
+    z_ints = cast(zarr.Array, z["/0"])
+    z_mzs = cast(zarr.Array, z["/labels/mzs/0"])
+    z_lengths = cast(zarr.Array, z["/labels/lengths/0"])
+    row_idx = 0
+
+    # shape checks
+    n_rows, n_bins = dataset_x.shape
+    if bin_lo.shape != (n_bins,):
+        raise ValueError(f"feat mismatch: {dataset_x.shape=} but {bin_lo.shape=}")
+    if bin_hi.shape != (n_bins,):
+        raise ValueError(f"feat mismatch: {dataset_x.shape=} but {bin_hi.shape=}")
+    if np.count_nonzero(mask) != n_rows:
+        raise ValueError(f"{np.count_nonzero(mask)=} but {n_rows=}")
+
+    ys = -1 * np.ones((n_rows,), np.int64)
+    xs = -1 * np.ones((n_rows,), np.int64)
+
+    # load chunks
+    for cy, cx in iter_loaded_chunks(z_ints, skip=2):
+        new_row_idx, c_idx_y, c_idx_x = bin_and_flatten_chunk_v2(
+            dataset_x,
+            z_ints[:, 0, cy, cx],
+            z_mzs[:, 0, cy, cx],
+            z_lengths[0, 0, cy, cx],
+            mask[cy, cx],
+            bin_lo,
+            bin_hi,
+            row_idx,
+        )
+        ys[row_idx:new_row_idx] = c_idx_y + cy.start
+        xs[row_idx:new_row_idx] = c_idx_x + cx.start
+        row_idx = new_row_idx
+
+    assert row_idx == dataset_x.shape[0], f"{row_idx=} mismatch for {dataset_x.shape=}"
+    return ys, xs
 
 
 def flatten_chunk(
