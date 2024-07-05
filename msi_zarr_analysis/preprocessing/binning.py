@@ -1,5 +1,6 @@
 "mz_slice: extract single lipids"
 
+from functools import partial
 from typing import Dict, Tuple, TypeVar
 import numpy as np
 import numpy.typing as npt
@@ -390,3 +391,90 @@ def bin_processed_val_tol(
     return bin_processed_lo_hi(
         z_path, destination_path, bin_lo, bin_hi, y_slice, x_slice
     )
+
+
+@nb.jit(signature_or_function="f8(f8, f8, i8, f8)", nopython=True)
+def _fn_target(mz_lo: float, mz_hi: float, num: int, f: float):
+    "> 0 => f is too high, < 0 => f is too low, may return non finite values"
+
+    mz = mz_lo
+    for _ in range(num):
+        dm = f * mz ** 2
+        mz += dm
+
+    return mz - mz_hi
+
+
+@nb.jit("void(f8[:], f8, f8)", nopython=True)
+def _fill_binning(mz_: np.ndarray, mz_lo: float, f: float):
+    mz_[0] = mz_lo
+    for i in range(1, mz_.shape[0]):
+        dm = f * (mz_[i - 1]) ** 2
+        mz_[i] = mz_[i - 1] + dm
+
+
+def fticr_binning(mz_lo: float, mz_hi: float, num: int, tol: float | None = None):
+    """Assume a mass resolution inversely proportional to the square of the mass
+    to generate bins for the given interval.
+
+    Args:
+        mz_lo (float): lowest value of the interval
+        mz_hi (float): highest value of the interval
+        num (int): number of bins
+        tol (float, opt.): tolerance such that `0 <= bin_right[-1] - mz_hi <= tol`
+        the default (None) uses (mz_hi - mz_lo) / num
+
+    Returns:
+        np.ndarray: left edges of each bin (the first item is mz_lo)
+        np.ndarray: right edges of each bin (the last item is g.e.t. mz_hi)
+        float: the estimated proportionality constant
+    """
+
+    if tol is None:
+        tol = (mz_hi - mz_lo) / num
+    target = partial(_fn_target, mz_lo=mz_lo, mz_hi=mz_hi, num=num)
+
+    # find a first non-inf value
+    f0 = 1.0 / mz_lo / num
+    while True:
+        v0 = target(f=f0)
+        if not np.isinf(v0):
+            break
+        f0 *= 0.5
+
+    # find a high bound
+    f_hi = f0
+    v_hi = v0
+    mul = 1.5
+    while v_hi < 0:
+        tmp = (f_hi * mul, target(f=f_hi * mul))
+        if np.isinf(tmp[1]):
+            mul = mul ** (1 / 3)
+        else:
+            f_hi, v_hi = tmp
+
+    # find a low bound
+    f_lo = f0
+    v_lo = v0
+    mul = 0.7
+    while v_lo > 0:
+        f_lo *= mul  # no need to protect against inf here
+        v_lo = target(f=f_lo)
+
+    # binary search
+    while True:
+        f_next = 0.5 * (f_lo + f_hi)
+        v_next = target(f=f_next)
+
+        if v_next > tol:
+            f_hi = f_next
+        elif v_next < 0:  # don't accept low values, even if very close
+            f_lo = f_next
+        else:
+            break
+
+    # num + 1 to include the rightmost edge as well
+    mz_ = np.empty((num + 1,), float)
+    _fill_binning(mz_, mz_lo, f_next)
+
+    return mz_[:-1], mz_[1:], f_next
