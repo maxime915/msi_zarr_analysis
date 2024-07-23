@@ -1,4 +1,4 @@
-from typing import Tuple, Generator
+from typing import Tuple, Generator, Dict, Sequence
 import warnings
 
 from cytomine.models import (
@@ -9,6 +9,32 @@ from cytomine.models import (
     Term,
 )
 import pandas as pd
+
+def mmmm(
+    image_id: int,
+    csv_lipid_mz_path: str,
+) -> Tuple[Dict[str, int], Dict[str, int], "pd.Series[float]", "pd.Series[float]"]:
+    slice_collection = SliceInstanceCollection().fetch_with_filter(
+        "imageinstance", image_id
+    )
+    if slice_collection is False:
+        raise ValueError("cannot fetch all slices")
+
+    name_to_slice: Dict[str, int] = dict((slice_.zName, slice_.zStack) for slice_ in slice_collection)
+    
+    df = pd.read_csv(csv_lipid_mz_path, sep=None, engine="python")
+    on_cytomine = df['Name'].isin(name_to_slice.keys())
+
+    common_lipids: pd.Series[str] = df.loc[on_cytomine, "Name"]
+    channel_idx: Sequence[int] = df[on_cytomine].index  # type: ignore
+
+    center: pd.Series[float] = df.loc[on_cytomine, "m/z"]
+    width: pd.Series[float] = df.loc[on_cytomine, "Interval Width (+/- Da)"]
+    
+    page_dict = {lipid: name_to_slice[lipid] for lipid in common_lipids}
+    channel_dict = dict(zip(common_lipids, channel_idx))
+    
+    return page_dict, channel_dict, center - 0.5 * width, center + 0.5 * width
 
 
 def get_page_bin_indices(
@@ -41,6 +67,9 @@ def get_page_bin_indices(
     slice_collection = SliceInstanceCollection().fetch_with_filter(
         "imageinstance", image_id
     )
+    if slice_collection is False:
+        raise ValueError("cannot fetch all slices")
+
     name_to_slice = dict((slice_.zName, slice_.zStack) for slice_ in slice_collection)
 
     try:
@@ -58,7 +87,7 @@ def get_page_bin_indices(
     if len(row) > 1:
         raise ValueError(f"duplicate entries for {lipid=}")
 
-    idx = row.index[0]
+    idx: int = row.index[0]  # type:ignore
     center = row.loc[idx, "m/z"]
     width = row.loc[idx, "Interval Width (+/- Da)"]
 
@@ -71,11 +100,11 @@ def get_lipid_dataframe(csv_lipid_mz_path: str) -> pd.DataFrame:
 
 def get_lipid_names(
     csv_lipid_mz_path: str,
-) -> pd.Series:
+) -> "pd.Series[str]":
     "get the names of the lipid in the order that matches the automated binning"
 
     ds = get_lipid_dataframe(csv_lipid_mz_path)
-    return ds.Name
+    return ds["Name"]
 
 
 def iter_annotation_single_term(

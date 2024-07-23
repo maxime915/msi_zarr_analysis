@@ -216,6 +216,17 @@ for idx, (key, ms) in enumerate(ms_dict.items()):
     axes[idx, 0].set_axis_off()
 fig.tight_layout()
 
+# %%
+
+plt.imshow(imgs_v1["r13"])
+plt.gca().set_axis_off()
+plt.figure()
+plt.imshow(imgs_v2["r13"])
+plt.gca().set_axis_off()
+plt.figure()
+plt.imshow(mask_ms_footprint(ms_dict["r13"]))
+plt.gca().set_axis_off()
+
 # %% compute transform
 
 

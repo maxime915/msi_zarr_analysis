@@ -1,5 +1,11 @@
 "mz_slice: extract single lipids"
 
+# interpolation search could be a nice addition : https://en.wikipedia.org/wiki/Interpolation_search
+# NOTE: m/z is often not linear, what is its distribution ?
+
+# make a parameter 'allow-overlap' to check if they are overlapping and use the slow version
+# do a proper benchmark for each implementation
+
 from functools import partial
 from typing import Dict, Tuple, TypeVar, cast
 import numpy as np
@@ -12,6 +18,78 @@ from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks, clean_slice_
 
 
 @nb.jit(nopython=True)
+def _binary_search_left(arr, val, lo, hi):
+    "use lo=0, hi=len(arr)-1 for initial search"
+
+    if arr[lo] == val:
+        return lo
+    if arr[hi] == val:
+        return hi
+
+    # only the first bin may start before the start of the spectrum
+    if val < arr[lo]:
+        if lo == 0:
+            return lo
+        raise ValueError("val < lo_v while lo != 0, this is probably a logic error")
+
+    while lo < hi:
+        next = lo + (hi - lo) // 2
+        next_v = arr[next]
+
+        if next_v < val:
+            lo = next + 1
+        else:
+            hi = next
+
+    return lo
+
+
+@nb.jit(nopython=True)
+def _bin_band_no(bins, mzs, ints, bin_lo, bin_hi):
+    """binning on non-overlapping bins, more efficient approach"""
+
+    b_idx = 0  # [0, len(bins))
+    s_idx = 0  # [0, len(mzs))
+
+    while b_idx < bins.size:
+
+        # get start position and bound
+        s_idx = _binary_search_left(mzs, bin_lo[b_idx], s_idx, mzs.size - 1)
+
+        # compute bin value
+        b_val = 0.0
+        bin_hi_val = bin_hi[b_idx]
+        while mzs[s_idx] < bin_hi_val:
+            b_val += ints[s_idx]
+            s_idx += 1
+
+            # last bin may go past the end of the spectrum
+            if s_idx >= mzs.size:
+                break
+
+        # the next bin may start at bin_hi_val, idx should be pushed back
+        s_idx -= 1
+
+        # write to the bin and continue to next iteration
+        bins[b_idx] = b_val
+        b_idx += 1
+
+
+def _check_non_overlap_bins(bin_lo, bin_hi) -> bool:
+
+    if np.any(bin_lo[:-1] > bin_lo[1:]):
+        return False  # bin_lo must be sorted
+    if np.any(bin_hi[:-1] > bin_hi[1:]):
+        return False  # bin_hi must be sorted
+    if np.any(bin_lo >= bin_hi):
+        return False  # bins must have lo < hi (strong inequality needed due to search)
+    if np.any(bin_hi[:-1] > bin_lo[1:]):
+        return False  # bins must not overlap
+
+    return True
+
+
+# @nb.jit(nopython=True)
 def bin_band(bins, mzs, ints, bin_lo, bin_hi):
 
     lows = np.searchsorted(mzs, bin_lo, side="left")
@@ -55,6 +133,37 @@ def bin_processed_chunk(
         )
 
 
+# @nb.jit(nopython=True, parallel=True)
+def bin_processed_chunk_no(
+    output: npt.NDArray,  # (bins, z, y, x)
+    ints: npt.NDArray,  # (max-chan, z, y, x)
+    mzs: npt.NDArray,  # (max-chan, z, y, x)
+    lengths: npt.NDArray,  # (max-chan, z, y, x)
+    bin_lo: npt.NDArray,  # (bins,)
+    bin_hi: npt.NDArray,  # (bins,)
+) -> None:
+    "bin a chunk of [c, z, y, x] to [c', z, y, x]"
+
+    idx_z, idx_y, idx_x = lengths.nonzero()
+    count = idx_z.size
+
+    for idx in nb.prange(count):
+
+        z, y, x = idx_z[idx], idx_y[idx], idx_x[idx]
+
+        len_band = lengths[z, y, x]
+        mz_band = mzs[:len_band, z, y, x]
+        int_band = ints[:len_band, z, y, x]
+
+        _bin_band_no(
+            output[:, z, y, x],
+            mz_band,
+            int_band,
+            bin_lo,
+            bin_hi,
+        )
+
+
 def _bin_processed(
     z_ints: zarr.Array,  # (max-chan, z, y, x)
     z_mzs: zarr.Array,  # (max-chan, z, y, x)
@@ -66,6 +175,8 @@ def _bin_processed(
     bin_hi: npt.NDArray,  # (bins,)
 ):
     "bin an processed array of [c, z, y, x] to [c', z, y, x]"
+
+    use_non_overlap = _check_non_overlap_bins(bin_lo, bin_hi)
 
     # load chunks
     for cz, cy, cx in iter_loaded_chunks(z_ints, slice(None), y_slice, x_slice, skip=1):
@@ -84,14 +195,10 @@ def _bin_processed(
         c_mzs = z_mzs[:, cz, cy, cx]
         c_lengths = z_lengths[0, cz, cy, cx]
 
-        bin_processed_chunk(
-            c_dest,
-            c_ints,
-            c_mzs,
-            c_lengths,
-            bin_lo,
-            bin_hi,
-        )
+        if use_non_overlap:
+            bin_processed_chunk_no(c_dest, c_ints, c_mzs, c_lengths, bin_lo, bin_hi)
+        else:
+            bin_processed_chunk(c_dest, c_ints, c_mzs, c_lengths, bin_lo, bin_hi)
 
         # write to disk
         z_dest_ints[:, cz, cy, cx] = c_dest
@@ -135,6 +242,41 @@ def bin_and_flatten_chunk(
         dataset_y[row_offset] = c
 
     return start_idx + count
+
+
+def bin_and_flatten_chunk_weighted(
+    dataset_x: npt.NDArray,  # (rows, bins)
+    dataset_y: npt.NDArray,  # (rows, feats)
+    ints: npt.NDArray,  # (max-chan, y, x)
+    mzs: npt.NDArray,  # (max-chan, y, x)
+    lengths: npt.NDArray,  # (y, x)
+    weights: npt.NDArray,  # (y, x, feats)
+    bin_lo: npt.NDArray,  # (bins,)
+    bin_hi: npt.NDArray,  # (bins,)
+    start_idx: int,
+) -> int:
+    "bin and flatten a processed array"
+
+    # only consider (y, x) coordinates for which one of the weights is nonzero
+    idx_y, idx_x = weights.any(axis=-1).nonzero()
+
+    for row_offset, (y, x) in enumerate(
+        zip(idx_y, idx_x, strict=True),
+        start=start_idx,
+    ):
+        _len = lengths[y, x]
+
+        bin_band(
+            dataset_x[row_offset],
+            mzs[:_len, y, x],
+            ints[:_len, y, x],
+            bin_lo,
+            bin_hi,
+        )
+
+        dataset_y[row_offset, :] = weights[y, x, :]
+
+    return start_idx + len(idx_y)
 
 
 def bin_and_flatten_chunk_v2(
@@ -202,11 +344,21 @@ def bin_and_flatten(
     bin_hi: npt.NDArray,  # (bins,)
 ) -> None:
 
-    z_ints = z["/0"]
-    z_mzs = z["/labels/mzs/0"]
-    z_lengths = z["/labels/lengths/0"]
-
+    z_ints = cast(zarr.Array, z["/0"])
+    z_mzs = cast(zarr.Array, z["/labels/mzs/0"])
+    z_lengths = cast(zarr.Array, z["/labels/lengths/0"])
     row_idx = 0
+
+    # shape checks
+    n_rows, n_feat = dataset_x.shape
+    if dataset_y.shape != (n_rows,):
+        raise ValueError(f"row mismatch: {dataset_x.shape=} but {dataset_y.shape}")
+    if bin_lo.shape != (n_feat,):
+        raise ValueError(f"feat mismatch: {dataset_x.shape=} but {bin_lo.shape=}")
+    if bin_hi.shape != (n_feat,):
+        raise ValueError(f"feat mismatch: {dataset_x.shape=} but {bin_hi.shape=}")
+    if np.count_nonzero(onehot_cls) != n_rows:
+        raise ValueError(f"{np.count_nonzero(onehot_cls)=} but {n_rows=}")
 
     # load chunks
     for cy, cx in iter_loaded_chunks(z_ints, y_slice, x_slice, skip=2):
@@ -224,6 +376,63 @@ def bin_and_flatten(
             c_mzs,
             c_lengths,
             c_cls,
+            bin_lo,
+            bin_hi,
+            row_idx,
+        )
+
+    assert row_idx == dataset_x.shape[0], f"{row_idx=} mismatch for {dataset_x.shape=}"
+
+
+def bin_and_flatten_weighted(
+    dataset_x: npt.NDArray,  # (rows, bins)
+    dataset_y: npt.NDArray,  # (rows, feat)
+    z: zarr.Group,
+    weights: npt.NDArray,  # (y, x, feat)
+    y_slice: slice,
+    x_slice: slice,
+    bin_lo: npt.NDArray,  # (bins,)
+    bin_hi: npt.NDArray,  # (bins,)
+) -> None:
+
+    z_ints = cast(zarr.Array, z["/0"])
+    z_mzs = cast(zarr.Array, z["/labels/mzs/0"])
+    z_lengths = cast(zarr.Array, z["/labels/lengths/0"])
+    row_idx = 0
+
+    # shape checks
+    n_rows, n_bins = dataset_x.shape
+    if bin_lo.shape != (n_bins,):
+        raise ValueError(f"feat mismatch: {dataset_x.shape=} but {bin_lo.shape=}")
+    if bin_hi.shape != (n_bins,):
+        raise ValueError(f"feat mismatch: {dataset_x.shape=} but {bin_hi.shape=}")
+    if dataset_y.shape[0] != n_rows:
+        raise ValueError(f"row mismatch: {dataset_x.shape=} but {dataset_y.shape}")
+    _, n_weights = dataset_y.shape
+    if weights.shape[2] != n_weights:
+        raise ValueError(
+            f"weights mismatch: {weights.shape[2]=} but {dataset_y.shape[1]=}"
+        )
+    non_zero_yx = np.any(weights > 0, axis=2).sum()
+    if non_zero_yx != n_rows:
+        raise ValueError(f"{non_zero_yx=} but {n_rows=}")
+
+    # load chunks
+    for cy, cx in iter_loaded_chunks(z_ints, y_slice, x_slice, skip=2):
+        # load from disk
+        c_ints = z_ints[:, 0, cy, cx]
+        c_mzs = z_mzs[:, 0, cy, cx]
+        c_lengths = z_lengths[0, 0, cy, cx]
+
+        c_weights = weights[cy, cx]
+
+        row_idx = bin_and_flatten_chunk_weighted(
+            dataset_x,
+            dataset_y,
+            c_ints,
+            c_mzs,
+            c_lengths,
+            c_weights,
             bin_lo,
             bin_hi,
             row_idx,

@@ -1,0 +1,23 @@
+# region 13 template matching
+
+user id: 542627076
+project id: 542576374
+annotated image id: 545025783
+
+name= 'SC positive AREA' id= 544924846
+name= 'LivingStrata negative AREA' id= 544926097
+name= 'SC negative AREA' id= 544926052
+name= 'LivingStrata positive AREA' id= 544926081
+name= 'Cell Basal Unlabeled' id= 543208650
+name= 'Cell Basal Labeled' id= 543208598
+name= 'StratumCorneum' id= 542589131
+name= 'IrradiatedCell' id= 542587291
+name= 'LivingEpidermis' id= 542588952
+name= 'Porous Plastic Support Membrane' id= 542821931
+name= 'Cell Suprabasal Unlabeled' id= 542848402
+name= 'Cell Suprabasal LABELED' id= 542848687
+
+544926052,544924846
+544926097,544926081
+
+to plot: https://matplotlib.org/stable/plot_types/stats/eventplot.html#sphx-glr-plot-types-stats-eventplot-py

@@ -32,6 +32,7 @@ from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (
     get_overlay_annotations,
     make_rasterized_mask,
     translate_annotation_mapping_overlay_to_template,
+    translate_annotation_mapping_overlay_to_template_multi_lipid,
 )
 from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
 from msi_zarr_analysis.utils.autocrop import autocrop
@@ -39,7 +40,42 @@ from msi_zarr_analysis.utils.check import open_group_ro
 from msi_zarr_analysis.utils.cytomine_utils import (
     get_lipid_dataframe,
     get_page_bin_indices,
+    mmmm,
 )
+
+# import pydantic
+
+
+# class RegistrationData(pydantic.BaseModel):
+#     "see msi_zarr_analysis.ml.dataset.translate_annotation"
+
+#     pre_rot_90: int
+#     pre_flip_ud: bool
+#     pre_flip_lr: bool
+
+#     x_left: int
+#     y_top: int
+#     scale: float
+#     x_right: int
+#     y_bottom: int
+
+
+# class DataSource(pydantic.BaseModel):
+
+#     image_id_overlay: int
+#     local_overlay_path: str
+#     lipid_tm: str
+#     project_id: int
+#     annotated_image_id: int
+#     registration: RegistrationData
+#     annotation_users_id: List[int]
+#     zarr_template_path: str
+#     base: str
+
+
+# class RunData(pydantic.BaseModel):
+#     data_sources: Dict[str, DataSource]
+#     normalizations: List[str]
 
 
 def build_segmentation_mask(
@@ -190,6 +226,12 @@ def run(
             page_idx, bin_idx, *_ = get_page_bin_indices(
                 ds_config_itm.image_id_overlay, ds_config_itm.lipid_tm, bin_csv_path
             )
+            # page_dict, channel_dict, *_ = mmmm(
+            #     ds_config_itm.image_id_overlay, bin_csv_path
+            # )
+
+            # logging.warning(f"{page_dict=!r}")
+            # logging.warning(f"{channel_dict=!r}")
 
             annotation_dict = get_overlay_annotations(
                 ds_config_itm.project_id,
@@ -208,10 +250,25 @@ def run(
                 ds_config_itm.transform_flip_ud,
                 ds_config_itm.transform_flip_lr,
             )
+            # annotation_dict = (
+            #     translate_annotation_mapping_overlay_to_template_multi_lipid(
+            #         annotation_dict,
+            #         ds_config_itm.zarr_template_path,
+            #         channel_dict,
+            #         ds_config_itm.local_overlay_path,
+            #         page_dict,
+            #         ds_config_itm.transform_rot90,
+            #         ds_config_itm.transform_flip_ud,
+            #         ds_config_itm.transform_flip_lr,
+            #     )
+            # )
+
+            # continue  # FIXME: remove this
+            continue
 
             save_ground_truths(
                 annotation_dict,
-                lipid_df.Name,
+                lipid_df["Name"],  # type: ignore
                 ds_config_itm.zarr_path,
                 gt_path,
                 colors_per_class,
@@ -224,6 +281,8 @@ def run(
                     ds_config_itm.zarr_path,
                 )
             )
+
+        return  # FIXME: remove this
 
         if len(dataset_to_be_merged) == 1:
             ds = dataset_to_be_merged[0]
@@ -510,8 +569,8 @@ def do_runs(res_dir: pathlib.Path, logs_dir: pathlib.Path, logger: logging.Logge
                 "max_depth": [1, 20, None],
             },
         },
-        cv_fold_inner=5,
-        cv_fold_outer=5,
+        cv_fold_inner=10,
+        cv_fold_outer=10,
     )
 
     for normalization in normalizations:
@@ -530,7 +589,8 @@ def do_runs(res_dir: pathlib.Path, logs_dir: pathlib.Path, logger: logging.Logge
                     )
                 )
 
-            for grouped_cv in [True, False]:
+            # for grouped_cv in [True, False]:
+            for grouped_cv in [True]:
 
                 base = (
                     name

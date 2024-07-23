@@ -30,6 +30,7 @@ def saga(
     cv=None,
     rng=None,
     low_variance_threshold: float = 0.0,
+    regularization_l1: float = 0.0,
 ) -> Tuple[np.ndarray, float]:
     """Perform the SAGA algorithm for `time_budget` seconds to find an optimal
     feature selection for the  classification problem `(data, target)|,
@@ -69,7 +70,7 @@ def saga(
         data = data[:, pre_selection]
 
     # scorer to assess the fitness of a feature selection solution
-    scorer = Scorer(model, data, target, groups, cv)
+    scorer = Scorer(model, data, target, groups, cv, regularization_l1=regularization_l1)
 
     # Phase 1 : explore the search space to find multiple local minima
     population, scores = simulated_annealing(
@@ -85,6 +86,10 @@ def saga(
     individual, score = hill_climbing(
         scorer, population, scores, 0.2 * time_budget, 10000, rng
     )
+
+    # final stage : recompute the score without regularization (?)
+    scorer = Scorer(model, data, target, groups, cv, regularization_l1=0)
+    score = scorer.score_feature_selection(individual)
 
     # report the solution with the right shape (i.e. including removed features)
     if low_variance_threshold >= 0:
@@ -120,6 +125,8 @@ class Scorer(NamedTuple):
     target: np.ndarray
     groups: np.ndarray
     cv: Any
+    # regularization on the number of selected feature
+    regularization_l1: float = 0.0
 
     def __eq__(self, __o: object) -> bool:
         return id(self) == id(__o)
@@ -130,7 +137,9 @@ class Scorer(NamedTuple):
     @functools.lru_cache(maxsize=2**14)
     def __score_feature_selection_cached(self, array: Array) -> float:
         data_ = self.data[:, array.data]
-        return score_dataset(self.model, data_, self.target, self.groups, self.cv)
+        raw_score = score_dataset(self.model, data_, self.target, self.groups, self.cv)
+        penalty = self.regularization_l1 * array.data.sum()
+        return raw_score - penalty
 
     def score_feature_selection(self, array: np.ndarray) -> float:
         return self.__score_feature_selection_cached(Array(array))
@@ -189,6 +198,13 @@ def simulated_annealing(
 
     while temp_curr > 0:
 
+        # permutation probability is high:
+        #   each variable has a ~0.4 prob to be switch...
+        #   there should be fewer switch per candidates !
+        #   starts with 50% of variables changed and go down
+        #   to a few variables changed
+        #   TODO study the probability that will do that (on expectation)
+
         # Step 6. random permutations
         prob_mutation = 0.5 * (1 - np.exp(-temp_curr / temp_init))
         flip_mask = rng.random(size=population.shape) < prob_mutation
@@ -197,8 +213,11 @@ def simulated_annealing(
         next_population = np.logical_xor(flip_mask, population)
         next_scores, duration = get_scores(next_population)
 
+        # temperature from original SAGA almost always accepts
+        corrected_temp = 0.3 * (temp_curr / temp_init)**2
+
         # Step 8. decide which permutation to accept
-        prob_acceptance = np.exp((scores - next_scores) / (-temp_curr))
+        prob_acceptance = np.exp((scores - next_scores) / (-corrected_temp))
         acceptance = rng.random(size=scores.shape) < prob_acceptance
 
         population[acceptance, :] = next_population[acceptance, :]
@@ -323,14 +342,13 @@ def hill_climbing(
     best_individual = start_population[best_idx]
     
     _log_selection(best_individual, best_score, "[HC]")
+    _log_stats(best_score, "HC")
 
     end_time = time.time() + time_budget
 
     while time.time() < end_time:
 
         individual = best_individual
-
-        _log_stats(best_score, "HC")
 
         for _ in range(branching_factor):
 
@@ -353,6 +371,7 @@ def hill_climbing(
             ):
                 best_score = trial_score
                 best_individual = trial
+                _log_stats(best_score, "HC")
                 _log_selection(best_individual, best_score, "[HC]")
         else:
             # if not improving found, break the loop

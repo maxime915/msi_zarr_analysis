@@ -87,28 +87,29 @@ def load_file(path: str):
         r".*\[root\] \[INFO\] : max rel. occurrence = (0\.\d+)"
     )
     scores_pattern = re.compile(
-        r".*\[root\] \[INFO\] : scores: \[(.*)\]"
+        r".*\[root\] \[INFO\] : scores: \[(([^\]]|\n)*)\]"
     )  # recompute mean & std(ddof=1)
     head = re.compile(r".*\[root\] \[INFO\] : feature importances:")
     variable = re.compile(r".*\[root\] \[INFO\] :\s+ (\d+) \(\s*(.*)\) :\s+(\d+\.\d+)")
 
     max_occ_match = max_occ_pattern.search(results)
-    assert max_occ_match is not None
+    assert max_occ_match is not None, f"bad file: {path}"
     max_occ = float(max_occ_match.group(1))
 
     scores_match = scores_pattern.search(results, max_occ_match.pos)
-    assert scores_match is not None
-    scores = np.fromstring(scores_match.group(1), sep=" ")
+    assert scores_match is not None, f"bad file: {path}"
+    scores_str = scores_match.group(1).replace("\n", "")
+    scores = np.fromstring(scores_str, sep=" ")
 
     if scores.mean() < max_occ:
         print(f"{scores.mean()=} < {max_occ} : results discarded")
         return scores.mean(), max_occ, None, None
 
     head_match = head.search(results, scores_match.pos)
-    assert head_match is not None
+    assert head_match is not None, f"bad file: {path}"
 
     matches = variable.findall(results, head_match.pos)
-    assert len(matches) > 0
+    assert len(matches) > 0, f"bad file: {path}"
 
     data = [(int(match[0]), match[1], float(match[2])) for match in matches]
     df = pd.DataFrame(data, columns=("id", "name", "importance"))
@@ -130,7 +131,6 @@ def print_df(df: pd.DataFrame):
     for row in df.itertuples(index=False):
         print(f"{row[1]} & {row[2]} \\\\\n", end="")
     print("\\bottomrule\n\\end{tabular}\n")
-    
 
 
 if __name__ == "__main__":

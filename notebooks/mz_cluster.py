@@ -47,14 +47,20 @@ min_diff
 
 # %%
 
-files = [
-    "Region 14/317 peak area Norm/region14_317norm_sample.zarr",
-    "Region 14/no normalization/region14_nonorm_sample.zarr",
-    "Region 15/317 peak area Norm/region15_317norm_sample.zarr",
-    "Region 15/no normalization/region15_nonorm_sample.zarr",
-    "Region 13/No Normalization/region13_nonorm_sample.zarr",
-    "Region 13/317 peak area Norm/region13_317norm_sample.zarr",
-]
+de_tol = 2e-3  # tolerance of the deisotoping function
+slim_dir = pathlib.Path.home() / "datasets" / "COMULIS-slim-msi"
+dest_dir = slim_dir.parent / f"slim-deisotoping-{de_tol:.1e}"
+
+# files = [
+#     "Region 14/317 peak area Norm/region14_317norm_sample.zarr",
+#     "Region 14/no normalization/region14_nonorm_sample.zarr",
+#     "Region 15/317 peak area Norm/region15_317norm_sample.zarr",
+#     "Region 15/no normalization/region15_nonorm_sample.zarr",
+#     "Region 13/No Normalization/region13_nonorm_sample.zarr",
+#     "Region 13/317 peak area Norm/region13_317norm_sample.zarr",
+# ]
+files = sorted(dest_dir.iterdir())
+
 
 def _open_r(path: pathlib.Path):
     try:
@@ -62,9 +68,11 @@ def _open_r(path: pathlib.Path):
     except zarr.errors.GroupNotFoundError as err:
         raise FileNotFoundError(path) from err
 
-paths = [pathlib.Path.home() / "datasets/Slim imzML" / f for f in files]
+# paths = [pathlib.Path.home() / "datasets/Slim imzML" / f for f in files]
 # paths = [pathlib.Path("../tmp_r13.zarr"), pathlib.Path("../tmp_r14.zarr"), pathlib.Path("../tmp_r15.zarr")]
-groups = [_open_r(p.absolute()) for p in paths]
+# groups = [_open_r(p.absolute()) for p in paths]
+
+groups = [_open_r(p.absolute()) for p in files]
 
 # %%
 
@@ -83,6 +91,11 @@ print(f"{groups[4]['/labels/mzs/0'].shape[0]=}")
 # %%
 
 ratios = [len(v) / b for (v, b) in zip(values_mzs[::2], higher_bound_len_mzs)]
+print(f"{ratios=}")
+
+# %%
+
+ratios = [len(v) / g["/0"].shape[0] for v, g in zip(values_mzs[::2], groups[::2], strict=True)]
 print(f"{ratios=}")
 
 # %%

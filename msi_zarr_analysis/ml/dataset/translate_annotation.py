@@ -14,7 +14,7 @@ import rasterio.features
 import tifffile
 import zarr
 from cytomine.models import Annotation, AnnotationCollection, TermCollection
-from msi_zarr_analysis.utils.autocrop import autocrop
+from msi_zarr_analysis.utils.autocrop import autocrop, autocrop_multi
 from msi_zarr_analysis.utils.cytomine_utils import iter_annotation_single_term
 from PIL import Image
 from scipy.optimize import minimize_scalar
@@ -23,6 +23,122 @@ from shapely.geometry import Polygon
 from skimage.feature import match_template
 
 # Datatype definitions
+
+
+class AffineTransform2D(NamedTuple):
+    """Following Shapely's convention :
+
+    ```
+    [a, b, xoff]
+    [d, e, yoff] = M
+    [0, 0,    1]
+    ```
+
+    P' = M * P
+
+    All AffineTransform2D transforms assume a bottom left origin with
+    right-increasing X and up-increasing Y.
+    """
+
+    a: float = 1.0  # x coefficient for x
+    b: float = 0.0  # y coefficient for x
+    d: float = 0.0  # x coefficient for y
+    e: float = 1.0  # y coefficient for y
+    xoff: float = 0.0  # offset for x
+    yoff: float = 0.0  # offset for y
+
+    @staticmethod
+    def from_matrix_shapely(matrix: list[float]):
+        assert len(matrix) == 6
+        return AffineTransform2D(*matrix)
+
+    @staticmethod
+    def from_matrix_3by3(matrix: np.ndarray):
+        assert matrix.shape == (3, 3)
+        assert matrix.dtype in [np.float64, np.float32, np.float16]
+
+        if not np.allclose(matrix[2, :], [0.0, 0.0, 1.0]):
+            raise ValueError("not a 2D affine transform (third row != [0, 0, 1])")
+
+        return AffineTransform2D(
+            a=matrix[0, 0], b=matrix[0, 1],
+            d=matrix[1, 0], e=matrix[1, 1],
+            xoff=matrix[0, 2],
+            yoff=matrix[1, 2],
+        )
+
+    @staticmethod
+    def scale(factor: float):
+        "scale from the origin (0, 0)"
+        return AffineTransform2D(a=factor, e=factor)
+
+    @staticmethod
+    def eye():
+        "identity transform"
+        return AffineTransform2D()
+
+    @staticmethod
+    def rot90(count: int):
+        "rotation of count * 90° around the center counter-clockwise"
+
+        # map to a integer in [0, 1, 2, 3]
+        count = count % 4
+
+        if count == 0:
+            return AffineTransform2D.eye()
+
+        rot90 = np.array([
+            [0.0, -1.0, 0.0],
+            [1.0, +0.0, 0.0],
+            [0.0, +0.0, 1.0],
+        ], dtype=np.float64)
+
+        return AffineTransform2D.from_matrix_3by3(rot90 ** count)
+
+    @staticmethod
+    def flipY():
+        "Flip around the axis X=0"
+        return AffineTransform2D(e=-1.0)
+
+    @staticmethod
+    def flipX():
+        "Flip around the axis Y=0"
+        return AffineTransform2D(a=-1.0)
+
+    @staticmethod
+    def shiftBy(*, x: float = 0.0, y: float = 0.0):
+        return AffineTransform2D(xoff=x, yoff=y)
+
+    @staticmethod
+    def compose(*transforms: "AffineTransform2D"):
+        "returns an equivalent transformation that apply them in the given order"
+        assert len(transforms) >= 0
+        if len(transforms) == 0:
+            return AffineTransform2D.eye()
+        if len(transforms) == 1:
+            return transforms[0]
+
+        acc, *matrices = (t.matrix_3by3() for t in reversed(transforms))
+        for mat in matrices:
+            acc = acc @ mat
+
+        return AffineTransform2D.from_matrix_3by3(acc)
+
+    def matrix_3by3(self):
+        "matrix product form"
+        return np.array([
+            [self.a, self.b, self.xoff],
+            [self.d, self.e, self.yoff],
+            [0.0, 0.0, 1.0],
+        ], dtype=np.float64)
+
+    def matrix_shapely(self):
+        "matrix representation used by Shapely in affine_transform"
+        return list(self)
+
+    def inverse(self):
+        "create a transform that does the inverse mapping"
+        return AffineTransform2D.from_matrix_3by3(np.linalg.inv(self.matrix_3by3()))
 
 
 class TemplateTransform(NamedTuple):
@@ -530,6 +646,26 @@ def load_ms_template(
     return crop_idx, ms_data
 
 
+def load_ms_template_multi(
+    z_group: zarr.Group,
+    bin_idx: Sequence[int],
+):
+    def _load_channel(idx: int):
+        ms_data: np.ndarray = z_group["/0"][idx, 0, :, :]  # type: ignore
+        return ms_data
+
+    channels = [_load_channel(idx) for idx in bin_idx]
+
+    crop_idx = autocrop_multi(channels, per=90)
+
+    channels: Sequence[np.ndarray] = [channel[crop_idx] for channel in channels]
+
+    if any(channel.size == 0 for channel in channels):
+        raise ValueError("unexpected empty template")
+
+    return crop_idx, channels
+
+
 def load_tif_file(page_idx: int, disk_path: str):
     "load the overlay data from a local path"
 
@@ -546,6 +682,25 @@ def load_tif_file(page_idx: int, disk_path: str):
         raise ValueError(f"expected third axis to be 3 channels ({image.shape=})")
 
     return image
+
+
+def load_tiff_file_multi(path: str, page_idx: Sequence[int]):
+
+    store = tifffile.imread(path, aszarr=True)
+    z = zarr.open(store)
+
+    def _read_page(idx: int):
+        page: np.ndarray = z[idx, ...]  # C=[RGB], H, W  # type: ignore
+        page = np.transpose(page, (1, 2, 0))
+
+        if len(page.shape) != 3:
+            raise ValueError(f"{page.shape=!r} is invalid (expected 3 dimensions")
+        if page.shape[2] != 3:
+            raise ValueError(f"expected 3 channels, but {page.shape[2]=!r}")
+
+        return page
+
+    return [_read_page(idx) for idx in page_idx]
 
 
 # Image transformation
@@ -623,6 +778,45 @@ def threshold_ms(color_ms_data: np.ndarray) -> np.ndarray:
 
 
 # Template matching implementation
+import joblib
+
+
+def average_correlation(
+    fixed: Sequence[np.ndarray],
+    moving: Sequence[np.ndarray],
+) -> Tuple[float, Tuple[int, int]]:
+
+    # add a weight so that images with more visible pixels are more important
+    weights = np.array([np.sum(img)**2 for img in fixed])
+    
+    with joblib.parallel_backend("threading"):
+        fn = joblib.delayed(match_template)
+        corr = joblib.Parallel()(fn(fix, mov) for fix, mov in zip(fixed, moving))
+        corr = np.array(corr)
+
+    # weighted means
+    avg_corr = np.average(corr, weights=weights, axis=0)
+    
+    # mean
+    # avg_corr = np.average(corr, axis=0)
+
+    # median
+    # avg_corr = np.median(corr, axis=0)
+
+    # geometric means: can't work because of negative number
+    # avg_corr: np.ndarray = np.exp(np.average(np.log(corr), weights=weights, axis=0))
+
+    # harmonic means
+    # zeros = np.abs(corr) < 1e-6
+    # corr[zeros] = np.sign(corr[zeros]) * 1e-6
+    # avg_corr = corr.shape[0] / (1 / corr).sum(axis=0)
+
+    max_corr_idx = np.argmax(avg_corr)
+    ij = np.unravel_index(max_corr_idx, avg_corr.shape)
+    y, x = ij
+
+    return avg_corr[ij], (x, y)  # type: ignore
+
 
 def get_template_matching_score(
     grayscale_overlay, grayscale_ms_data
@@ -637,8 +831,67 @@ def get_template_matching_score(
     ij = np.unravel_index(max_score_idx, result.shape)
     y, x = ij
 
+    y -= grayscale_overlay.shape[0] - 1
+    x -= grayscale_overlay.shape[1] - 1
+
     max_score = result[ij]
     return max_score, (x, y)  # type: ignore
+
+
+def match_template_multi_channel_scipy(
+    grayscale_overlay_s: Sequence[np.ndarray],
+    grayscale_ms_data_s: Sequence[np.ndarray],
+    max_scale: float,
+    tol: float = 1e-3,
+):
+    # we can refine the interval using bound_scale_in_sample
+    low = 1.0
+    high = max_scale
+
+    def cost_fun(scale: float) -> float:
+        if scale > high or scale < low:
+            # return a positive value to grow when going out of the interval
+            return 2 * np.abs(scale - 0.5 * (low + high))
+
+        scaled_lst = [scale_image(ms_data, scale) for ms_data in grayscale_ms_data_s]
+        score, _ = average_correlation(grayscale_overlay_s, scaled_lst)
+
+        return -score + 0.3 * (scale - 6) ** 2
+
+        return -score
+
+    def get_match_info(scale: float):
+        # build scaled image
+        if scale > high or scale < low:
+            raise ValueError(f"invalid {scale=!r}")
+
+        scaled_lst = [scale_image(ms_data, scale) for ms_data in grayscale_ms_data_s]
+        score, coords = average_correlation(grayscale_overlay_s, scaled_lst)
+        
+        # store the overlay of the two ?
+        import uuid
+        prefix = "debug-" + str(uuid.uuid4())
+        for idx, (ms_data, overlay) in enumerate(zip(scaled_lst, grayscale_overlay_s)):
+            debug_ms = np.zeros_like(overlay)
+            debug_mask = np.zeros_like(overlay)
+            (x, y) = coords
+            debug_ms[y:y+ms_data.shape[0], x:x+ms_data.shape[1]] = ms_data
+            debug_mask[y:y+ms_data.shape[0], x:x+ms_data.shape[1]] = 100
+            debug = np.stack([overlay, debug_ms, debug_mask], axis=-1)
+            cv2.imwrite(prefix + f"-{idx}.png", debug)
+
+        return score, scaled_lst[0].shape, coords
+
+    res = minimize_scalar(
+        cost_fun,
+        bracket=(low, high),
+        tol=tol,
+        method="Brent",
+    )
+
+    best_score, (height, width), (x, y) = get_match_info(res.x)
+
+    return best_score, float(res.x), (height, width), (x, y)
 
 
 def match_template_multiscale_scipy(
@@ -682,7 +935,45 @@ def match_template_multiscale_scipy(
 
     best_score, (height, width), (x, y) = get_match_info(res.x)
 
-    return best_score, res.x, (height, width), (x, y)
+    return best_score, float(res.x), (height, width), (x, y)
+
+
+def match_template_multi_channel(
+    images_rgb: Sequence[np.ndarray],
+    templates_rgb: Sequence[np.ndarray],
+) -> MatchingResult:
+    assert len(images_rgb) == len(templates_rgb)
+    assert len(images_rgb) > 0
+    
+    # add a bit of noise to the images
+    def add_noise_(img: np.ndarray):
+        scale = max(5.0, np.percentile(img, 5))
+        img = img + np.random.normal(0, scale, img.shape)
+        return np.maximum(img, 255.0)
+
+    images_th = [threshold_overlay(img) for img in images_rgb]
+    images_th_gs = [rgb_to_grayscale(img) for img in images_th]
+    # images_th_gs = list(map(add_noise_, images_th_gs))
+
+    templates_th = [threshold_ms(img) for img in templates_rgb]
+    templates_th_gs = [rgb_to_grayscale(img) for img in templates_th]
+    # templates_th_gs = list(map(add_noise_, templates_th_gs))
+
+    max_scale = min(
+        o_s / t_s for o_s, t_s in zip(images_th_gs[0].shape, templates_th_gs[0].shape)
+    )
+
+    (score, scale, (height, width), (tl_x, tl_y)) = match_template_multi_channel_scipy(
+        images_th_gs, templates_th_gs, max_scale
+    )
+
+    return MatchingResult(
+        tl_x,
+        tl_y,
+        scale,
+        y_slice=slice(tl_y, tl_y + height),
+        x_slice=slice(tl_x, tl_x + width),
+    )
 
 
 def match_template_multiscale(
@@ -696,6 +987,11 @@ def match_template_multiscale(
 
     template_th = threshold_ms(template_rgb)
     template_th_gs = rgb_to_grayscale(template_th)
+
+    import time
+    identifier = time.time_ns()
+    cv2.imwrite(f"{identifier}-image.png", image_th_gs)
+    cv2.imwrite(f"{identifier}-template.png", template_th_gs)
 
     max_scale = min(
         o_s / t_s for o_s, t_s in zip(image_th_gs.shape, template_th_gs.shape)
@@ -783,6 +1079,39 @@ def get_destination_mask_from_result(
     )
 
     return z_mask, roi
+
+
+def match_template_ms_overlay_multi(
+    ms_group: zarr.Group,
+    bin_idx: Tuple[int, ...],
+    tiff_path: str,
+    tiff_page_idx: Tuple[int, ...],
+    transform: TemplateTransform = TemplateTransform.none(),
+) -> Tuple[MatchingResult, Tuple[slice, slice]]:
+    """"""
+
+    # maybe crop after the colorization and threshold-ing ?
+
+    overlay_lst = load_tiff_file_multi(tiff_path, tiff_page_idx)
+    # FIXME: this does its job right, but this is not what I need...
+    # for the non-slim version, there are "noisy" parts which are included
+    # this makes the crop too large and since the offset may not be negative in
+    # template matching, this makes the registration impossible...
+    # either:
+    #   - make negative offset allowed (how ? padding inputs won't work...)
+    #   - make new, non-slim, but cropped versions of the datasets !
+    # The last option seems more sensible
+    #   - while we're at it, we can also remove the very long pixel...
+    crop_idx, ms_template_multi = load_ms_template_multi(ms_group, bin_idx)
+
+    ms_template_multi = [transform.transform_template(tpl) for tpl in ms_template_multi]
+
+    matching_result = match_template_multi_channel(
+        overlay_lst,
+        [colorize_data(ms_template) for ms_template in ms_template_multi],
+    )
+
+    return matching_result, crop_idx
 
 
 def match_template_ms_overlay(

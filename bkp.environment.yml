@@ -1,0 +1,15 @@
+name: msi_zarr_analysis
+channels:
+  - defaults
+dependencies:
+  - scikit-learn
+  - zarr
+  - matplotlib
+  - python=3.8
+  - scikit-learn-intelex
+  - click
+  - ipython
+  - numpy=1.21
+  - pandas
+  - numba
+  - requests

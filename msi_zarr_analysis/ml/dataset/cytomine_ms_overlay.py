@@ -17,6 +17,7 @@ from msi_zarr_analysis.ml.dataset.translate_annotation import (
     get_annotation_mapping,
     get_destination_mask,
     match_template_ms_overlay,
+    match_template_ms_overlay_multi,
     parse_annotation_mapping,
     rasterize_annotation_mapping,
     save_bin_class_image,
@@ -349,6 +350,77 @@ def get_overlay_annotations(
     annotation_mapping = get_annotation_mapping(annotations, classes)
 
     return parse_annotation_mapping(annotation_mapping, image.height, image.width)
+
+
+@functools.lru_cache(maxsize=8)
+def __overlay_template_matching_multi_lipid_cached(
+    zarr_template_path: str,
+    zarr_channel: Tuple[int, ...],
+    overlay_tiff_path: str,
+    overlay_pages: Tuple[int, ...],
+    transform_template_rot90: int = 0,
+    transform_template_flip_ud: bool = False,
+    transform_template_flip_lr: bool = False,
+):
+    template_transform = TemplateTransform(
+        transform_template_rot90,
+        transform_template_flip_ud,
+        transform_template_flip_lr,
+    )
+
+    ms_template_group = open_group_ro(zarr_template_path)
+
+    # template matching between the template and overlay
+    matching_result, crop_idx = match_template_ms_overlay_multi(
+        ms_group=ms_template_group,
+        bin_idx=zarr_channel,
+        tiff_path=overlay_tiff_path,
+        tiff_page_idx=overlay_pages,
+        transform=template_transform,
+    )
+
+    logging.info("crop_idx: %s", crop_idx)
+    logging.info("ms_template.shape: %s", ms_template_group["/0"].shape)
+    logging.info("matching_results: %s", matching_result)
+
+    return template_transform, matching_result, crop_idx
+
+
+def translate_annotation_mapping_overlay_to_template_multi_lipid(
+    annotation_mapping: Mapping[str, Sequence[ParsedAnnotation]],
+    zarr_template_path: str,
+    lipid_to_channel: Mapping[str, int],
+    overlay_tiff_path: str,
+    lipid_to_page: Mapping[str, int],
+    transform_template_rot90: int = 0,
+    transform_template_flip_ud: bool = False,
+    transform_template_flip_lr: bool = False,
+    *,
+    clear_cache: bool = False,
+) -> Dict[str, List[ParsedAnnotation]]:
+
+    if clear_cache:
+        __overlay_template_matching_multi_lipid_cached.cache_clear()
+
+    common = set(lipid_to_channel.keys()).intersection(lipid_to_page.keys())
+    channel_indices = tuple(lipid_to_channel[lipid] for lipid in common)
+    page_indices = tuple(lipid_to_page[lipid] for lipid in common)
+
+    template_transform, matching_result, crop_idx = (
+        __overlay_template_matching_multi_lipid_cached(
+            zarr_template_path,
+            channel_indices,
+            overlay_tiff_path,
+            page_indices,
+            transform_template_rot90,
+            transform_template_flip_ud,
+            transform_template_flip_lr,
+        )
+    )
+
+    return translate_parsed_annotation_mapping(
+        annotation_mapping, template_transform, matching_result, crop_idx
+    )
 
 
 @functools.lru_cache(maxsize=8)

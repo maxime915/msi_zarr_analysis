@@ -1,25 +1,23 @@
 name: msi-zarr-analysis
 channels:
-  - bioconda
-  - conda-forge
   - defaults
 dependencies:
   - python
-  - click
-  - ipython
-  - future
-  - matplotlib
-  - numba
-  - numpy
-  - pandas
-  - pyimzml
-  - rasterio
-  - scikit-learn
-  - scikit-learn-intelex
-  - scikit-image
-  - zarr
-  - pytest
-  - pip
+  - conda-forge::click
+  - conda-forge::ipython
+  - conda-forge::jupyter
+  - conda-forge::matplotlib
+  - conda-forge::numba
+  - conda-forge::numpy
+  - conda-forge::opencv
+  - conda-forge::pandas
+  - bioconda::pyimzml
+  - conda-forge::rasterio
+  - conda-forge::scikit-learn
+  - conda-forge::scikit-image
+  - conda-forge::zarr
+  - conda-forge::pytest
+  - pip=23.0.1
   - pip:
-    - tensorstore
-    - -e /home/maxime/cytomine-repos/Cytomine-python-client
+    - git+https://github.com/Cytomine-ULiege/Cytomine-python-client@v2.9.0#egg=cytomine-python-client
+    - tensorstore==0.1.30
