@@ -1,7 +1,7 @@
 "mz_slice: extract single lipids"
 
 from functools import partial
-from typing import Dict, Tuple, TypeVar
+from typing import Dict, Tuple, TypeVar, cast
 import numpy as np
 import numpy.typing as npt
 import numba as nb
@@ -305,7 +305,7 @@ def flatten(
 ) -> None:
     "flatten a continuous array"
 
-    z_ints = z["/0"]
+    z_ints = cast(zarr.Array, z["/0"])
 
     row_idx = 0
 
@@ -337,24 +337,24 @@ def bin_processed_lo_hi(
 ):
     z = open_group_ro(z_path)
 
-    z_ints = z["/0"]
-    z_mzs = z["/labels/mzs/0"]
-    z_lengths = z["/labels/lengths/0"]
+    z_ints = cast(zarr.Array, z["/0"])
+    z_mzs = cast(zarr.Array, z["/labels/mzs/0"])
+    z_lengths = cast(zarr.Array, z["/labels/lengths/0"])
 
     destination = zarr.open_group(destination_path, mode="w-")
 
     # create empty array
     destination.create(
         "/0",
-        shape=(len(bin_lo),) + z_ints.shape[1:],
+        shape=(len(bin_lo),) + cast(tuple[int, int, int], z_ints.shape[1:]),
         chunks=z_ints.chunks,
         compressor=z_ints.compressor,
         order=z_ints.order,
     )
     destination["/labels/mzs/0"] = np.reshape((bin_lo + bin_hi) / 2, (-1, 1, 1, 1))
-    destination["/labels/lengths/0"] = len(bin_lo) * (z_lengths[:] > 0)
+    destination["/labels/lengths/0"] = len(bin_lo) * (cast(np.ndarray, z_lengths[:]) > 0)
 
-    z_dest_ints = destination["/0"]
+    z_dest_ints = cast(zarr.Array, destination["/0"])
 
     # TODO add description of transformation
     for key, value in z.attrs.items():
@@ -365,14 +365,18 @@ def bin_processed_lo_hi(
     bkp["binary_mode"] = "continuous"
     destination.attrs["pims-msi"] = bkp
 
+    y_slice, x_slice = clean_slice_tuple(
+        cast(tuple[int, int], z["/0"].shape[2:]), y_slice, x_slice
+    )
     return _bin_processed(
         z_ints,
         z_mzs,
         z_lengths,
         z_dest_ints,
-        *clean_slice_tuple(z["/0"].shape[2:], y_slice, x_slice),
-        bin_lo,
-        bin_hi,
+        y_slice,
+        x_slice,
+        bin_lo=bin_lo,
+        bin_hi=bin_hi,
     )
 
 
