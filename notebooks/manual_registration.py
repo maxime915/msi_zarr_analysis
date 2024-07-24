@@ -17,11 +17,8 @@ from scipy.ndimage import label
 from shapely import Polygon, affinity
 from skimage.color import rgba2rgb
 
-import sys
-sys.path.insert(0, str((pathlib.Path(__file__).parent.parent).resolve()))
-
-from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation  # noqa: E402
-from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import get_overlay_annotations  # noqa: E402
+from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
+from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import get_overlay_annotations
 
 
 # %%

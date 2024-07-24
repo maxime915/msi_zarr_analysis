@@ -11,7 +11,6 @@
 # %%
 
 import pathlib
-import sys
 from typing import NamedTuple
 
 import matplotlib.pyplot as plt
@@ -20,9 +19,7 @@ from omezarrmsi import OMEZarrMSI
 from omezarrmsi.proc.bin import spectra_sum
 from skimage.measure import label as label_components
 
-sys.path.append(str(pathlib.Path(__file__).parent.parent))
-
-from msi_zarr_analysis.preprocessing.binning import fticr_binning, bin_and_flatten_v2  # noqa:E402
+from msi_zarr_analysis.preprocessing.binning import fticr_binning, bin_and_flatten_v2
 
 # %%
 

@@ -8,12 +8,8 @@ from omezarrmsi import OMEZarrMSI
 
 from skimage.measure import label as label_components
 
-import sys
-
-sys.path.insert(0, str((pathlib.Path(__file__).parent.parent).resolve()))
-
-from msi_zarr_analysis.preprocessing.binning import bin_and_flatten_v2  # noqa: E402
-from msi_zarr_analysis.cli.utils import bins_from_csv  # noqa: E402
+from msi_zarr_analysis.preprocessing.binning import bin_and_flatten_v2
+from msi_zarr_analysis.cli.utils import bins_from_csv
 
 
 # %%

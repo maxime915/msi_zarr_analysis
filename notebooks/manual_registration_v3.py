@@ -20,17 +20,8 @@ from shapely import Polygon, affinity
 from skimage.color import rgba2rgb
 from valis.warp_tools import warp_img_inv
 
-import sys
-
-sys.path.insert(0, str((pathlib.Path(__file__).parent.parent).resolve()))
-
-from msi_zarr_analysis.ml.dataset.translate_annotation import (  # noqa: E402
-    ParsedAnnotation,
-)
-from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (  # noqa: E402
-    get_overlay_annotations,
-)
-
+from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
+from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import get_overlay_annotations
 
 # %%
 

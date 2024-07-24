@@ -12,12 +12,8 @@ from torch.optim import Adam
 from torch.utils.data.dataloader import DataLoader
 from torcheval.metrics import BinaryAUROC
 
-import sys
-
-sys.path.append(str(pathlib.Path(__file__).parent.parent))
-
-from msi_zarr_analysis.ml.msi_ds import MSIDataset, Axis  # noqa:E402
-from msi_zarr_analysis.ml.peak_sense import PeakSense, ThreshCounter  # noqa:E402
+from msi_zarr_analysis.ml.msi_ds import MSIDataset, Axis
+from msi_zarr_analysis.ml.peak_sense import PeakSense, ThreshCounter
 
 # %%
 

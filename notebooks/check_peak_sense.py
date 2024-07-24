@@ -1,13 +1,7 @@
-import pathlib
-
 import torch
 from torch import autograd
 
-import sys
-
-sys.path.append(str(pathlib.Path(__file__).parent.parent))
-
-from msi_zarr_analysis.ml.peak_sense import _PeakSenseFn  # noqa:E402
+from msi_zarr_analysis.ml.peak_sense import _PeakSenseFn
 
 
 def peak_sense(
