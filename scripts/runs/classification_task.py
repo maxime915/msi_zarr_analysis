@@ -16,15 +16,6 @@ from sklearn.ensemble import ExtraTreesClassifier, RandomForestClassifier
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, StratifiedKFold
 from sklearn.tree import DecisionTreeClassifier
 
-try:
-    import msi_zarr_analysis
-except (ModuleNotFoundError, ImportError):
-    # add msi_zarr_analysis to the path if it was not imported
-    package_path = pathlib.Path(__file__).parent.parent.parent.resolve().as_posix()
-    if package_path not in sys.path:
-        sys.path.append(package_path)
-
-
 from msi_zarr_analysis import VERSION
 from msi_zarr_analysis.ml.dataset import GroupCollection
 from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (

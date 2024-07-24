@@ -19,16 +19,8 @@ from shapely import Polygon, affinity
 from skimage.color import rgba2rgb
 from skimage.transform import rescale
 
-import sys
-
-sys.path.insert(0, str((pathlib.Path(__file__).parent.parent).resolve()))
-
-from msi_zarr_analysis.ml.dataset.translate_annotation import (  # noqa: E402
-    ParsedAnnotation,
-)
-from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import (  # noqa: E402
-    get_overlay_annotations,
-)
+from msi_zarr_analysis.ml.dataset.translate_annotation import ParsedAnnotation
+from msi_zarr_analysis.ml.dataset.cytomine_ms_overlay import get_overlay_annotations
 
 
 # %%
@@ -296,7 +288,9 @@ def map_geometry_fn_v2(
         # double offset (border-to-shadow minus border-to-background)
         yoff_2, xoff_2 = _nz_offset(shadow_v2)
         yoff_1, xoff_1 = _nz_offset(bf_mask_v2)
-        plg = affinity.affine_transform(plg, [1, 0, 0, 1, -(xoff_2 - xoff_1), -(yoff_2 - yoff_1)])
+        plg = affinity.affine_transform(
+            plg, [1, 0, 0, 1, -(xoff_2 - xoff_1), -(yoff_2 - yoff_1)]
+        )
 
         # scale for MSI axes
         plg = affinity.affine_transform(plg, [s_sha_to_msi, 0, 0, s_sha_to_msi, 0, 0])
@@ -307,6 +301,7 @@ def map_geometry_fn_v2(
 
 
 # %%
+
 
 def map_v1_to_msi(
     image_v1: np.ndarray,
@@ -500,7 +495,7 @@ color_lst = [
 
 fig = plt.figure(frameon=False)
 fig.set_size_inches(*image_size)
-ax = plt.Axes(fig, (0., 0., 1., 1.))  # type:ignore
+ax = plt.Axes(fig, (0.0, 0.0, 1.0, 1.0))  # type:ignore
 ax.set_axis_off()
 fig.add_axes(ax)
 
@@ -521,7 +516,7 @@ for idx, ann_lst in enumerate(annotation_dict[key].values()):
 
 fig = plt.figure(frameon=False)
 fig.set_size_inches(*ms_size)
-ax = plt.Axes(fig, (0., 0., 1., 1.))  # type:ignore
+ax = plt.Axes(fig, (0.0, 0.0, 1.0, 1.0))  # type:ignore
 ax.set_axis_off()
 fig.add_axes(ax)
 
@@ -614,7 +609,9 @@ for idx, ann_lst in enumerate(mapped_ann_dict[key].values()):
 
 rasterized_masks_dict = {
     key_: {
-        cls: raster_float(ann_lst, mask_ms_footprint(ms_dict[key_]).shape, super_sampling)
+        cls: raster_float(
+            ann_lst, mask_ms_footprint(ms_dict[key_]).shape, super_sampling
+        )
         for cls, ann_lst in ann_cls_dict_.items()
     }
     for key_, ann_cls_dict_ in mapped_ann_dict.items()

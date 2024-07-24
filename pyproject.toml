@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "msi_zarr_analysis"
+version = "0.1.0"
+authors = [
+  { name="Maxime Amodei", email="maxime.amodei@uliege.be" },
+]
+description = "Project rassembling the experiments on labelled MSI data"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {file = "LICENSE"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+]
+
+[project.urls]
+"Homepage" = "https://github.com/maxime915/msi_zarr_analysis"
+"Bug Tracker" = "https://github.com/maxime915/msi_zarr_analysis/issues"
+
+[tool.hatch.build]
+exclude = [
+	"/.vscode",
+	"/.gitignore",
+]
