@@ -1,4 +1,4 @@
-from math import exp
+from math import exp, log
 
 import torch
 import torch.nn as nn
@@ -6,8 +6,16 @@ from numba import cuda
 from torch.nn.functional import sigmoid
 
 
-THREADS_PER_BLOCK: tuple[int, int] = (16, 16)
-THRESH_LOW_WEIGHT = -90.0
+THREADS_PER_BLOCK: tuple[int, int] = (8, 16)
+THRESH_LOW_WEIGHT = -10.0
+
+
+def kern(shape: tuple[int, int]):
+    blocks_per_grid = tuple(
+        (a + (b - 1)) // b for a, b in zip(shape, THREADS_PER_BLOCK, strict=True)
+    )
+    return blocks_per_grid, THREADS_PER_BLOCK
+
 
 # TODO there is still some possible optimization.
 #   - rather than compute dx_i/dz and multiply with the chain rule afterward,
@@ -83,12 +91,7 @@ class _PeakSenseFn(torch.autograd.Function):
             (mz.shape[0], mu.shape[0]), dtype=iv.dtype, device=iv.device
         )
 
-        threads_per_block = THREADS_PER_BLOCK
-        blocks_per_grid = tuple(
-            (a + (b - 1)) // b
-            for a, b in zip(peaks.shape, threads_per_block, strict=True)
-        )
-        _nb_forward[blocks_per_grid, threads_per_block](  # type:ignore
+        _nb_forward[kern(peaks.shape)](  # type:ignore
             cuda.as_cuda_array(mu.detach()),
             cuda.as_cuda_array(torch.exp(-lv.detach())),
             cuda.as_cuda_array(mz.detach()),
@@ -125,12 +128,7 @@ class _PeakSenseFn(torch.autograd.Function):
         )
         d__x__s1 = torch.empty_like(d__x__mu)  # [B, N]
 
-        threads_per_block = THREADS_PER_BLOCK
-        blocks_per_grid = tuple(
-            (a + (b - 1)) // b
-            for a, b in zip(d__x__mu.shape, threads_per_block, strict=True)
-        )
-        _nb_backward_param_only[blocks_per_grid, threads_per_block](  # type:ignore
+        _nb_backward_param_only[kern(d__x__mu.shape)](  # type:ignore
             cuda.as_cuda_array(mu.detach()),
             cuda.as_cuda_array(torch.exp(-0.5 * lv).detach()),
             cuda.as_cuda_array(mz.detach()),
@@ -199,10 +197,17 @@ class PeakSense(nn.Module):
         means = torch.linspace(mz_min, mz_max, n_vals, dtype=torch.float32)
         if n_vals == 1:
             # in the case of a single value, prefer it to be centered
-            means = torch.tensor([0.5 * (mz_min + mz_max)], dtype=torch.float32)
-        self.mu = nn.Parameter(means)
+            means.fill_(0.5 * (mz_min + mz_max))
 
-        log_vars = torch.zeros_like(self.mu) + torch.log(torch.tensor(std_dev**2))
+        # add a small amount of noise to the means
+        noise = torch.empty_like(means)
+        noise.normal_(0.0, 0.5 * std_dev)
+        means.add_(noise)
+
+        log_vars = torch.empty_like(means)
+        log_vars.fill_(2.0 * log(std_dev))
+
+        self.mu = nn.Parameter(means)
         self.lv = nn.Parameter(log_vars)
 
     def forward(self, masses: torch.Tensor, intensities: torch.Tensor):
