@@ -1,0 +1,17 @@
+base_config:
+  problem: "sc/ls"
+  data_dir_s: "/home/maxime/datasets/slim-deisotoping-2.0e-03"
+  alpha: 2.0
+  n_peaks: 1000
+  mz_min: 300.0
+  mz_max: 1000.0
+  norm_type: "batch-norm"
+  head_type: "linear"
+  epochs: 20
+  batch_size: 256
+  lr: 1.0e-2
+  c_overlap: 1.0e+0
+  c_width: 1.0e+1
+  c_weights: 1.0e+2
+  wandb_entity: "maxime915"
+  wandb_mode: "offline"
