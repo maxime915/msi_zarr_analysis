@@ -6,10 +6,14 @@ from pathlib import Path
 from typing import Any, Literal, NamedTuple, Protocol
 from warnings import warn
 
+import numba as nb
 import numpy as np
 import pandas as pd
+import sklearn
+from scipy.stats import rankdata
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier  # noqa:F401
+from sklearn.ensemble._forest import ForestClassifier
 from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
 
@@ -351,6 +355,301 @@ dataset = Tabular(*np.load(base_dir / "binned_nonorm.npz").values())
 # %%
 
 
+def mono(p_values):
+    """Enforce monotonicity of the values"""
+
+    pvalues_mono = np.zeros(len(p_values))
+    pvalues_mono[0] = p_values[0]
+
+    if -555 in p_values:
+        nb_feat = list(p_values).index(-555)
+        for i in range(1, nb_feat):
+            pvalues_mono[i] = max(pvalues_mono[i - 1], p_values[i])
+        pvalues_mono[nb_feat:] = -555
+    else:
+        for i in range(1, len(p_values)):
+            pvalues_mono[i] = max(pvalues_mono[i - 1], p_values[i])
+
+    return pvalues_mono
+
+
+def cer_fdr(
+    X: np.ndarray,
+    Y: np.ndarray,
+    vImp: Literal["attribue"],
+    model: ForestClassifier,
+    nb_perm: int,
+    n_to_compute: int,
+    thresh_stop: float,
+):
+    "wrapper around the CER_FDR function"
+
+    def vImp_attr(x_: np.ndarray, y_: np.ndarray, _):
+        m_: ForestClassifier = sklearn.base.clone(model)
+        m_.fit(x_, y_)
+        return m_.feature_importances_
+
+    if vImp == "attribue":
+        get_vImp_method = vImp_attr
+    else:
+        raise ValueError(f"{vImp=!r} is invalid")
+
+    var_imp_noperm = get_vImp_method(X, Y, (None,))
+    # ranks are integers, ties are broken based on position in the array
+    rank_noperm = rankdata(var_imp_noperm, method="ordinal")
+
+    return _cer_fdr__inner(
+        X,
+        Y,
+        get_vImp_method,
+        (None,),
+        nb_perm,
+        n_to_compute,
+        thresh_stop,
+        rank_noperm,
+        np.sort(var_imp_noperm)[::-1],
+    )
+
+
+@nb.jit("void(f8[:], f8[:], f8[:])")
+def __incr_fdr(fdr: np.ndarray, imp_orig: np.ndarray, imp_perm: np.ndarray):
+    """increment FDR count. imp_orig and imp_perm are left unchanged.
+
+    Args:
+        fdr (np.ndarray): output fdr array
+        imp_orig (np.ndarray): importance of the original data (sorted in dec.)
+        imp_perm (np.ndarray): importance after permutation (sorted in dec.)
+    """
+
+    if not np.all(imp_orig[:-1] >= imp_orig[1:]):
+        raise ValueError("imp_orig should be sorted in decreasing order")
+    if not np.all(imp_perm[:-1] >= imp_perm[1:]):
+        raise ValueError("imp_perm should be sorted in decreasing order")
+    if len(set([fdr.shape, imp_orig.shape, imp_perm.shape])) != 1:
+        raise ValueError("shape mismatch")
+
+    count: int = 0
+    it_perm: int = 0
+    for it_orig in range(imp_orig.size):
+        # the importance of the current variable
+        thresh = imp_orig[it_orig]
+
+        while it_perm < imp_perm.size:  # don't count past the end
+            # if the random importance is higher, count up and move to the next one
+            if imp_perm[it_perm] >= thresh:
+                count += 1
+                it_perm += 1
+            else:
+                # else keep this value for the next feature
+                break
+
+        # update count in the array
+        fdr[it_orig] += count
+
+
+@nb.jit("void(f8[:], f8[:], f8[:])")
+def __incr_fdr_baseline(fdr: np.ndarray, imp_orig: np.ndarray, imp_perm: np.ndarray):
+    "this is the trivial O(N^2) implementation, used for regression checking"
+
+    for it_orig in range(imp_orig.size):
+        for it_perm in range(imp_perm.size):
+            if imp_perm[it_perm] >= imp_orig[it_orig]:
+                fdr[it_orig] += 1
+
+
+def check(size: int = 1024):
+    fdr_1 = np.random.rand(size)
+    fdr_2 = fdr_1.copy()
+
+    orig = np.sort(np.random.rand(size))[::-1]
+    perm = np.random.rand(size)
+
+    __incr_fdr_baseline(fdr_1, orig, perm)
+    __incr_fdr(fdr_2, orig, np.sort(perm)[::-1])
+
+    assert np.allclose(fdr_1, fdr_2), f"{np.abs(fdr_2 - fdr_1).max()=!r}"
+
+
+def _cer_fdr__inner(
+    X: np.ndarray,
+    Y: np.ndarray,
+    get_vImp_method,
+    param,
+    nb_perm,
+    n_to_compute,
+    thresh_stop,
+    rank_noperm,
+    var_imp_noperm,
+):
+    """
+    adapted from: https://academic.oup.com/bioinformatics/article/28/13/1766/234473
+
+    Original author: Vân Anh Huynh-Thu
+
+    CER,FDR,eFDR
+    = cer_fdr(X,Y,param,nb_perm,n_to_compute,thresh_stop,rank_noperm,var_imp_noperm)
+    Compute CER, FDR, and eFDR
+    - X : inputs
+    - Y : outputs
+    - get_vImp_method: the function that computes a feature ranking
+    - param : parameters of the feature ranking method
+    - nb_perm : number of permutations for each variable
+    - n_to_compute: number of variables for which to compute the CER and eFDR
+    - thresh_stop: algorithm stops when both CER and eFDR become higher than thresh_stop
+    - rank_noperm : original ranking
+    - var_imp_noperm: original variable relevance scores, in decreasing order
+
+
+    return :
+    - CER for each subset of top-ranked variables
+    - FDR for each subset of top-ranked variables
+    - eFDR for each subset of top-ranked variables
+    """
+
+    # if get_vImp_method == get_vimp_tree:
+    #     param.verbose = False
+
+    nb_obj = X.shape[0]
+    nb_feat = X.shape[1]
+
+    if Y.shape[0] != nb_obj:
+        raise ValueError(f"{Y.shape[0]=!r} != {X.shape[0]=}")
+
+    if len(rank_noperm) != nb_feat:
+        raise ValueError(f"{len(rank_noperm)=} != {X.shape[1]=}")
+
+    if n_to_compute <= 0 or n_to_compute > nb_feat:
+        raise ValueError(f"{n_to_compute=!r} not in [1, {nb_feat=}]")
+
+    FDR = np.zeros(nb_feat) - 555
+    CER = np.zeros(nb_feat) - 555
+    eFDR = np.zeros(nb_feat) - 555
+
+    # Compute FDR for all variables and compute CER and eFDR for the top-ranked variable
+    FDR = np.zeros(nb_feat)
+    CER[0] = 0
+    eFDR[0] = 0
+
+    # Permutation of the output values
+    print("feature 1...")
+    for t in range(nb_perm):
+        print("feature 1 - permutation %d..." % (t + 1))
+        Y_perm = Y.copy()
+        np.random.shuffle(Y_perm)
+
+        var_imp_perm = get_vImp_method(X, Y_perm, param)
+
+        # CER
+        if max(var_imp_perm) >= var_imp_noperm[0]:
+            CER[0] += 1
+
+        # # FDR
+        # for i in range(len(var_imp_noperm)):
+        #     FDR[i] += np.sum(var_imp_perm >= var_imp_noperm[i])
+
+        # NOTE: this is O(N*log(N)) instead of O(N^2), which matters a lot here
+        var_imp_perm_sorted = np.sort(var_imp_perm)[::-1]
+        __incr_fdr(FDR, var_imp_noperm, var_imp_perm_sorted)
+
+        # # eFDR
+        # var_imp_perm_sort = var_imp_perm.copy()
+        # var_imp_perm_sort.sort(axis=0)
+        # var_imp_perm_sort = np.flipud(var_imp_perm_sort)
+        # R1_e = nb_feat
+        # for ii in range(len(var_imp_perm_sort)):
+        #     if var_imp_perm_sort[ii] < var_imp_noperm[ii]:
+        #         R1_e = ii
+        #         break
+
+        # NOTE updated -> numpy
+        R1_e = int(np.argmax(var_imp_perm_sorted < var_imp_noperm))
+        if var_imp_perm_sorted[R1_e] >= var_imp_noperm[R1_e]:
+            R1_e = nb_feat
+
+        if R1_e > 0:
+            eFDR[0] += 1
+
+    # for i in range(len(FDR)):
+    #     FDR[i] = FDR[i] / nb_perm
+    #     FDR[i] = FDR[i] / (i + 1)
+    #     if FDR[i] > 1:
+    #         FDR[i] = 1
+
+    # NOTE updated -> numpy
+    FDR /= np.arange(1, FDR.size + 1)
+    FDR = np.minimum(FDR / nb_perm, 1.0)
+
+    CER[0] = CER[0] / nb_perm
+    eFDR[0] = eFDR[0] / nb_perm
+
+    # Compute CER and eFDR for the remaining variables
+    for i_current in range(1, n_to_compute):
+        # Stop if CER and eFDR are higher than thresh_stop
+        if CER[i_current - 1] > thresh_stop and eFDR[i_current - 1] > thresh_stop:
+            break
+
+        print("feature %d..." % (i_current + 1))
+
+        # If FDR = 0, then CER and eFDR = 0
+        if FDR[i_current] == 0:
+            CER[i_current] = 0
+            eFDR[i_current] = 0
+        # To save time, as soon as a variable has a CER and eFDR = 1, the CER and eFDR of the variables ranked below are also set to 1
+        elif CER[i_current - 1] == 1 and eFDR[i_current - 1] == 1:
+            CER[i_current] = 1
+            eFDR[i_current] = 1
+        else:
+            CER[i_current] = 0
+            eFDR[i_current] = 0
+
+            for t in range(nb_perm):
+                print("feature %d - permutation %d..." % (i_current + 1, t + 1))
+
+                order_perm = np.random.permutation(nb_obj)
+                Y_perm = Y[order_perm, :].copy()
+                X_perm = X.copy()
+                for i in range(i_current):
+                    X_perm[:, rank_noperm[i]] = X_perm[order_perm, rank_noperm[i]]
+
+                print("getting vImp...", end="")
+                var_imp_perm = get_vImp_method(X_perm, Y_perm, param)
+                print("\b\b\b: done!")
+
+                # Remove un-permuted variables
+                var_imp_perm = np.delete(var_imp_perm, rank_noperm[:i_current], axis=0)
+                var_imp_perm_sort = var_imp_perm.copy()
+                var_imp_perm_sort.sort(axis=0)
+                var_imp_perm_sort = np.flipud(var_imp_perm_sort)
+
+                # CER
+                if var_imp_perm_sort[0] >= var_imp_noperm[i_current]:
+                    CER[i_current] += 1
+
+                # # eFDR
+                # Ri_e = nb_feat - i_current
+                # for ii in range(len(var_imp_perm_sort)):
+                #     if var_imp_perm_sort[ii] < var_imp_noperm[i_current + ii]:
+                #         Ri_e = ii
+                #         break
+
+                # NOTE updated
+                Ri_e = int(np.argmax(var_imp_perm_sort < var_imp_noperm[i_current:]))
+                if var_imp_perm_sort[Ri_e] >= var_imp_noperm[i_current + Ri_e]:
+                    Ri_e = nb_feat - i_current
+
+                fi_e = float(Ri_e) / (Ri_e + i_current)
+                eFDR[i_current] += fi_e
+
+            CER[i_current] = CER[i_current] / nb_perm
+            eFDR[i_current] = eFDR[i_current] / nb_perm
+
+    CER = mono(CER)
+    FDR = mono(FDR)
+    eFDR = mono(eFDR)
+
+    return CER, FDR, eFDR
+
+
 # TODO grouping and weights ?
 def mprobes(
     X: np.ndarray | pd.DataFrame,
@@ -489,5 +788,21 @@ results["bin_center"] = 0.5 * (dataset.bin_l + dataset.bin_r)
 results["bin_width"] = dataset.bin_r - dataset.bin_l
 
 print(results.to_csv())
+
+# %%
+
+cer, fdr, efdr = cer_fdr(
+    X,
+    y,
+    vImp="attribue",
+    model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
+    nb_perm=n_perms,
+    n_to_compute=40,
+    thresh_stop=0.2,
+)
+
+results["cer"] = cer
+results["fdr"] = fdr
+results["edfr"] = efdr
 
 # %%
