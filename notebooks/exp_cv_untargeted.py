@@ -3,16 +3,15 @@
 import argparse
 from itertools import product  # noqa
 from pathlib import Path
-from typing import NamedTuple, Literal, Protocol, Any
+from typing import Any, Literal, NamedTuple, Protocol
 from warnings import warn
 
 import numpy as np
 import pandas as pd
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier  # noqa:F401
-from sklearn.metrics._scorer import roc_auc_scorer, _BaseScorer   # noqa
-from sklearn.model_selection import StratifiedGroupKFold, GridSearchCV
-
+from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
 
 # %% protocols and stuff
 
@@ -41,6 +40,7 @@ class Tabular(NamedTuple):
     bin_l: np.ndarray
     bin_r: np.ndarray
     regions: np.ndarray
+
 
 # %%
 
@@ -380,7 +380,7 @@ def mprobes(
     """
 
     if verbose:
-        print('Compute the initial ranking...')
+        print("Compute the initial ranking...")
 
     nb_obj = X.shape[0]
     nb_feat = X.shape[1]
@@ -400,7 +400,7 @@ def mprobes(
     nb_feat = X.shape[1]
 
     if Y.shape[0] != nb_obj:
-        raise ValueError('X and Y must have the same number of objects.')
+        raise ValueError("X and Y must have the same number of objects.")
 
     # data
     X_full = np.zeros((nb_obj, nb_feat * 2), dtype=np.float32)
@@ -409,11 +409,11 @@ def mprobes(
     p = np.zeros(nb_feat)
 
     if verbose:
-        print('Compute the permutation rankings...')
+        print("Compute the permutation rankings...")
 
     for _ in range(nb_perm):
         if verbose:
-            print('.', end='')
+            print(".", end="")
         # Artificial contrasts
         if join_permute:
             rand_ind = np.random.permutation(nb_obj)
@@ -428,7 +428,7 @@ def mprobes(
         var_imp = model.fit(X_full, Y).feature_importances_
 
         # Highest relevance score among all contrasts
-        contrast_imp_max = max(var_imp[nb_feat:nb_feat * 2])
+        contrast_imp_max = max(var_imp[nb_feat : nb_feat * 2])
 
         # Original variables with a score lower than the highest score among all contrasts
         irr_var_idx = np.where(var_imp[:nb_feat] <= contrast_imp_max)
@@ -446,29 +446,47 @@ def mprobes(
 
 # %%
 
-parser = argparse.ArgumentParser("exp_cv_binned")
-parser.add_argument("--n-trees", type=int)
-parser.add_argument("--max-feat", type=int)
-parser.add_argument("--n-perms", type=int)
-parser.add_argument("--joint", choices=["yes", "no"])
+max_feat: int | Literal["log2", "sqrt"]
+try:
+    # detect if the cell is ran in a notebook and manually defines values
+    get_ipython()  # type:ignore
+    n_trees = 1000
+    max_feat = "sqrt"
+    n_perms = 50
+    joint = True
+except NameError:
+    # else, assume a script and parse arguments
+    parser = argparse.ArgumentParser("exp_cv_binned")
+    parser.add_argument("--n-trees", type=int)
+    parser.add_argument("--max-feat", help="'log2', 'none', 'sqrt', or an integer")
+    parser.add_argument("--n-perms", type=int)
+    parser.add_argument("--joint", choices=["yes", "no"])
 
-args = parser.parse_args()
-n_trees = int(args.n_trees)
-max_feat = int(args.max_feat)
-n_perms = int(args.n_perms)
-joint = {"yes": True, "no": False}[args.joint]
+    args = parser.parse_args()
+    n_trees = int(args.n_trees)
+    if args.max_feat in ["log2", "sqrt"]:
+        max_feat = args.max_feat
+    elif args.max_feat == "none":
+        # all features
+        max_feat = dataset.dataset_x.shape[1]
+    else:
+        max_feat = int(args.max_feat)
+    n_perms = int(args.n_perms)
+    joint = {"yes": True, "no": False}[args.joint]
+
+# %%
 
 X, y, w, g = _ds_to_Xy(dataset, "ls/sc", "regions", True)
 results = mprobes(
     X,
     y,
-    model=RandomForestClassifier(n_trees, max_features=5, n_jobs=-1),
+    model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
     nb_perm=n_perms,
-    join_permute=True,
-    verbose=True,
+    join_permute=joint,
+    verbose=False,
 )
 results["bin_center"] = 0.5 * (dataset.bin_l + dataset.bin_r)
-results["bin_width"] = (dataset.bin_r - dataset.bin_l)
+results["bin_width"] = dataset.bin_r - dataset.bin_l
 
 print(results.to_csv())
 
