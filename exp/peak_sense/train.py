@@ -1,5 +1,4 @@
 import pathlib
-from datetime import datetime
 from functools import partial
 from typing import Any, Protocol, runtime_checkable
 
@@ -8,6 +7,7 @@ import omezarrmsi as ozm
 import runexp
 import torch
 import wandb
+from runexp import env
 from torch.optim.adam import Adam
 from torch.utils.data.dataloader import DataLoader
 from torch.nn.functional import binary_cross_entropy
@@ -117,7 +117,7 @@ def prep_train(cfg: PSConfig, datasets: dict[str, MSIDataset]):
     res_dir = pathlib.Path(__file__).parent / "res"
     if not res_dir.is_dir():
         raise ValueError(f"{res_dir} not found")
-    out = res_dir / datetime.now().astimezone().strftime("%Y-%m-%d--%H-%M-%S-%f--%z")
+    out = res_dir / env.execution_key()
     out.mkdir()
 
     run: Logger
