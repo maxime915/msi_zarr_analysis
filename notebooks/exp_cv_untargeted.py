@@ -374,9 +374,9 @@ def mono(p_values):
 
 
 def cer_fdr(
+    mprobes_results: pd.DataFrame,
     X: np.ndarray,
     Y: np.ndarray,
-    vImp: Literal["attribue"],
     model: ForestClassifier,
     nb_perm: int,
     n_to_compute: int,
@@ -389,29 +389,39 @@ def cer_fdr(
         m_.fit(x_, y_)
         return m_.feature_importances_
 
-    if vImp == "attribue":
-        get_vImp_method = vImp_attr
-    else:
-        raise ValueError(f"{vImp=!r} is invalid")
+    # sort the whole dataframe by importance
+    results = mprobes_results.sort_values("Imp", ascending=False)
+    del mprobes_results  # make sure we don't modify the given dataframe
+    var_imp_noperm = results.Imp.to_numpy()
 
-    var_imp_noperm = get_vImp_method(X, Y, (None,))
     # ranks are integers, ties are broken based on position in the array
-    rank_noperm = rankdata(var_imp_noperm, method="ordinal")
+    rank_noperm = rankdata(var_imp_noperm, method="ordinal") - 1
 
-    return _cer_fdr__inner(
+    CER, FDR, eFDR = _cer_fdr__inner(
         X,
         Y,
-        get_vImp_method,
+        vImp_attr,
         (None,),
         nb_perm,
         n_to_compute,
         thresh_stop,
         rank_noperm,
-        np.sort(var_imp_noperm)[::-1],
+        var_imp_noperm,
     )
 
+    # NaN for those which weren't computed (removes the -555.0)
+    CER[n_to_compute:] = np.nan
+    FDR[n_to_compute:] = np.nan
+    eFDR[n_to_compute:] = np.nan
 
-@nb.jit("void(f8[:], f8[:], f8[:])")
+    results["CER"] = CER
+    results["FDR"] = FDR
+    results["eFDR"] = eFDR
+
+    return results
+
+
+@nb.jit("void(f8[:], f8[:], f8[:])", nopython=True)
 def __incr_fdr(fdr: np.ndarray, imp_orig: np.ndarray, imp_perm: np.ndarray):
     """increment FDR count. imp_orig and imp_perm are left unchanged.
 
@@ -447,7 +457,7 @@ def __incr_fdr(fdr: np.ndarray, imp_orig: np.ndarray, imp_perm: np.ndarray):
         fdr[it_orig] += count
 
 
-@nb.jit("void(f8[:], f8[:], f8[:])")
+@nb.jit("void(f8[:], f8[:], f8[:])", nopython=True)
 def __incr_fdr_baseline(fdr: np.ndarray, imp_orig: np.ndarray, imp_perm: np.ndarray):
     "this is the trivial O(N^2) implementation, used for regression checking"
 
@@ -606,7 +616,7 @@ def _cer_fdr__inner(
                 print("feature %d - permutation %d..." % (i_current + 1, t + 1))
 
                 order_perm = np.random.permutation(nb_obj)
-                Y_perm = Y[order_perm, :].copy()
+                Y_perm = Y[order_perm].copy()
                 X_perm = X.copy()
                 for i in range(i_current):
                     X_perm[:, rank_noperm[i]] = X_perm[order_perm, rank_noperm[i]]
@@ -650,7 +660,6 @@ def _cer_fdr__inner(
     return CER, FDR, eFDR
 
 
-# TODO grouping and weights ?
 def mprobes(
     X: np.ndarray | pd.DataFrame,
     Y: np.ndarray | pd.DataFrame,
@@ -727,7 +736,7 @@ def mprobes(
         var_imp = model.fit(X_full, Y).feature_importances_
 
         # Highest relevance score among all contrasts
-        contrast_imp_max = max(var_imp[nb_feat : nb_feat * 2])
+        contrast_imp_max = np.max(var_imp[nb_feat : nb_feat * 2])
 
         # Original variables with a score lower than the highest score among all contrasts
         irr_var_idx = np.where(var_imp[:nb_feat] <= contrast_imp_max)
@@ -776,6 +785,9 @@ except NameError:
 # %%
 
 X, y, w, g = _ds_to_Xy(dataset, "ls/sc", "regions", True)
+
+# %%
+
 results = mprobes(
     X,
     y,
@@ -787,22 +799,21 @@ results = mprobes(
 results["bin_center"] = 0.5 * (dataset.bin_l + dataset.bin_r)
 results["bin_width"] = dataset.bin_r - dataset.bin_l
 
-print(results.to_csv())
-
 # %%
 
-cer, fdr, efdr = cer_fdr(
+results = cer_fdr(
+    results,
     X,
     y,
-    vImp="attribue",
     model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
     nb_perm=n_perms,
     n_to_compute=40,
     thresh_stop=0.2,
 )
 
-results["cer"] = cer
-results["fdr"] = fdr
-results["edfr"] = efdr
-
 # %%
+
+res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted"
+res_dir.mkdir(exist_ok=True)
+
+results.to_csv(res_dir / f"res-{n_trees=}-{max_feat=}-{n_perms=}-{joint=}.csv")
