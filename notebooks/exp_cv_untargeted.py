@@ -3,7 +3,7 @@
 import argparse
 from itertools import product  # noqa
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, Protocol
+from typing import Any, Callable, Literal, NamedTuple, Protocol
 from warnings import warn
 
 import numba as nb
@@ -379,7 +379,7 @@ def cer_fdr(
     Y: np.ndarray,
     model: ForestClassifier,
     nb_perm: int,
-    n_to_compute: int,
+    n_to_compute: int | Literal["all"],
     thresh_stop: float,
 ):
     "wrapper around the CER_FDR function"
@@ -410,9 +410,9 @@ def cer_fdr(
     )
 
     # NaN for those which weren't computed (removes the -555.0)
-    CER[n_to_compute:] = np.nan
-    FDR[n_to_compute:] = np.nan
-    eFDR[n_to_compute:] = np.nan
+    CER[CER == -555.0] = np.nan
+    FDR[FDR == -555.0] = np.nan
+    eFDR[eFDR == -555.0] = np.nan
 
     results["CER"] = CER
     results["FDR"] = FDR
@@ -483,13 +483,13 @@ def check(size: int = 1024):
 def _cer_fdr__inner(
     X: np.ndarray,
     Y: np.ndarray,
-    get_vImp_method,
-    param,
-    nb_perm,
-    n_to_compute,
-    thresh_stop,
-    rank_noperm,
-    var_imp_noperm,
+    get_vImp_method: Callable[[np.ndarray, np.ndarray, Any], np.ndarray],
+    param: Any,
+    nb_perm: int,
+    n_to_compute: int | Literal["all"],
+    thresh_stop: float,
+    rank_noperm: np.ndarray,
+    var_imp_noperm: np.ndarray,
 ):
     """
     adapted from: https://academic.oup.com/bioinformatics/article/28/13/1766/234473
@@ -528,6 +528,8 @@ def _cer_fdr__inner(
     if len(rank_noperm) != nb_feat:
         raise ValueError(f"{len(rank_noperm)=} != {X.shape[1]=}")
 
+    if n_to_compute == "all":
+        n_to_compute = nb_feat
     if n_to_compute <= 0 or n_to_compute > nb_feat:
         raise ValueError(f"{n_to_compute=!r} not in [1, {nb_feat=}]")
 
@@ -807,8 +809,8 @@ results = cer_fdr(
     y,
     model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
     nb_perm=n_perms,
-    n_to_compute=40,
-    thresh_stop=0.2,
+    n_to_compute="all",
+    thresh_stop=0.4,
 )
 
 # %%
