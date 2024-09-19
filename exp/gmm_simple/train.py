@@ -6,17 +6,17 @@ import numpy as np
 import omezarrmsi as ozm
 import runexp
 import torch
-import wandb
+import yaml
+from config import PSConfig
 from runexp import env
 from torch.optim.adam import Adam
 from torch.utils.data.dataloader import DataLoader
-from wandb.sdk.wandb_run import Run
-from wandb.sdk.lib.disabled import RunDisabled
 
-from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset
+import wandb
 from msi_zarr_analysis.ml.gmm import GMM1DCls
-
-from config import PSConfig
+from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset
+from wandb.sdk.lib.disabled import RunDisabled
+from wandb.sdk.wandb_run import Run
 
 
 @runtime_checkable
@@ -118,6 +118,12 @@ def prep_train(cfg: PSConfig, dataset: MSIDataset):
         run = run_
     else:
         raise ValueError("failed to log in to wandb")
+
+    # save a copy of the config so it's easier to parse back
+    with open(out / "config.yml", "w", encoding="utf8") as out_cfg:
+        cfg_dict = runexp.config_file.to_dict(cfg)
+        cfg_dict["wandb_name"] = run.get_url() or run.name
+        yaml.safe_dump(cfg_dict, out_cfg)
 
     return device, model, dl_neg, dl_pos, run, out
 
