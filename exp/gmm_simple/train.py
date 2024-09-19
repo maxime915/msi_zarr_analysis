@@ -132,9 +132,9 @@ def train(cfg: PSConfig):
     device, model, dl_neg, dl_pos, run, out = prep_train(cfg, load_dataset(cfg))
     optim = Adam(model.parameters(), lr=cfg.lr)
 
-    # traces_mu_lst = [model.mu.detach().cpu()]
-    # traces_s1_lst = [model.s1.detach().cpu()]
-    # traces_w_lst = [model.peak_importance().detach_().cpu()]
+    mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components, device=device)
+    ratio_min_lst = [model.ratio_min(mz_vals).detach().cpu()]
+    ratio_max_lst = [model.ratio_max(mz_vals).detach().cpu()]
 
     for _ in range(cfg.epochs):
         tr_losses = torch.tensor(2 * [0.0], device=device)
@@ -155,21 +155,18 @@ def train(cfg: PSConfig):
             tr_losses += torch.stack([nll_n, nll_p]).detach()
             num_batches += 1
 
-        # traces_mu_lst.append(model.mu.detach().cpu())
-        # traces_s1_lst.append(model.s1.detach().cpu())
-        # traces_w_lst.append(model.peak_importance().detach_().cpu())
+        ratio_min_lst.append(model.ratio_min(mz_vals).detach().cpu())
+        ratio_max_lst.append(model.ratio_max(mz_vals).detach().cpu())
 
         tr_losses /= num_batches
         run.log({"train/nll_n": float(tr_losses[0])}, commit=False)
         run.log({"train/nll_p": float(tr_losses[1])})
 
-    # save traces, model, ...
-    # np.save(out / "traces_mu", torch.stack(traces_mu_lst).numpy())
-    # np.save(out / "traces_s1", torch.stack(traces_s1_lst).numpy())
-    # np.save(out / "traces_w", torch.stack(traces_w_lst).numpy())
+    # save ratio & model
+    np.save(out / "ratio_min", torch.stack(ratio_min_lst).numpy())
+    np.save(out / "ratio_max", torch.stack(ratio_max_lst).numpy())
     torch.save(model.state_dict(), out / "model.pth")
 
 
 if __name__ == "__main__":
-    # TODO test drive
     runexp.runexp_main(train)
