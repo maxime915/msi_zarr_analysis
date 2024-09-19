@@ -7,6 +7,7 @@ import omezarrmsi as ozm
 import runexp
 import torch
 import wandb
+import yaml
 from runexp import env
 from torch.optim.adam import Adam
 from torch.utils.data.dataloader import DataLoader
@@ -134,6 +135,12 @@ def prep_train(cfg: PSConfig, datasets: dict[str, MSIDataset]):
         run = run_
     else:
         raise ValueError("failed to log in to wandb")
+
+    # save a copy of the config so it's easier to parse back
+    with open(out / "config.yml", "w", encoding="utf8") as out_cfg:
+        cfg_dict = runexp.config_file.to_dict(cfg)
+        cfg_dict["wandb_name"] = run.get_url() or run.name
+        yaml.safe_dump(cfg_dict, out_cfg)
 
     return device, model, train_dl, val_dl, run, out
 
