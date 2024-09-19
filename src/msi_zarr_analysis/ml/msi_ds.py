@@ -67,6 +67,33 @@ class MSIDataset(Dataset):
         self.labels_neg = sorted(labels_neg)
 
     @staticmethod
+    def load_full_images(
+        ds: ozm.OMEZarrMSI,
+        *,
+        min_len_hint: int | None = None,
+    ):
+        min_len = ds.int_shape[Axis.C]
+        if min_len_hint is not None:
+            if min_len_hint < min_len:
+                raise ValueError(f"{min_len_hint=!r} < computed {min_len}")
+            min_len = min_len_hint
+
+        z_len = ds.z_len
+        assert len(z_len.shape) == 4
+        assert z_len.shape[:2] == (1, 1)
+
+        mask: np.ndarray = z_len[...] > 0  # type:ignore
+        coords = _get_coordinates(mask, ds.int_shape)
+
+        spectra = ds.fetch_spectra(*[c.without_axes(Axis.C) for c in coords])
+        a_mzs = _pad_seq_to(min_len, (s_mzs for s_mzs, _ in spectra))
+        a_int = _pad_seq_to(min_len, (s_int for _, s_int in spectra))
+
+        _, _, ys, xs = mask.nonzero()
+
+        return a_mzs, a_int, ys, xs
+
+    @staticmethod
     def load(
         ds: ozm.OMEZarrMSI,
         *,
