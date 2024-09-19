@@ -44,6 +44,28 @@ def _pad_seq_to(size: int, arr: Iterable[np.ndarray]):
     return _pad_to(tsr, size, axis=1)
 
 
+class FlattenedDataset(Dataset):
+    def __init__(
+        self,
+        mzs_: torch.Tensor,
+        int_: torch.Tensor,
+    ):
+        self.mzs_ = mzs_
+        self.int_ = int_
+
+    def to(self, device: torch.device):
+        return FlattenedDataset(
+            self.mzs_.to(device),
+            self.int_.to(device),
+        )
+
+    def __len__(self):
+        return len(self.mzs_)
+
+    def __getitem__(self, index):
+        return self.mzs_[index], self.int_[index]
+
+
 class MSIDataset(Dataset):
     def __init__(
         self,
@@ -160,7 +182,9 @@ class MSIDataset(Dataset):
 
         assert datasets, "at least one must be provided"
         labels_p, labels_n = datasets[0].labels_pos, datasets[0].labels_neg
-        if any(ds.labels_pos != labels_p or ds.labels_neg != labels_n for ds in datasets):
+        if any(
+            ds.labels_pos != labels_p or ds.labels_neg != labels_n for ds in datasets
+        ):
             raise ValueError(f"{datasets} have inconsistent labels")
 
         # add padding if necessary
@@ -177,6 +201,23 @@ class MSIDataset(Dataset):
             labels_pos=labels_p,
             labels_neg=labels_n,
         )
+
+    def to_mass_groups(self):
+        # split by label
+        mzs_pos = self.mzs_[self.y == 1].flatten()
+        int_pos = self.int_[self.y == 1].flatten()
+        mzs_neg = self.mzs_[self.y == 0].flatten()
+        int_neg = self.int_[self.y == 0].flatten()
+
+        # remove the masses that were used for padding & too low intensities
+        pos_mask = (mzs_pos > 0.0) & (int_pos > 1.0e2)
+        neg_mask = (mzs_neg > 0.0) & (int_neg > 1.0e2)
+        int_pos = int_pos[pos_mask]
+        mzs_pos = mzs_pos[pos_mask]
+        int_neg = int_neg[neg_mask]
+        mzs_neg = mzs_neg[neg_mask]
+
+        return FlattenedDataset(mzs_neg, int_neg), FlattenedDataset(mzs_pos, int_pos)
 
     def to(self, device: torch.device):
         return MSIDataset(

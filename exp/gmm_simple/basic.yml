@@ -1,0 +1,13 @@
+base_config:
+  problem: "sc/ls"
+  data_dir_s: null
+  region: "13"
+  norm_intensity: 1.0e-5
+  components: 1000
+  mz_min: 300.0
+  mz_max: 1000.0
+  epochs: 50
+  batch_size: 1000
+  lr: 1.0e-2
+  wandb_entity: null
+  wandb_mode: null
