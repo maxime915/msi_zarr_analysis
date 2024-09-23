@@ -56,6 +56,8 @@ def load_dataset(cfg: PSConfig):
     files = sorted(cfg.data_dir.iterdir())
     assert len(files) == 6
 
+    # NOTE in this case it only makes sense to use the 317 norm
+    # without normalisation there may be a bias which would invalidate the results
     files = [f for f in files if "317norm" in f.name]
     assert len(files) == 3, files
 
@@ -84,7 +86,11 @@ def prep_train(cfg: PSConfig, dataset: MSIDataset):
     assert torch.cuda.is_available()
     device = torch.device("cuda:0")
 
-    ds_neg, ds_pos = dataset.to_mass_groups()
+    ds_neg, ds_pos = dataset.to_mass_groups(
+        filter_mz_lo=cfg.mz_min,
+        filter_mz_hi=cfg.mz_max,
+        filter_int_lo=cfg.int_min,
+    )
 
     dl_neg = DataLoader(
         ds_neg.to(device), batch_size=cfg.batch_size, shuffle=True, num_workers=0

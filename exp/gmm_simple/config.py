@@ -18,6 +18,9 @@ class PSConfig:
     batch_size: int
     lr: float
 
+    # late addition
+    int_min: float = 1.0e2
+
     wandb_name: str | None = None
     wandb_project: str | None = None
     wandb_entity: str | None = None

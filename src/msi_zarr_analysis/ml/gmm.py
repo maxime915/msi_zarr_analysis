@@ -15,7 +15,7 @@ from torch.nn.functional import softmax
 warnings.filterwarnings("ignore", category=NumbaPerformanceWarning)
 
 # I honestly have no idea of how to fix that, this gives good enough perf on the laptop
-THREADS_PER_BLOCK: int = 32
+THREADS_PER_BLOCK: int = 128
 HALF_LOG_2_PI: float = 0.5 * math.log(2 * math.pi)
 INV_SQRT_2_PI: float = math.pow(2 * math.pi, -0.5)
 
@@ -239,7 +239,7 @@ class GMM1D(nn.Module):
             compute_grad_inputs=False,
         )
 
-    def log_likelihood(self, inputs: torch.Tensor) -> torch.Tensor:
+    def neg_log_likelihood(self, inputs: torch.Tensor) -> torch.Tensor:
         "log likelihood of a batch of inputs"
 
         return _prob_to_nll(self.prob(inputs))
@@ -249,7 +249,7 @@ class GMM1D(nn.Module):
     ) -> torch.Tensor:
         "weighted sum of the negative log likelihood for all inputs"
 
-        return torch.sum(weights * self.log_likelihood(inputs))
+        return torch.sum(weights * self.neg_log_likelihood(inputs))
 
 
 class GMM1DCls(nn.Module):
@@ -268,14 +268,14 @@ class GMM1DCls(nn.Module):
 
     def ratio_max(self, batch: torch.Tensor):
         # TODO doc
-        llh_pos = self.pos_head.log_likelihood(batch)
-        llh_neg = self.neg_head.log_likelihood(batch)
+        llh_pos = self.pos_head.neg_log_likelihood(batch)
+        llh_neg = self.neg_head.neg_log_likelihood(batch)
 
         return torch.exp(torch.abs(llh_pos - llh_neg))
 
     def ratio_min(self, batch: torch.Tensor):
         # TODO doc
-        llh_pos = self.pos_head.log_likelihood(batch)
-        llh_neg = self.neg_head.log_likelihood(batch)
+        llh_pos = self.pos_head.neg_log_likelihood(batch)
+        llh_neg = self.neg_head.neg_log_likelihood(batch)
 
         return 1.0 - torch.exp(-torch.abs(llh_pos - llh_neg))
