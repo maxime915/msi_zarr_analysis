@@ -14,7 +14,7 @@ from torch.utils.data.dataloader import DataLoader
 
 import wandb
 from msi_zarr_analysis.ml.gmm import GMM1DCls
-from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset, split_to_mass_groups
+from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset, split_to_mass_groups, FlattenedDataset
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.sdk.wandb_run import Run
 
@@ -83,8 +83,6 @@ def load_dataset(cfg: PSConfig):
 
 
 def prep_train(cfg: PSConfig, dataset: MSIDataset):
-    assert torch.cuda.is_available()
-    device = torch.device("cuda:0")
 
     ds_neg, ds_pos = split_to_mass_groups(
         dataset.mzs_,
@@ -95,17 +93,7 @@ def prep_train(cfg: PSConfig, dataset: MSIDataset):
         filter_int_lo=cfg.int_min,
     )
 
-    dl_neg = DataLoader(
-        ds_neg.to(device), batch_size=cfg.batch_size, shuffle=True, num_workers=0
-    )
-    dl_pos = DataLoader(
-        ds_pos.to(device),
-        batch_size=cfg.batch_size,
-        shuffle=True,
-        num_workers=0,
-    )
-
-    model = GMM1DCls(cfg.components, cfg.mz_min, cfg.mz_max).to(device)
+    model = GMM1DCls(cfg.components, cfg.mz_min, cfg.mz_max)
 
     res_dir = pathlib.Path(__file__).parent / "res"
     if not res_dir.is_dir():
@@ -134,11 +122,31 @@ def prep_train(cfg: PSConfig, dataset: MSIDataset):
         cfg_dict["wandb_name"] = run.get_url() or run.name
         yaml.safe_dump(cfg_dict, out_cfg)
 
-    return device, model, dl_neg, dl_pos, run, out
+    return model, ds_neg, ds_pos, run, out
 
 
-def train(cfg: PSConfig):
-    device, model, dl_neg, dl_pos, run, out = prep_train(cfg, load_dataset(cfg))
+def train_model(
+    cfg: PSConfig,
+    device: torch.device,
+    model: GMM1DCls,
+    dataset_neg: FlattenedDataset,
+    dataset_pos: FlattenedDataset,
+    run: Logger,
+):
+    "update `model` to fit the given dataset"
+
+    model = model.to(device)
+
+    dl_neg = DataLoader(
+        dataset_neg.to(device), batch_size=cfg.batch_size, shuffle=True, num_workers=0
+    )
+    dl_pos = DataLoader(
+        dataset_pos.to(device),
+        batch_size=cfg.batch_size,
+        shuffle=True,
+        num_workers=0,
+    )
+
     optim = Adam(model.parameters(), lr=cfg.lr)
 
     mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components, device=device)
@@ -171,9 +179,20 @@ def train(cfg: PSConfig):
         run.log({"train/nll_n": float(tr_losses[0])}, commit=False)
         run.log({"train/nll_p": float(tr_losses[1])})
 
+    return mz_vals, torch.stack(ratio_min_lst), torch.stack(ratio_max_lst), model
+
+
+def train(cfg: PSConfig):
+    assert torch.cuda.is_available()
+    device = torch.device("cuda:0")
+
+    model, ds_neg, ds_pos, run, out = prep_train(cfg, load_dataset(cfg))
+    mz_vals, ratio_min, ratio_max, model = train_model(cfg, device, model, ds_neg, ds_pos, run)
+
     # save ratio & model
-    np.save(out / "ratio_min", torch.stack(ratio_min_lst).numpy())
-    np.save(out / "ratio_max", torch.stack(ratio_max_lst).numpy())
+    np.save(out / "mz_vals", mz_vals.numpy())
+    np.save(out / "ratio_min", ratio_min.numpy())
+    np.save(out / "ratio_max", ratio_max.numpy())
     torch.save(model.state_dict(), out / "model.pth")
 
 
