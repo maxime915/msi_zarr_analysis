@@ -150,8 +150,8 @@ def train_model(
     optim = Adam(model.parameters(), lr=cfg.lr)
 
     mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components, device=device)
-    ratio_min_lst = [model.ratio_min(mz_vals).detach().cpu()]
-    ratio_max_lst = [model.ratio_max(mz_vals).detach().cpu()]
+    nll_n_lst = [model.ratio_min(mz_vals).detach().cpu()]
+    nll_p_lst = [model.ratio_max(mz_vals).detach().cpu()]
 
     for _ in range(cfg.epochs):
         tr_losses = torch.tensor(2 * [0.0], device=device)
@@ -172,14 +172,14 @@ def train_model(
             tr_losses += torch.stack([nll_n, nll_p]).detach()
             num_batches += 1
 
-        ratio_min_lst.append(model.ratio_min(mz_vals).detach().cpu())
-        ratio_max_lst.append(model.ratio_max(mz_vals).detach().cpu())
+        nll_n_lst.append(model.neg_head.neg_log_likelihood(mz_vals).detach().cpu())
+        nll_p_lst.append(model.pos_head.neg_log_likelihood(mz_vals).detach().cpu())
 
         tr_losses /= num_batches
         run.log({"train/nll_n": float(tr_losses[0])}, commit=False)
         run.log({"train/nll_p": float(tr_losses[1])})
 
-    return mz_vals, torch.stack(ratio_min_lst), torch.stack(ratio_max_lst), model
+    return mz_vals, torch.stack(nll_n_lst), torch.stack(nll_p_lst), model
 
 
 def train(cfg: PSConfig):
@@ -187,12 +187,12 @@ def train(cfg: PSConfig):
     device = torch.device("cuda:0")
 
     model, ds_neg, ds_pos, run, out = prep_train(cfg, load_dataset(cfg))
-    mz_vals, ratio_min, ratio_max, model = train_model(cfg, device, model, ds_neg, ds_pos, run)
+    mz_vals, nll_n, nll_p, model = train_model(cfg, device, model, ds_neg, ds_pos, run)
 
     # save ratio & model
     np.save(out / "mz_vals", mz_vals.numpy())
-    np.save(out / "ratio_min", ratio_min.numpy())
-    np.save(out / "ratio_max", ratio_max.numpy())
+    np.save(out / "nll_n", nll_n.numpy())
+    np.save(out / "nll_p", nll_p.numpy())
     torch.save(model.state_dict(), out / "model.pth")
 
 
