@@ -14,7 +14,12 @@ from torch.utils.data.dataloader import DataLoader
 
 import wandb
 from msi_zarr_analysis.ml.gmm import GMM1DCls
-from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset, split_to_mass_groups, FlattenedDataset
+from msi_zarr_analysis.ml.msi_ds import (
+    Axis,
+    MSIDataset,
+    split_to_mass_groups,
+    FlattenedDataset,
+)
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.sdk.wandb_run import Run
 
@@ -136,6 +141,7 @@ def train_model(
     "update `model` to fit the given dataset"
 
     model = model.to(device)
+    optim = Adam(model.parameters(), lr=cfg.lr)
 
     dl_neg = DataLoader(
         dataset_neg.to(device), batch_size=cfg.batch_size, shuffle=True, num_workers=0
@@ -147,17 +153,14 @@ def train_model(
         num_workers=0,
     )
 
-    optim = Adam(model.parameters(), lr=cfg.lr)
-
     mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components, device=device)
     nll_n_lst = [model.ratio_min(mz_vals).detach().cpu()]
     nll_p_lst = [model.ratio_max(mz_vals).detach().cpu()]
 
-    for _ in range(cfg.epochs):
-        tr_losses = torch.tensor(2 * [0.0], device=device)
+    last_nll_n_mean = last_nll_p_mean = torch.inf
+    for _ in range(cfg.max_epochs):
         model.train(True)
 
-        num_batches = 0
         for (m_n, i_n), (m_p, i_p) in zip(dl_neg, dl_pos, strict=False):
             optim.zero_grad()
             nll_n = model.neg_head.ws_neg_log_likelihood(
@@ -169,17 +172,26 @@ def train_model(
             (nll_n + nll_p).backward()
             optim.step()
 
-            tr_losses += torch.stack([nll_n, nll_p]).detach()
-            num_batches += 1
+        nll_n = model.neg_head.neg_log_likelihood(mz_vals).detach().cpu()
+        nll_p = model.pos_head.neg_log_likelihood(mz_vals).detach().cpu()
+        nll_n_mean = float(torch.mean(nll_n))
+        nll_p_mean = float(torch.mean(nll_p))
 
-        nll_n_lst.append(model.neg_head.neg_log_likelihood(mz_vals).detach().cpu())
-        nll_p_lst.append(model.pos_head.neg_log_likelihood(mz_vals).detach().cpu())
+        nll_n_lst.append(nll_n)
+        nll_p_lst.append(nll_p)
+        run.log({"train/nll_n": nll_n_mean, "train/nll_p": nll_p_mean})
 
-        tr_losses /= num_batches
-        run.log({"train/nll_n": float(tr_losses[0])}, commit=False)
-        run.log({"train/nll_p": float(tr_losses[1])})
+        # criterion : mean of the log of the probability for all samples in the training set
+        # if this doesn't change by *thresh*, stop the training
+        if (
+            abs(last_nll_n_mean - nll_n_mean) < cfg.convergence_threshold
+            and abs(last_nll_p_mean - nll_p_mean) < cfg.convergence_threshold
+        ):
+            break
 
-    return mz_vals, torch.stack(nll_n_lst), torch.stack(nll_p_lst), model
+        last_nll_n_mean, last_nll_p_mean = nll_n_mean, nll_p_mean
+
+    return mz_vals.cpu(), torch.stack(nll_n_lst), torch.stack(nll_p_lst), model
 
 
 def train(cfg: PSConfig):

@@ -11,15 +11,14 @@ class PSConfig:
     data_dir_s: str
     region: Literal["13", "14", "15"]
     norm_intensity: float
+    int_min: float
     components: int
     mz_min: float
     mz_max: float
-    epochs: int
+    max_epochs: int
+    convergence_threshold: float
     batch_size: int
     lr: float
-
-    # late addition
-    int_min: float = 1.0e2
 
     wandb_name: str | None = None
     wandb_project: str | None = None
