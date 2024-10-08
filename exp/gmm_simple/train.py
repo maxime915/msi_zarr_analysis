@@ -14,7 +14,7 @@ from torch.utils.data.dataloader import DataLoader
 
 import wandb
 from msi_zarr_analysis.ml.gmm import GMM1DCls
-from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset
+from msi_zarr_analysis.ml.msi_ds import Axis, MSIDataset, split_to_mass_groups
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.sdk.wandb_run import Run
 
@@ -86,7 +86,10 @@ def prep_train(cfg: PSConfig, dataset: MSIDataset):
     assert torch.cuda.is_available()
     device = torch.device("cuda:0")
 
-    ds_neg, ds_pos = dataset.to_mass_groups(
+    ds_neg, ds_pos = split_to_mass_groups(
+        dataset.mzs_,
+        dataset.int_,
+        dataset.y,
         filter_mz_lo=cfg.mz_min,
         filter_mz_hi=cfg.mz_max,
         filter_int_lo=cfg.int_min,

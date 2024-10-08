@@ -66,6 +66,62 @@ class FlattenedDataset(Dataset):
         return self.mzs_[index], self.int_[index]
 
 
+def split_to_mass_groups(
+    mzs_: torch.Tensor,
+    int_: torch.Tensor,
+    y: torch.Tensor,
+    filter_mz_lo: float = 0.0,
+    filter_mz_hi: float | None = None,
+    filter_int_lo: float | None = None,
+):
+    """Split the MSI dataset into two mass group, one for each label.
+
+    Args:
+        filter_mz_lo (float, optional): Lower bound for the m/z values. Must be non-negative. Defaults to 0.0.
+        filter_mz_hi (float | None, optional): Higher bound for the m/z values. Must be higher than filter_mz_lo. Defaults to None.
+        filter_int_lo (float | None, optional): Lower bound for the intensities. Defaults to None.
+
+    Returns:
+        tuple[FlattenedDataset, FlattenedDataset]: negative group, positive group
+    """
+
+    if filter_mz_lo < 0.0:
+        raise ValueError(f"{filter_mz_lo=} < 0.0")
+    if filter_mz_hi is not None and filter_mz_hi <= filter_mz_lo:
+        raise ValueError(f"{filter_mz_hi=} <= {filter_mz_lo=}")
+
+    # split by label
+    mzs_pos = mzs_[y == 1].flatten()
+    int_pos = int_[y == 1].flatten()
+    mzs_neg = mzs_[y == 0].flatten()
+    int_neg = int_[y == 0].flatten()
+
+    pos_mask = torch.ones_like(mzs_pos, dtype=torch.bool)
+    neg_mask = pos_mask.clone()
+
+    if filter_int_lo is not None:  # ignore low intensities masses
+        pos_mask = int_pos > filter_int_lo
+        neg_mask = int_neg > filter_int_lo
+    if filter_mz_lo is not None:  # remove masses before a threshold
+        pos_mask &= mzs_pos > filter_mz_lo
+        neg_mask &= mzs_neg > filter_mz_lo
+    if filter_mz_hi is not None:  # remove masses after a threshold
+        pos_mask &= mzs_pos < filter_mz_hi
+        neg_mask &= mzs_neg < filter_mz_hi
+
+    if not pos_mask.any():
+        raise ValueError("the filtering removed all data in the positive class")
+    if not neg_mask.any():
+        raise ValueError("the filtering removed all data in the negative class")
+
+    int_pos = int_pos[pos_mask]
+    mzs_pos = mzs_pos[pos_mask]
+    int_neg = int_neg[neg_mask]
+    mzs_neg = mzs_neg[neg_mask]
+
+    return FlattenedDataset(mzs_neg, int_neg), FlattenedDataset(mzs_pos, int_pos)
+
+
 class MSIDataset(Dataset):
     def __init__(
         self,
@@ -201,59 +257,6 @@ class MSIDataset(Dataset):
             labels_pos=labels_p,
             labels_neg=labels_n,
         )
-
-    def to_mass_groups(
-        self,
-        filter_mz_lo: float = 0.0,
-        filter_mz_hi: float | None = None,
-        filter_int_lo: float | None = None,
-    ):
-        """Split the MSI dataset into two mass group, one for each label.
-
-        Args:
-            filter_mz_lo (float, optional): Lower bound for the m/z values. Must be non-negative. Defaults to 0.0.
-            filter_mz_hi (float | None, optional): Higher bound for the m/z values. Must be higher than filter_mz_lo. Defaults to None.
-            filter_int_lo (float | None, optional): Lower bound for the intensities. Defaults to None.
-
-        Returns:
-            tuple[FlattenedDataset, FlattenedDataset]: negative group, positive group
-        """
-
-        if filter_mz_lo < 0.0:
-            raise ValueError(f"{filter_mz_lo=} < 0.0")
-        if filter_mz_hi is not None and filter_mz_hi <= filter_mz_lo:
-            raise ValueError(f"{filter_mz_hi=} <= {filter_mz_lo=}")
-
-        # split by label
-        mzs_pos = self.mzs_[self.y == 1].flatten()
-        int_pos = self.int_[self.y == 1].flatten()
-        mzs_neg = self.mzs_[self.y == 0].flatten()
-        int_neg = self.int_[self.y == 0].flatten()
-
-        pos_mask = torch.ones_like(mzs_pos, dtype=torch.bool)
-        neg_mask = pos_mask.clone()
-
-        if filter_int_lo is not None:  # ignore low intensities masses
-            pos_mask = int_pos > filter_int_lo
-            neg_mask = int_neg > filter_int_lo
-        if filter_mz_lo is not None:  # remove masses before a threshold
-            pos_mask &= mzs_pos > filter_mz_lo
-            neg_mask &= mzs_neg > filter_mz_lo
-        if filter_mz_hi is not None:  # remove masses after a threshold
-            pos_mask &= mzs_pos < filter_mz_hi
-            neg_mask &= mzs_neg < filter_mz_hi
-
-        if not pos_mask.any():
-            raise ValueError("the filtering removed all data in the positive class")
-        if not neg_mask.any():
-            raise ValueError("the filtering removed all data in the negative class")
-
-        int_pos = int_pos[pos_mask]
-        mzs_pos = mzs_pos[pos_mask]
-        int_neg = int_neg[neg_mask]
-        mzs_neg = mzs_neg[neg_mask]
-
-        return FlattenedDataset(mzs_neg, int_neg), FlattenedDataset(mzs_pos, int_pos)
 
     def to(self, device: torch.device):
         return MSIDataset(
