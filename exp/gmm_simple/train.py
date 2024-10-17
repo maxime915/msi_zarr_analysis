@@ -134,6 +134,7 @@ def train_model(
     cfg: PSConfig,
     device: torch.device,
     model: GMM1DCls,
+    validation_mz_vals: torch.Tensor,
     dataset_neg: FlattenedDataset,
     dataset_pos: FlattenedDataset,
     run: Logger,
@@ -153,9 +154,9 @@ def train_model(
         num_workers=0,
     )
 
-    mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components, device=device)
-    nll_n_lst = [model.ratio_min(mz_vals).detach().cpu()]
-    nll_p_lst = [model.ratio_max(mz_vals).detach().cpu()]
+    validation_mz_vals = validation_mz_vals.to(device)
+    nll_n_lst = [model.ratio_min(validation_mz_vals).detach().cpu()]
+    nll_p_lst = [model.ratio_max(validation_mz_vals).detach().cpu()]
 
     last_nll_n_mean = last_nll_p_mean = torch.inf
     for _ in range(cfg.max_epochs):
@@ -172,8 +173,8 @@ def train_model(
             (nll_n + nll_p).backward()
             optim.step()
 
-        nll_n = model.neg_head.neg_log_likelihood(mz_vals).detach().cpu()
-        nll_p = model.pos_head.neg_log_likelihood(mz_vals).detach().cpu()
+        nll_n = model.neg_head.neg_log_likelihood(validation_mz_vals).detach().cpu()
+        nll_p = model.pos_head.neg_log_likelihood(validation_mz_vals).detach().cpu()
         nll_n_mean = float(torch.mean(nll_n))
         nll_p_mean = float(torch.mean(nll_p))
 
@@ -191,7 +192,7 @@ def train_model(
 
         last_nll_n_mean, last_nll_p_mean = nll_n_mean, nll_p_mean
 
-    return mz_vals.cpu(), torch.stack(nll_n_lst), torch.stack(nll_p_lst), model
+    return torch.stack(nll_n_lst), torch.stack(nll_p_lst)
 
 
 def train(cfg: PSConfig):
@@ -199,7 +200,8 @@ def train(cfg: PSConfig):
     device = torch.device("cuda:0")
 
     model, ds_neg, ds_pos, run, out = prep_train(cfg, load_dataset(cfg))
-    mz_vals, nll_n, nll_p, model = train_model(cfg, device, model, ds_neg, ds_pos, run)
+    mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components)
+    nll_n, nll_p = train_model(cfg, device, model, mz_vals, ds_neg, ds_pos, run)
 
     # save ratio & model
     np.save(out / "mz_vals", mz_vals.numpy())
