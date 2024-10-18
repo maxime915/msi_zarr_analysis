@@ -8,7 +8,7 @@ base_config:
   mz_min: 300.0
   mz_max: 1000.0
   max_epochs: 50
-  convergence_threshold: 1.0e-3
+  convergence_threshold: 5.0e-2
   batch_size: 1000
   lr: 1.0e-2
   wandb_entity: null

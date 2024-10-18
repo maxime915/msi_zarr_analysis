@@ -59,6 +59,19 @@ class FlattenedDataset(Dataset):
             self.int_.to(device),
         )
 
+    def random_split(
+        self, train_weight: float = 0.7, *, generator: torch.Generator | None = None
+    ):
+        r_idx = torch.randperm(len(self), generator=generator)
+        boundary = round(len(self) * train_weight)
+        tr_idx = r_idx[:boundary]
+        vl_idx = r_idx[boundary:]
+
+        return (
+            FlattenedDataset(self.mzs_[tr_idx], self.int_[tr_idx]),
+            FlattenedDataset(self.mzs_[vl_idx], self.int_[vl_idx]),
+        )
+
     def __len__(self):
         return len(self.mzs_)
 

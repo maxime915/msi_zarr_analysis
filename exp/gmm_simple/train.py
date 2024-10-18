@@ -134,7 +134,7 @@ def train_model(
     cfg: PSConfig,
     device: torch.device,
     model: GMM1DCls,
-    validation_mz_vals: torch.Tensor,
+    save_nll_mz: torch.Tensor,
     dataset_neg: FlattenedDataset,
     dataset_pos: FlattenedDataset,
     run: Logger,
@@ -143,6 +143,9 @@ def train_model(
 
     model = model.to(device)
     optim = Adam(model.parameters(), lr=cfg.lr)
+
+    val_neg, dataset_neg = dataset_neg.to(device).random_split(0.7)
+    val_pos, dataset_pos = dataset_pos.to(device).random_split(0.7)
 
     dl_neg = DataLoader(
         dataset_neg.to(device), batch_size=cfg.batch_size, shuffle=True, num_workers=0
@@ -154,9 +157,9 @@ def train_model(
         num_workers=0,
     )
 
-    validation_mz_vals = validation_mz_vals.to(device)
-    nll_n_lst = [model.ratio_min(validation_mz_vals).detach().cpu()]
-    nll_p_lst = [model.ratio_max(validation_mz_vals).detach().cpu()]
+    save_nll_mz = save_nll_mz.to(device)
+    nll_n_lst = [model.ratio_min(save_nll_mz).detach().cpu()]
+    nll_p_lst = [model.ratio_max(save_nll_mz).detach().cpu()]
 
     last_nll_n_mean = last_nll_p_mean = torch.inf
     for _ in range(cfg.max_epochs):
@@ -173,24 +176,31 @@ def train_model(
             (nll_n + nll_p).backward()
             optim.step()
 
-        nll_n = model.neg_head.neg_log_likelihood(validation_mz_vals).detach().cpu()
-        nll_p = model.pos_head.neg_log_likelihood(validation_mz_vals).detach().cpu()
-        nll_n_mean = float(torch.mean(nll_n))
-        nll_p_mean = float(torch.mean(nll_p))
+        with torch.no_grad():
+            nll_n_lst.append(model.neg_head.neg_log_likelihood(save_nll_mz).cpu())
+            nll_p_lst.append(model.pos_head.neg_log_likelihood(save_nll_mz).cpu())
 
-        nll_n_lst.append(nll_n)
-        nll_p_lst.append(nll_p)
-        run.log({"train/nll_n": nll_n_mean, "train/nll_p": nll_p_mean})
+            nll_n = model.neg_head.ws_neg_log_likelihood(
+                val_neg.mzs_, cfg.norm_intensity * val_neg.int_ / len(val_neg)
+            )
+            nll_p = model.pos_head.ws_neg_log_likelihood(
+                val_pos.mzs_, cfg.norm_intensity * val_pos.int_ / len(val_pos)
+            )
+            nll_n_mean = float(nll_n.mean())
+            nll_p_mean = float(nll_p.mean())
+            run.log({"train/nll_n": nll_n_mean, "train/nll_p": nll_p_mean})
 
-        # criterion : mean of the log of the probability for all samples in the training set
-        # if this doesn't change by *thresh*, stop the training
-        if (
-            abs(last_nll_n_mean - nll_n_mean) < cfg.convergence_threshold
-            and abs(last_nll_p_mean - nll_p_mean) < cfg.convergence_threshold
-        ):
-            break
+            # TODO maybe re-think this ? the threshold should be independent of the normalization
 
-        last_nll_n_mean, last_nll_p_mean = nll_n_mean, nll_p_mean
+            # criterion : mean of the log of the probability
+            # if this doesn't change by $thresh, stop the training
+            if (
+                abs(last_nll_n_mean - nll_n_mean) < cfg.convergence_threshold
+                and abs(last_nll_p_mean - nll_p_mean) < cfg.convergence_threshold
+            ):
+                break
+
+            last_nll_n_mean, last_nll_p_mean = nll_n_mean, nll_p_mean
 
     return torch.stack(nll_n_lst), torch.stack(nll_p_lst)
 
