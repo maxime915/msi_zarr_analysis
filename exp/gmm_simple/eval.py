@@ -251,7 +251,8 @@ def false_positive_rate(
         )
 
         # compute importance score for mz_val
-        score = importance_scorer(nll_n[-1], nll_p[-1], prob_ratio(ds_neg.int_, ds_pos.int_))
+        p_ratio = prob_ratio(ds_neg.int_, ds_pos.int_)
+        score = importance_scorer(nll_n[-1], nll_p[-1], p_ratio)
         importance_score_lst.append(score)
 
         # count false positives
@@ -295,13 +296,9 @@ def run_eval(args: argparse.Namespace):
 
     if fpr_iter > 0:
         p_ratio = get_prob_ratio(exp.config, dataset)
-        m_mzs, m_fpr = false_positive_rate(
-            exp,
-            fpr_iter,
-            scorer,
-            scorer(exp.nll_n[-1], exp.nll_p[-1], p_ratio),
-        )
-        fpr_df = pd.DataFrame({"mzs": m_mzs, "fpr": m_fpr})
+        imp = scorer(exp.nll_n[-1], exp.nll_p[-1], p_ratio)
+        m_mzs, m_fpr = false_positive_rate(exp, fpr_iter, scorer, imp)
+        fpr_df = pd.DataFrame({"mzs": m_mzs, "imp": imp, "fpr": m_fpr})
         fpr_df.to_csv(exp.save_to / "fpr.csv")
 
     with torch.no_grad():
@@ -310,4 +307,5 @@ def run_eval(args: argparse.Namespace):
 
 if __name__ == "__main__":
     from run_eval import get_parser
+
     run_eval(get_parser().parse_args())
