@@ -1,11 +1,7 @@
 import argparse
 from runexp.argparse import parse
 
-if __name__ != "__main__":
-    raise RuntimeError("this is a script")
 
-
-# FIXME: this code is duplicated in ./eval.py and ./run_eval.py can we remove duplication without creating any import loop ?
 def get_parser():
     parser = argparse.ArgumentParser(
         description="Evaluate a model on the test set",
@@ -39,4 +35,5 @@ def main():
     run_eval(args)
 
 
-main()  # -> start with runexp
+if __name__ == "__main__":
+    main()  # -> start with runexp

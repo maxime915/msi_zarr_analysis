@@ -260,31 +260,16 @@ def false_positive_rate(
     return exp.mz_vals, false_positives / n_iter
 
 
-def get_parser():
-    parser = argparse.ArgumentParser(
-        description="Evaluate a model on the test set",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-    )
-    parser.add_argument("res-dir", type=str)
-    parser.add_argument("--mz-min", type=float, default=778.0)
-    parser.add_argument("--mz-max", type=float, default=786.0)
-    parser.add_argument(
-        "--override-dataset",
-        type=str,
-        default=None,
-        help=(
-            "this should be used to change the path of the dataset in case the "
-            "evaluation is not run on the same device as the training. Pay "
-            "attention to use the same version of the dataset."
-        ),
-    )
-    parser.add_argument(
-        "--fpr-iter", type=int, default=None, help="set to None (default) to not do any"
-    )
-    return parser
-
-
 def run_eval(args: argparse.Namespace):
+    """run_eval: start the evaluation procedure. `args` should have the following attributes.
+
+    - res-dir (str): the directory containing the results of the training
+    - mz_min (float): a minimal bound to run the evaluation
+    - mz_max (float): a maximal bound to run the evaluation
+    - override-dataset (str | None): a path to use instead of the saved dataset. Ignored if None (default).
+    - fpr_iter (int | None): if None, the FPR is not performed. The number of iteration to compute the FPR of the importance values for all saved m/z values during training. mz_min and mz_max are ignored by this analysis.
+    """
+
     res_dir = pathlib.Path(getattr(args, "res-dir"))
     mz_min = float(getattr(args, "mz_min"))
     mz_max = float(getattr(args, "mz_max"))
@@ -324,4 +309,5 @@ def run_eval(args: argparse.Namespace):
 
 
 if __name__ == "__main__":
+    from run_eval import get_parser
     run_eval(get_parser().parse_args())
