@@ -158,8 +158,9 @@ def train_model(
     )
 
     save_nll_mz = save_nll_mz.to(device)
-    nll_n_lst = [model.ratio_min(save_nll_mz).detach().cpu()]
-    nll_p_lst = [model.ratio_max(save_nll_mz).detach().cpu()]
+    with torch.no_grad():
+        nll_n_lst = [model.neg_head.neg_log_likelihood(save_nll_mz).cpu()]
+        nll_p_lst = [model.pos_head.neg_log_likelihood(save_nll_mz).cpu()]
 
     last_nll_n_mean = last_nll_p_mean = torch.inf
     for _ in range(cfg.max_epochs):
