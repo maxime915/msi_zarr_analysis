@@ -194,7 +194,25 @@ def gmm_prob(
 
 
 class GMM1D(nn.Module):
-    # TODO doc
+    """GMM1D: a 1-dimensional Gaussian-Mixture-Model to model a large domain with
+    many modes, like a mass spectrograph.
+
+    Attributes
+    ----------
+    components : int
+        the number of components for the GMM
+    mz_min: float
+        the beginning of the domain
+    mz_max: float
+        the end of the domain
+    std_dev: float | None, optional
+        the standard deviation of each mode (if None or not given, (mz_max - mz_min) / (2 * components) is used)
+    dtype: torch.dtype, optional
+        the data type of the inputs and outputs of this model (default: torch.float32)
+    generator: torch.Generator | None, optional
+        a PRNG to add noise to the means of the data
+    """
+
     def __init__(
         self,
         components: int,
@@ -231,6 +249,7 @@ class GMM1D(nn.Module):
         self.pi_l = nn.Parameter(pi_logits)
 
     def prob(self, inputs: torch.Tensor):
+        "prob: probability density function for all inputs, independently"
         return gmm_prob(
             softmax(self.pi_l, 0),
             self.mu,
@@ -253,7 +272,25 @@ class GMM1D(nn.Module):
 
 
 class GMM1DCls(nn.Module):
-    # TODO doc
+    """CMM1DCls: a classifier module that uses two GMM1D (one per class) to build
+    a classification. See GMM1D.
+
+    Attributes
+    ----------
+    components : int
+        the number of components for the GMM
+    mz_min: float
+        the beginning of the domain
+    mz_max: float
+        the end of the domain
+    std_dev: float | None, optional
+        the standard deviation of each mode (if None or not given, (mz_max - mz_min) / (2 * components) is used)
+    dtype: torch.dtype, optional
+        the data type of the inputs and outputs of this model (default: torch.float32)
+    generator: torch.Generator | None, optional
+        a PRNG to add noise to the means of the data
+    """
+
     def __init__(
         self,
         components: int,
