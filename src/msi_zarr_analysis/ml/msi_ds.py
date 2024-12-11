@@ -172,8 +172,9 @@ class MSIDataset(Dataset):
 
         return a_mzs, a_int, ys, xs
 
-    @staticmethod
+    @classmethod
     def load(
+        cls,
         ds: ozm.OMEZarrMSI,
         *,
         label_pos: list[Label],
@@ -222,7 +223,7 @@ class MSIDataset(Dataset):
             for spec_lst in spectra
         ]
 
-        return MSIDataset(
+        return cls(
             mzs_=torch.cat(a_mzs, dim=0),
             int_=torch.cat(a_int, dim=0),
             y=torch.tensor(sum(class_idx, [])),
@@ -233,8 +234,8 @@ class MSIDataset(Dataset):
             labels_neg=label_neg,
         )
 
-    @staticmethod
-    def cat(*datasets: "MSIDataset"):
+    @classmethod
+    def cat(cls, *datasets: "MSIDataset"):
         "concatenate multiple MSIDataset instances"
 
         assert datasets, "at least one must be provided"
@@ -248,7 +249,7 @@ class MSIDataset(Dataset):
         spec_len = max(d.mzs_.shape[1] for d in datasets)
         p = partial(_pad_to, size=spec_len, axis=1)
 
-        return MSIDataset(
+        return cls(
             mzs_=torch.cat([p(d.mzs_) for d in datasets], dim=0),
             int_=torch.cat([p(d.int_) for d in datasets], dim=0),
             y=torch.cat([d.y for d in datasets], dim=0),
@@ -260,7 +261,7 @@ class MSIDataset(Dataset):
         )
 
     def to(self, device: torch.device):
-        return MSIDataset(
+        return type(self)(
             mzs_=self.mzs_.to(device),
             int_=self.int_.to(device),
             y=self.y.to(device),
@@ -270,6 +271,35 @@ class MSIDataset(Dataset):
             labels_pos=self.labels_pos,
             labels_neg=self.labels_neg,
         )
+
+    def clone(self):
+        return type(self)(
+            mzs_=self.mzs_.clone(),
+            int_=self.int_.clone(),
+            y=self.y.clone(),
+            w=self.w.clone(),
+            coords=self.coords[:],
+            ds_lst=self.ds_lst[:],
+            labels_pos=self.labels_pos[:],
+            labels_neg=self.labels_neg[:],
+        )
+
+    def shuffle_label(self, generator: torch.Generator | None = None):
+        """Shuffle the labels of the dataset. All spectra are otherwise untouched,
+        so masses and intensities of 1 spectrum will not those of another one.
+
+        Args:
+            generator (torch.Generator | None, optional): generator to use for the shuffling. Defaults to None.
+        """
+
+        perm = torch.randperm(len(self.y), generator=generator)
+        self.y[:] = self.y[perm]
+
+    def shuffled_copy(self, generator: torch.Generator | None = None):
+        "return a copy with the labels shuffled"
+        copy = self.clone()
+        copy.shuffle_label(generator)
+        return copy
 
     def random_split(
         self, train_weight: float = 0.7, *, generator: torch.Generator | None = None
