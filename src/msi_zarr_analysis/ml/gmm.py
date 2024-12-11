@@ -2,6 +2,7 @@
 gmm: Gaussian Mixture Models for MSI & associated utilities
 """
 
+import contextlib
 import math
 import warnings  # noqa: F401
 
@@ -248,6 +249,21 @@ class GMM1D(nn.Module):
         self.lv = nn.Parameter(log_vars)
         self.pi_l = nn.Parameter(pi_logits)
 
+    @contextlib.contextmanager
+    def fix_means(self, source: "GMM1D", *, reset_mu: bool):
+        mu_backup = self.mu.clone()
+        rg_backup = self.mu.requires_grad
+        with torch.no_grad():
+            self.mu[:] = source.mu
+        self.mu.requires_grad = False
+        try:
+            yield self
+        finally:
+            with torch.no_grad():
+                if reset_mu:
+                    self.mu[:] = mu_backup
+                self.mu.requires_grad = rg_backup
+
     def prob(self, inputs: torch.Tensor):
         "prob: probability density function for all inputs, independently"
         return gmm_prob(
@@ -318,3 +334,17 @@ class GMM1DCls(nn.Module):
         llh_neg = self.neg_head.neg_log_likelihood(batch)
 
         return 1.0 - torch.exp(-torch.abs(llh_pos - llh_neg))
+
+    @contextlib.contextmanager
+    def fix_means(self, source: "GMM1DCls", *, reset_mu: bool):
+        """set and freeze the means of the two GMM using the data from source
+
+        Args:
+            source (GMM1DCls): the values to use for the setting
+            reset_mu (bool): if True, the old value are restored on the exit of this context manager. If False, the set values persist after the exit
+        """
+        with (
+            self.pos_head.fix_means(source.pos_head, reset_mu=reset_mu),
+            self.neg_head.fix_means(source.neg_head, reset_mu=reset_mu),
+        ):
+            yield self

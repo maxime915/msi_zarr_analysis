@@ -142,12 +142,15 @@ def train_model(
     vl_neg: FlattenedDataset,
     vl_pos: FlattenedDataset,
     run: Logger,
+    # *,
+    # generator: torch.Generator | None = None,
 ):
     "update `model` to fit the given dataset"
 
     model = model.to(device)
     optim = Adam(model.parameters(), lr=cfg.lr)
 
+    # TODO add new generators
     dl_neg = DataLoader(tr_neg, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
     dl_pos = DataLoader(tr_pos, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
 
@@ -188,6 +191,7 @@ def train_model(
             run.log({"train/nll_n": nll_n_mean, "train/nll_p": nll_p_mean})
 
             # TODO maybe re-think this ? the threshold should be independent of the normalization
+            # or just don't weight anything with the intensities ? that would solve the issue?
 
             # criterion : mean of the log of the probability
             # if this doesn't change by $thresh, stop the training
