@@ -260,11 +260,13 @@ class GMM1DCls(nn.Module):
         mz_min: float,
         mz_max: float,
         std_dev: float | None = None,
+        dtype: torch.dtype = torch.float32,
+        generator: torch.Generator | None = None,
     ):
         super().__init__()
 
-        self.pos_head = GMM1D(components, mz_min, mz_max, std_dev)
-        self.neg_head = GMM1D(components, mz_min, mz_max, std_dev)
+        self.pos_head = GMM1D(components, mz_min, mz_max, std_dev, dtype, generator)
+        self.neg_head = GMM1D(components, mz_min, mz_max, std_dev, dtype, generator)
 
     def ratio_max(self, batch: torch.Tensor):
         # TODO doc
