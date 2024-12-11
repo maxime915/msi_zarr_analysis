@@ -136,7 +136,7 @@ def train_model(
     cfg: PSConfig,
     device: torch.device,
     model: GMM1DCls,
-    save_nll_mz: torch.Tensor,
+    save_nll_mz: torch.Tensor | None,
     tr_neg: FlattenedDataset,
     tr_pos: FlattenedDataset,
     vl_neg: FlattenedDataset,
@@ -151,10 +151,11 @@ def train_model(
     dl_neg = DataLoader(tr_neg, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
     dl_pos = DataLoader(tr_pos, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
 
-    save_nll_mz = save_nll_mz.to(device)
-    with torch.no_grad():
-        nll_n_lst = [model.neg_head.neg_log_likelihood(save_nll_mz).cpu()]
-        nll_p_lst = [model.pos_head.neg_log_likelihood(save_nll_mz).cpu()]
+    if save_nll_mz is not None:
+        save_nll_mz = save_nll_mz.to(device)
+        with torch.no_grad():
+            nll_n_lst = [model.neg_head.neg_log_likelihood(save_nll_mz).cpu()]
+            nll_p_lst = [model.pos_head.neg_log_likelihood(save_nll_mz).cpu()]
 
     last_nll_n_mean = last_nll_p_mean = torch.inf
     for _ in range(cfg.max_epochs):
@@ -172,8 +173,9 @@ def train_model(
             optim.step()
 
         with torch.no_grad():
-            nll_n_lst.append(model.neg_head.neg_log_likelihood(save_nll_mz).cpu())
-            nll_p_lst.append(model.pos_head.neg_log_likelihood(save_nll_mz).cpu())
+            if save_nll_mz is not None:
+                nll_n_lst.append(model.neg_head.neg_log_likelihood(save_nll_mz).cpu())
+                nll_p_lst.append(model.pos_head.neg_log_likelihood(save_nll_mz).cpu())
 
             nll_n = model.neg_head.ws_neg_log_likelihood(
                 vl_neg.mzs_, cfg.norm_intensity * vl_neg.int_ / len(vl_neg)
@@ -196,6 +198,10 @@ def train_model(
                 break
 
             last_nll_n_mean, last_nll_p_mean = nll_n_mean, nll_p_mean
+
+    if save_nll_mz is None:
+        nll_n = torch.empty((0, model.neg_head.mu.shape[0]), device=device)
+        return nll_n, nll_n.clone()
 
     return torch.stack(nll_n_lst), torch.stack(nll_p_lst)
 
