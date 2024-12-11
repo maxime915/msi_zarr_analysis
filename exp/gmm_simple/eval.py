@@ -114,7 +114,7 @@ def classification_prob(nll_n: torch.Tensor, nll_p: torch.Tensor, p_ratio: float
     "P(c=p | x)"
     lh_ratio = torch.exp(nll_p - nll_n)  # P_(x | n) / P_(x | p)
     cls_prob = 1.0 / (1.0 + lh_ratio * p_ratio)
-    return cls_prob.cpu()
+    return cls_prob
 
 
 def ratio_min_max(nll_n: torch.Tensor, nll_p: torch.Tensor, p_ratio: float):
@@ -122,8 +122,8 @@ def ratio_min_max(nll_n: torch.Tensor, nll_p: torch.Tensor, p_ratio: float):
     ratio = torch.exp(diff_llh) * p_ratio  # P_(x, n) / P_(x, p)
     ratio_inv = torch.exp(-diff_llh) / p_ratio  # P_(x, p) / P_(x, n)
 
-    ratio_max = torch.maximum(ratio, ratio_inv).cpu()
-    ratio_min = 1.0 - torch.minimum(ratio, ratio_inv).cpu()
+    ratio_max = torch.maximum(ratio, ratio_inv)
+    ratio_min = 1.0 - torch.minimum(ratio, ratio_inv)
 
     return ratio_min, ratio_max
 
@@ -188,13 +188,13 @@ def show_ratio(exp: Experiment, ds: MSIDataset, mz_min: float, mz_max: float):
     cls_prob = classification_prob(nll_n, nll_p, prob_ratio)
     ratio_min, ratio_max = ratio_min_max(nll_n, nll_p, prob_ratio)
 
-    x_axis = mz_vals.cpu().numpy()
+    x_axis = mz_vals.numpy()
 
-    axes[0, 0].plot(x_axis, ratio_max.numpy())
+    axes[0, 0].plot(x_axis, ratio_max.cpu().numpy())
     axes[0, 0].set_title("ratio max")
-    axes[1, 0].plot(x_axis, ratio_min.numpy())
+    axes[1, 0].plot(x_axis, ratio_min.cpu().numpy())
     axes[1, 0].set_title("ratio min")
-    axes[2, 0].plot(x_axis, cls_prob)
+    axes[2, 0].plot(x_axis, cls_prob.cpu().numpy())
     axes[2, 0].set_title("prob to be of positive class")
 
     fig.tight_layout()
