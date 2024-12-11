@@ -1,4 +1,5 @@
 from functools import partial
+from operator import itemgetter
 from typing import Literal, Iterable
 
 import numpy as np
@@ -53,30 +54,17 @@ class FlattenedDataset(Dataset):
         self.mzs_ = mzs_
         self.int_ = int_
 
-    def to(self, device: torch.device):
-        return FlattenedDataset(
-            self.mzs_.to(device),
-            self.int_.to(device),
-        )
-
-    def random_split(
-        self, train_weight: float = 0.7, *, generator: torch.Generator | None = None
-    ):
-        r_idx = torch.randperm(len(self), generator=generator)
-        boundary = round(len(self) * train_weight)
-        tr_idx = r_idx[:boundary]
-        vl_idx = r_idx[boundary:]
-
-        return (
-            FlattenedDataset(self.mzs_[tr_idx], self.int_[tr_idx]),
-            FlattenedDataset(self.mzs_[vl_idx], self.int_[vl_idx]),
-        )
-
     def __len__(self):
         return len(self.mzs_)
 
     def __getitem__(self, index):
         return self.mzs_[index], self.int_[index]
+
+    def cat(self, other: "FlattenedDataset"):
+        return FlattenedDataset(
+            torch.cat([self.mzs_, other.mzs_]),
+            torch.cat([self.int_, other.int_]),
+        )
 
 
 def split_to_mass_groups(
@@ -281,6 +269,44 @@ class MSIDataset(Dataset):
             ds_lst=self.ds_lst,
             labels_pos=self.labels_pos,
             labels_neg=self.labels_neg,
+        )
+
+    def random_split(
+        self, train_weight: float = 0.7, *, generator: torch.Generator | None = None
+    ):
+        r_idx = torch.randperm(len(self.y), generator=generator)
+        boundary = round(len(self.y) * train_weight)
+        tr_idx = r_idx[:boundary]
+        vl_idx = r_idx[boundary:]
+
+        return self._select(tr_idx), self._select(vl_idx)
+
+    def split_to_mass_groups(
+        self,
+        filter_mz_lo: float = 0.0,
+        filter_mz_hi: float | None = None,
+        filter_int_lo: float | None = None,
+    ):
+        return split_to_mass_groups(
+            self.mzs_,
+            self.int_,
+            self.y,
+            filter_mz_lo,
+            filter_mz_hi,
+            filter_int_lo,
+        )
+
+    def _select(self, indices: torch.Tensor):
+        sampler = itemgetter(*indices)
+        return type(self)(
+            self.mzs_[indices],
+            self.int_[indices],
+            self.y[indices],
+            self.w[indices],
+            list(sampler(self.coords)),
+            self.ds_lst[:],
+            self.labels_pos[:],
+            self.labels_neg[:],
         )
 
     def __len__(self):

@@ -14,12 +14,7 @@ from torch.utils.data.dataloader import DataLoader
 
 import wandb
 from msi_zarr_analysis.ml.gmm import GMM1DCls
-from msi_zarr_analysis.ml.msi_ds import (
-    Axis,
-    MSIDataset,
-    split_to_mass_groups,
-    FlattenedDataset,
-)
+from msi_zarr_analysis.ml.msi_ds import Axis, FlattenedDataset, MSIDataset
 from wandb.sdk.lib.disabled import RunDisabled
 from wandb.sdk.wandb_run import Run
 
@@ -87,17 +82,7 @@ def load_dataset(cfg: PSConfig):
     return dataset
 
 
-def prep_train(cfg: PSConfig, dataset: MSIDataset):
-
-    ds_neg, ds_pos = split_to_mass_groups(
-        dataset.mzs_,
-        dataset.int_,
-        dataset.y,
-        filter_mz_lo=cfg.mz_min,
-        filter_mz_hi=cfg.mz_max,
-        filter_int_lo=cfg.int_min,
-    )
-
+def prep_train(cfg: PSConfig):
     model = GMM1DCls(cfg.components, cfg.mz_min, cfg.mz_max)
 
     res_dir = pathlib.Path(__file__).parent / "res"
@@ -127,7 +112,24 @@ def prep_train(cfg: PSConfig, dataset: MSIDataset):
         cfg_dict["wandb_name"] = run.get_url() or run.name
         yaml.safe_dump(cfg_dict, out_cfg)
 
-    return model, ds_neg, ds_pos, run, out
+    return model, run, out
+
+
+def split_dataset(
+    cfg: PSConfig,
+    device: torch.device,
+    dataset: MSIDataset,
+    *,
+    generator: torch.Generator | None = None,
+):
+
+    # Tr/Vl split and Pos/Neg split
+    split_arg = (cfg.mz_min, cfg.mz_max, cfg.int_min)
+    tr_set, vl_set = dataset.random_split(0.7, generator=generator)
+    tr_neg, tr_pos = tr_set.to(device).split_to_mass_groups(*split_arg)
+    vl_neg, vl_pos = vl_set.to(device).split_to_mass_groups(*split_arg)
+
+    return tr_neg, tr_pos, vl_neg, vl_pos
 
 
 def train_model(
@@ -135,8 +137,10 @@ def train_model(
     device: torch.device,
     model: GMM1DCls,
     save_nll_mz: torch.Tensor,
-    dataset_neg: FlattenedDataset,
-    dataset_pos: FlattenedDataset,
+    tr_neg: FlattenedDataset,
+    tr_pos: FlattenedDataset,
+    vl_neg: FlattenedDataset,
+    vl_pos: FlattenedDataset,
     run: Logger,
 ):
     "update `model` to fit the given dataset"
@@ -144,18 +148,8 @@ def train_model(
     model = model.to(device)
     optim = Adam(model.parameters(), lr=cfg.lr)
 
-    val_neg, dataset_neg = dataset_neg.to(device).random_split(0.7)
-    val_pos, dataset_pos = dataset_pos.to(device).random_split(0.7)
-
-    dl_neg = DataLoader(
-        dataset_neg.to(device), batch_size=cfg.batch_size, shuffle=True, num_workers=0
-    )
-    dl_pos = DataLoader(
-        dataset_pos.to(device),
-        batch_size=cfg.batch_size,
-        shuffle=True,
-        num_workers=0,
-    )
+    dl_neg = DataLoader(tr_neg, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
+    dl_pos = DataLoader(tr_pos, batch_size=cfg.batch_size, shuffle=True, num_workers=0)
 
     save_nll_mz = save_nll_mz.to(device)
     with torch.no_grad():
@@ -182,10 +176,10 @@ def train_model(
             nll_p_lst.append(model.pos_head.neg_log_likelihood(save_nll_mz).cpu())
 
             nll_n = model.neg_head.ws_neg_log_likelihood(
-                val_neg.mzs_, cfg.norm_intensity * val_neg.int_ / len(val_neg)
+                vl_neg.mzs_, cfg.norm_intensity * vl_neg.int_ / len(vl_neg)
             )
             nll_p = model.pos_head.ws_neg_log_likelihood(
-                val_pos.mzs_, cfg.norm_intensity * val_pos.int_ / len(val_pos)
+                vl_pos.mzs_, cfg.norm_intensity * vl_pos.int_ / len(vl_pos)
             )
             nll_n_mean = float(nll_n.mean())
             nll_p_mean = float(nll_p.mean())
@@ -210,9 +204,12 @@ def train(cfg: PSConfig):
     assert torch.cuda.is_available()
     device = torch.device("cuda:0")
 
-    model, ds_neg, ds_pos, run, out = prep_train(cfg, load_dataset(cfg))
+    model, run, out = prep_train(cfg)
     mz_vals = torch.linspace(cfg.mz_min, cfg.mz_max, 50 * cfg.components)
-    nll_n, nll_p = train_model(cfg, device, model, mz_vals, ds_neg, ds_pos, run)
+    tr_neg, tr_pos, vl_neg, vl_pos = split_dataset(cfg, device, load_dataset(cfg))
+    nll_n, nll_p = train_model(
+        cfg, device, model, mz_vals, tr_neg, tr_pos, vl_neg, vl_pos, run=run
+    )
 
     # save ratio & model
     np.save(out / "mz_vals", mz_vals.numpy())

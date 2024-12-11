@@ -14,28 +14,14 @@ import pandas as pd
 import torch
 import yaml
 from msi_zarr_analysis.ml.gmm import GMM1DCls
-from msi_zarr_analysis.ml.msi_ds import MSIDataset, split_to_mass_groups
+from msi_zarr_analysis.ml.msi_ds import (
+    MSIDataset,
+    split_to_mass_groups,
+)
 from runexp import config_file
 
 from config import PSConfig
-from train import train_model, load_dataset
-
-
-def random_mass_group(
-    mzs_: torch.Tensor,
-    int_: torch.Tensor,
-    y: torch.Tensor,
-    filter_mz_lo: float = 0.0,
-    filter_mz_hi: float | None = None,
-    filter_int_lo: float | None = None,
-    *,
-    generator: torch.Generator | None = None,
-):
-    "return [negative mass group, positive mass group]"
-    perm = torch.randperm(len(y), generator=generator)
-    return split_to_mass_groups(
-        mzs_, int_, y[perm], filter_mz_lo, filter_mz_hi, filter_int_lo
-    )
+from train import train_model, load_dataset, split_dataset
 
 
 class ImportanceScorer(Protocol):
@@ -230,28 +216,24 @@ def false_positive_rate(
     for iter_idx in range(n_iter):
         gen = torch.Generator().manual_seed(iter_idx)
         baseline = GMM1DCls(exp.config.components, exp.config.mz_min, exp.config.mz_max)
-        ds_neg, ds_pos = random_mass_group(
-            dataset.mzs_,
-            dataset.int_,
-            dataset.y,
-            exp.config.mz_min,
-            exp.config.mz_max,
-            exp.config.int_min,
-            generator=gen,
+        rnd_dataset = dataset.shuffled_copy(gen)
+        tr_neg, tr_pos, vl_neg, vl_pos = split_dataset(
+            exp.config, exp.device, rnd_dataset, generator=gen
         )
-        # NOTE the mz_vals here are used for validation -> we need the full group, even if the experiment doesn't care
         nll_n, nll_p = train_model(
             exp.config,
             exp.device,
             baseline,
             exp.mz_vals,
-            ds_neg,
-            ds_pos,
+            tr_neg,
+            tr_pos,
+            vl_neg,
+            vl_pos,
             DiscardLogger(),
         )
 
         # compute importance score for mz_val
-        p_ratio = prob_ratio(ds_neg.int_, ds_pos.int_)
+        p_ratio = get_prob_ratio(exp.config, rnd_dataset)
         score = importance_scorer(nll_n[-1], nll_p[-1], p_ratio)
         importance_score_lst.append(score)
 
