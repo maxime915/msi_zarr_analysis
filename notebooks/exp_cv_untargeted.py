@@ -319,7 +319,8 @@ assert base_dir.is_dir()
 
 # %%
 
-dataset = Tabular(*np.load(base_dir / "binned_nonorm.npz").values())
+norm: Literal["no", "317"] = "no"
+dataset = Tabular(*np.load(base_dir / f"binned_{norm}norm.npz").values())
 # model, _ = fit_and_eval(
 #     [
 #         (
@@ -757,6 +758,7 @@ def mprobes(
 # %%
 
 max_feat: int | Literal["log2", "sqrt"]
+problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-", "+/-"]
 try:
     # detect if the cell is ran in a notebook and manually defines values
     get_ipython()  # type:ignore
@@ -764,6 +766,7 @@ try:
     max_feat = "sqrt"
     n_perms = 50
     joint = True
+    problem = "ls/sc"
 except NameError:
     # else, assume a script and parse arguments
     parser = argparse.ArgumentParser("exp_cv_binned")
@@ -771,11 +774,12 @@ except NameError:
     parser.add_argument("--max-feat", help="'log2', 'none', 'sqrt', or an integer")
     parser.add_argument("--n-perms", type=int)
     parser.add_argument("--joint", choices=["yes", "no"])
+    parser.add_argument("--problem", choices=["ls/sc", "ls+/ls-", "sc+/sc-"])
 
     args = parser.parse_args()
     n_trees = int(args.n_trees)
     if args.max_feat in ["log2", "sqrt"]:
-        max_feat = args.max_feat
+        max_feat = args.max_feat  # type:ignore
     elif args.max_feat == "none":
         # all features
         max_feat = dataset.dataset_x.shape[1]
@@ -783,10 +787,11 @@ except NameError:
         max_feat = int(args.max_feat)
     n_perms = int(args.n_perms)
     joint = {"yes": True, "no": False}[args.joint]
+    problem = args.problem
 
 # %%
 
-X, y, w, g = _ds_to_Xy(dataset, "ls/sc", "regions", True)
+X, y, w, g = _ds_to_Xy(dataset, problem, "regions", True)
 
 # %%
 
@@ -818,4 +823,4 @@ results = cer_fdr(
 res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted"
 res_dir.mkdir(exist_ok=True)
 
-results.to_csv(res_dir / f"res-{n_trees=}-{max_feat=}-{n_perms=}-{joint=}.csv")
+results.to_csv(res_dir / f"res-{norm=}-{problem=}-{n_trees=}-{max_feat=}-{n_perms=}-{joint=}.csv")
