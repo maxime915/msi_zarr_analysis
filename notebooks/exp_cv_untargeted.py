@@ -1,6 +1,7 @@
 # %%
 
 import argparse
+from datetime import datetime
 from itertools import product  # noqa
 from pathlib import Path
 from typing import Any, Callable, Literal, NamedTuple, Protocol
@@ -795,6 +796,21 @@ X, y, w, g = _ds_to_Xy(dataset, problem, "regions", True)
 
 # %%
 
+res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted"
+res_dir.mkdir(exist_ok=True)
+
+exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
+exp_dir.mkdir()
+# TODO this sucks. create a new directory inside res_dir with a datetime
+#   add all meaningfull info inside a log file
+#   add the importance into a simply-named file
+
+with open(exp_dir / "info.csv", "w", encoding="utf8") as exp_info_f:
+    print("norm,problem,n_trees,max_feat,n_perms,joint", file=exp_info_f)
+    print(f"{norm},{problem},{n_trees},{max_feat},{n_perms},{joint}", file=exp_info_f)
+
+# %%
+
 results = mprobes(
     X,
     y,
@@ -808,19 +824,16 @@ results["bin_width"] = dataset.bin_r - dataset.bin_l
 
 # %%
 
-results = cer_fdr(
-    results,
-    X,
-    y,
-    model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
-    nb_perm=n_perms,
-    n_to_compute="all",
-    thresh_stop=0.4,
-)
+# results = cer_fdr(
+#     results,
+#     X,
+#     y,
+#     model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
+#     nb_perm=n_perms,
+#     n_to_compute="all",
+#     thresh_stop=0.4,
+# )
 
 # %%
 
-res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted"
-res_dir.mkdir(exist_ok=True)
-
-results.to_csv(res_dir / f"res-{norm=}-{problem=}-{n_trees=}-{max_feat=}-{n_perms=}-{joint=}.csv")
+results.to_csv(exp_dir / "results.csv")
