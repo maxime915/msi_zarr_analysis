@@ -16,7 +16,8 @@ from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier  # noqa:F401
 from sklearn.ensemble._forest import ForestClassifier
 from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
-from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold
+from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict
 
 # %% protocols and stuff
 
@@ -45,6 +46,19 @@ class Tabular(NamedTuple):
     bin_l: np.ndarray
     bin_r: np.ndarray
     regions: np.ndarray
+
+    def select_region(self, region: int | float):
+        "returns a new dataset only containing the given region"
+
+        mask = self.regions == region
+        return Tabular(
+            self.dataset_x[mask].copy(),
+            self.dataset_y[mask].copy(),
+            self.groups[mask].copy(),
+            self.bin_l.copy(),
+            self.bin_r.copy(),
+            self.regions[mask].copy(),
+        )
 
 
 # %%
@@ -204,6 +218,174 @@ def fit_and_eval(
     return model, scores
 
 
+def cv_score(
+    model: BaseEstimator,
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
+    grouping: Literal["none", "groups", "regions"],
+    weighting: Literal[False],
+    scorer_: _BaseScorer,
+    cv,
+):
+    """fit and evaluate a model on `dataset_`.
+
+    If `grouping` is "regions" and `n_splits` is the number of regions, it will
+    be adjusted for the nested selection of the assessment automatically.
+
+    Here are the labels for the different `problem`
+        - 'ls+/ls-': 0 -> 'ls-', 1 -> 'ls+'
+        - 'sc+/sc-': 0 -> 'sc-', 1 -> 'sc+'
+        - 'ls/sc'  : 0 -> 'sc' , 1 -> 'ls'
+        - '+/-'    : 0 -> '-'  , 1 -> '+'
+
+    Returns
+        - the CV-score
+    """
+
+    pos_labels: tuple[int, ...]
+    neg_labels: tuple[int, ...]
+    match problem:
+        case "ls+/ls-":
+            pos_labels, neg_labels = (0,), (1,)
+        case "sc+/sc-":
+            pos_labels, neg_labels = (2,), (3,)
+        case "ls/sc":
+            pos_labels, neg_labels = (0, 1), (2, 3)
+        case "+/-":
+            pos_labels, neg_labels = (0, 2), (1, 3)
+        case _:
+            raise ValueError(f"unsupported value for {problem=!r}")
+
+    y = np.argmax(dataset_.dataset_y, axis=1)
+
+    # only rows which have the right class and a positive weight
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(y, neg_labels + pos_labels)
+
+    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
+    X = dataset_.dataset_x[cls_mask, :]
+    groups: np.ndarray | None = dataset_.groups[cls_mask]
+
+    match grouping:
+        case "none":
+            groups = None
+        case "groups" | "regions":
+            if isinstance(cv, int) or cv is None:
+                raise ValueError(f"{grouping=} will be ignored for {cv=}. Use a sklearn GroupCV object.")
+        case _:
+            raise ValueError(f"{grouping=!r} is not supported")
+
+    scores = cross_val_score(
+        model,
+        X,
+        y,
+        groups=groups,
+        scoring=scorer_,
+        cv=cv,
+        n_jobs=-1,
+    )
+
+    return scores
+
+
+def cv_logo_roc_auc(
+    model: BaseEstimator,
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
+    grouping: Literal["groups", "regions"],
+    weighting: Literal[False],
+):
+    pos_labels: tuple[int, ...]
+    neg_labels: tuple[int, ...]
+    match problem:
+        case "ls+/ls-":
+            pos_labels, neg_labels = (0,), (1,)
+        case "sc+/sc-":
+            pos_labels, neg_labels = (2,), (3,)
+        case "ls/sc":
+            pos_labels, neg_labels = (0, 1), (2, 3)
+        case "+/-":
+            pos_labels, neg_labels = (0, 2), (1, 3)
+        case _:
+            raise ValueError(f"unsupported value for {problem=!r}")
+
+    y = np.argmax(dataset_.dataset_y, axis=1)
+
+    # only rows which have the right class and a positive weight
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(y, neg_labels + pos_labels)
+
+    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
+    X = dataset_.dataset_x[cls_mask, :]
+    match grouping:
+        case "groups":
+            g = dataset_.groups[cls_mask]
+        case "regions":
+            g = dataset_.regions[cls_mask]
+        case _:
+            raise ValueError(f"{grouping=!r} is invalid")
+
+    y_pred = cross_val_predict(
+        model,
+        X,
+        y,
+        groups=g,
+        cv=LeaveOneGroupOut(),
+        n_jobs=-1,
+    )
+
+    return roc_auc_score(y, y_pred)
+
+
+def cv_score_by_region(
+    model: BaseEstimator,
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc"],
+    weighting: Literal[False],
+    scorer_: _BaseScorer,
+):
+    pos_labels: tuple[int, ...]
+    neg_labels: tuple[int, ...]
+    match problem:
+        case "ls+/ls-":
+            pos_labels, neg_labels = (0,), (1,)
+        case "sc+/sc-":
+            pos_labels, neg_labels = (2,), (3,)
+        case "ls/sc":
+            pos_labels, neg_labels = (0, 1), (2, 3)
+        case "+/-":
+            pos_labels, neg_labels = (0, 2), (1, 3)
+        case _:
+            raise ValueError(f"unsupported value for {problem=!r}")
+
+    y = np.argmax(dataset_.dataset_y, axis=1)
+
+    # only rows which have the right class and a positive weight
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(y, neg_labels + pos_labels)
+
+    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
+    X = dataset_.dataset_x[cls_mask, :]
+    regions = dataset_.regions[cls_mask]
+    indices = np.arange(len(y))
+
+    # manual folds
+    region_values = np.unique(regions)
+    assert list(region_values) == [0, 1, 2]
+
+    folds = [
+        (indices[regions != r], indices[regions == r])
+        for r in region_values
+    ]
+
+    scores = np.zeros((len(folds),), dtype=float)
+    for i, (tr_idx, vl_idx) in enumerate(folds):
+        model.fit(X[tr_idx], y[tr_idx])  # type: ignore
+        scores[i] = scorer_(model, X[vl_idx], y[vl_idx])
+
+    return scores
+
+
 # %%
 
 
@@ -320,7 +502,7 @@ assert base_dir.is_dir()
 
 # %%
 
-norm: Literal["no", "317"] = "no"
+norm: Literal["no", "317"] = "317"
 dataset = Tabular(*np.load(base_dir / f"binned_{norm}norm.npz").values())
 # model, _ = fit_and_eval(
 #     [
