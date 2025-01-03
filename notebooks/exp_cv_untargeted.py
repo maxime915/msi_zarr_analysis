@@ -17,7 +17,7 @@ from sklearn.ensemble import RandomForestClassifier  # noqa:F401
 from sklearn.ensemble._forest import ForestClassifier
 from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
 from sklearn.metrics import roc_auc_score
-from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict
+from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict, cross_validate
 
 # %% protocols and stuff
 
@@ -337,6 +337,69 @@ def cv_logo_roc_auc(
     return roc_auc_score(y, y_pred)
 
 
+def cv_logo_detailed_acc(
+    model: BaseEstimator,
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
+    grouping: Literal["groups", "regions"],
+    weighting: Literal[False],
+):
+    """cv_logo_detailed_acc: share some details about grouped cross validation
+
+    This function returns the training and validation accuracy on each of the folds, as well as the indices in of them.
+    """
+    pos_labels: tuple[int, ...]
+    neg_labels: tuple[int, ...]
+    match problem:
+        case "ls+/ls-":
+            pos_labels, neg_labels = (0,), (1,)
+        case "sc+/sc-":
+            pos_labels, neg_labels = (2,), (3,)
+        case "ls/sc":
+            pos_labels, neg_labels = (0, 1), (2, 3)
+        case "+/-":
+            pos_labels, neg_labels = (0, 2), (1, 3)
+        case _:
+            raise ValueError(f"unsupported value for {problem=!r}")
+
+    y = np.argmax(dataset_.dataset_y, axis=1)
+
+    # only rows which have the right class and a positive weight
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(y, neg_labels + pos_labels)
+
+    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
+    X = dataset_.dataset_x[cls_mask, :]
+    match grouping:
+        case "groups":
+            g = dataset_.groups[cls_mask]
+        case "regions":
+            g = dataset_.regions[cls_mask]
+        case _:
+            raise ValueError(f"{grouping=!r} is invalid")
+
+    infos = {
+        "X": X,
+        "y": y,
+        "g": g,
+        "groups": dataset_.groups[cls_mask],
+        "regions": dataset_.regions[cls_mask],
+    }
+
+    return cross_validate(
+        model,
+        X,
+        y,
+        groups=g,
+        scoring="accuracy",
+        cv=LeaveOneGroupOut(),
+        n_jobs=-1,
+        return_train_score=True,
+        return_estimator=False,
+        return_indices=True,
+    ), infos
+
+
 def cv_score_by_region(
     model: BaseEstimator,
     dataset_: Tabular,
@@ -382,6 +445,55 @@ def cv_score_by_region(
     for i, (tr_idx, vl_idx) in enumerate(folds):
         model.fit(X[tr_idx], y[tr_idx])  # type: ignore
         scores[i] = scorer_(model, X[vl_idx], y[vl_idx])
+
+    return scores
+
+
+def cv_score_by_region_2d(
+    model: BaseEstimator,
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc"],
+    weighting: Literal[False],
+    scorer_: _BaseScorer,
+):
+    pos_labels: tuple[int, ...]
+    neg_labels: tuple[int, ...]
+    match problem:
+        case "ls+/ls-":
+            pos_labels, neg_labels = (0,), (1,)
+        case "sc+/sc-":
+            pos_labels, neg_labels = (2,), (3,)
+        case "ls/sc":
+            pos_labels, neg_labels = (0, 1), (2, 3)
+        case "+/-":
+            pos_labels, neg_labels = (0, 2), (1, 3)
+        case _:
+            raise ValueError(f"unsupported value for {problem=!r}")
+
+    y = np.argmax(dataset_.dataset_y, axis=1)
+
+    # only rows which have the right class and a positive weight
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(y, neg_labels + pos_labels)
+
+    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
+    X = dataset_.dataset_x[cls_mask, :]
+    regions = dataset_.regions[cls_mask]
+    indices = np.arange(len(y))
+
+    # manual folds
+    region_values = np.unique(regions)
+    assert list(region_values) == [0, 1, 2]
+
+    masks = [indices[regions == r] for r in region_values]
+
+    scores = np.zeros((len(region_values), len(region_values)), dtype=float)
+    for reg_l in region_values:
+        for reg_r in region_values:
+            tr = masks[reg_l]
+            vl = masks[reg_r]
+            model.fit(X[tr], y[tr])  # type: ignore
+            scores[reg_l, reg_r] = scorer_(model, X[vl], y[vl])
 
     return scores
 
