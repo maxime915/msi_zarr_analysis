@@ -1,7 +1,7 @@
 "mz_slice: extract single lipids"
 
 from functools import partial
-from typing import Dict, Tuple, TypeVar, cast
+from typing import Dict, Tuple, TypeVar, cast, Literal
 import numpy as np
 import numpy.typing as npt
 import numba as nb
@@ -9,6 +9,70 @@ import zarr
 from msi_zarr_analysis.utils.check import open_group_ro
 
 from msi_zarr_analysis.utils.iter_chunks import iter_loaded_chunks, clean_slice_tuple
+
+
+@nb.jit(nopython=True)
+def li(xA: float, yA: float, xB: float, yB: float, x0: float):
+    "linear interpolation of x0 between (xA, yA) and (xB, yB)"
+    return yA + (x0 - xA) * (yB - yA) / (xB - xA)
+
+
+@nb.jit(nopython=True)
+def bin_band_integration(
+    bins: npt.NDArray,  # @out (B,)
+    mzs: npt.NDArray,  # (L,)
+    ints: npt.NDArray,  # (L,)
+    bin_lo: npt.NDArray,  # (B,)
+    bin_hi: npt.NDArray,  # (B,)
+):
+    if mzs.size < 1 or bins.size < 1:
+        return
+
+    bin_idx, val_idx = 0, 0
+    if mzs[val_idx] < bin_lo[bin_idx]:
+        while mzs[val_idx] < bin_lo[bin_idx]:
+            prev_val_idx = val_idx
+            val_idx += 1
+
+            if val_idx >= mzs.size:
+                return
+        x0 = bin_lo[bin_idx]
+        y0 = li(mzs[prev_val_idx], ints[prev_val_idx], mzs[val_idx], ints[val_idx], x0)
+
+    else:
+        while bin_hi[bin_idx] < mzs[val_idx]:
+            bin_idx += 1
+
+            if bin_idx >= bins.size:
+                return
+
+        x0, y0 = mzs[val_idx], ints[val_idx]
+        val_idx += 1
+        if val_idx >= mzs.size:
+            return
+
+    # inv: everything up to (x0, y0) has been integrated in their bin
+    # all bins left to bin_dix have been completely integrated
+    # the next point to consider is val_idx
+
+    while bin_idx < bins.size:
+        # for all points inside this bin, integrate the trapezoids and update x0, y0
+        while mzs[val_idx] < bin_hi[bin_idx]:
+            # integrate from x0 to mzs[val_idx]
+            bins[bin_idx] += 0.5 * (y0 + ints[val_idx]) * (mzs[val_idx] - x0)
+            x0, y0 = mzs[val_idx], ints[val_idx]
+            val_idx += 1
+            if val_idx >= mzs.size:
+                return
+
+        # integrate up to the right edge of the bin
+        re_x = bin_hi[bin_idx]
+        re_y = li(x0, y0, mzs[val_idx], ints[val_idx], re_x)
+        bins[bin_idx] += 0.5 * (y0 + re_y) * (re_x - x0)
+
+        # next iter
+        x0, y0 = re_x, re_y
+        bin_idx += 1
 
 
 @nb.jit(nopython=True)
@@ -146,6 +210,7 @@ def bin_and_flatten_chunk_v2(
     bin_lo: npt.NDArray,  # (bins,)
     bin_hi: npt.NDArray,  # (bins,)
     start_idx: int,
+    binning_method: Literal["sum", "integration"],
 ):
     "bin and flatten a processed array"
 
@@ -158,13 +223,24 @@ def bin_and_flatten_chunk_v2(
     ):
         _len = lengths[y, x]
 
-        bin_band(
-            dataset_x[row_offset],
-            mzs[:_len, y, x],
-            ints[:_len, y, x],
-            bin_lo,
-            bin_hi,
-        )
+        if binning_method == "sum":
+            bin_band(
+                dataset_x[row_offset],
+                mzs[:_len, y, x],
+                ints[:_len, y, x],
+                bin_lo,
+                bin_hi,
+            )
+        elif binning_method == "integration":
+            bin_band_integration(
+                dataset_x[row_offset],
+                mzs[:_len, y, x],
+                ints[:_len, y, x],
+                bin_lo,
+                bin_hi,
+            )
+        else:
+            raise ValueError(f"invalid: {binning_method=!r}")
 
     return start_idx + len(idx_y), idx_y, idx_x
 
@@ -238,6 +314,7 @@ def bin_and_flatten_v2(
     mask: npt.NDArray[np.bool_],  # (y, x)
     bin_lo: npt.NDArray[np.float64],  # (bins,)
     bin_hi: npt.NDArray[np.float64],  # (bins,)
+    binning_method: Literal["sum", "integration"],
 ):
 
     z_ints = cast(zarr.Array, z["/0"])
@@ -268,6 +345,7 @@ def bin_and_flatten_v2(
             bin_lo,
             bin_hi,
             row_idx,
+            binning_method,
         )
         ys[row_idx:new_row_idx] = c_idx_y + cy.start
         xs[row_idx:new_row_idx] = c_idx_x + cx.start
@@ -352,7 +430,9 @@ def bin_processed_lo_hi(
         order=z_ints.order,
     )
     destination["/labels/mzs/0"] = np.reshape((bin_lo + bin_hi) / 2, (-1, 1, 1, 1))
-    destination["/labels/lengths/0"] = len(bin_lo) * (cast(np.ndarray, z_lengths[:]) > 0)
+    destination["/labels/lengths/0"] = len(bin_lo) * (
+        cast(np.ndarray, z_lengths[:]) > 0
+    )
 
     z_dest_ints = cast(zarr.Array, destination["/0"])
 
@@ -403,7 +483,7 @@ def _fn_target(mz_lo: float, mz_hi: float, num: int, f: float):
 
     mz = mz_lo
     for _ in range(num):
-        dm = f * mz ** 2
+        dm = f * mz**2
         mz += dm
 
     return mz - mz_hi
