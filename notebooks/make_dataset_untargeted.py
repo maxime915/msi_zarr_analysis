@@ -227,7 +227,14 @@ merged_ds = merge_tabular(
 
 # %%
 
-save_tabular(
-    datasets_dir / f"slim-deisotoping-{de_tol:.1e}-binned" / f"binned_{tag}.npz",
-    merged_ds,
-)
+try:
+    # detect if the cell is ran in a notebook to avoid saving by mistake with run all
+    get_ipython()  # type:ignore
+    val = input("do you want to save? [y/n]")
+    if val.lower() in ["y", "yes"]:
+        raise NameError("go to the except clause")
+except NameError:
+    save_tabular(
+        datasets_dir / f"slim-deisotoping-{de_tol:.1e}-binned" / f"binned_{bin_method}_{tag}.npz",
+        merged_ds,
+    )
