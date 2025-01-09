@@ -115,6 +115,8 @@ class Tabular(NamedTuple):
     bin_l: np.ndarray
     bin_r: np.ndarray
     regions: np.ndarray | None  # only used after merging
+    coord_y: np.ndarray
+    coord_x: np.ndarray
 
 
 def make_tabular(
@@ -153,7 +155,7 @@ def make_tabular(
     groups = groups_yx[ys, xs]
     assert (groups != invalid_flag).all(), "all rows in groups should be valid"
 
-    return Tabular(dataset_x, dataset_y, groups, bin_lo, bin_hi, None)
+    return Tabular(dataset_x, dataset_y, groups, bin_lo, bin_hi, None, ys, xs)
 
 
 def merge_tabular(*datasets: Tabular):
@@ -173,6 +175,8 @@ def merge_tabular(*datasets: Tabular):
     ds_y: list[np.ndarray] = []
     groups: list[np.ndarray] = []
     regions: list[np.ndarray] = []
+    coords_y: list[np.ndarray] = []
+    coords_x: list[np.ndarray] = []
 
     g_offset = 0
     for idx, ds_ in enumerate(datasets):
@@ -185,6 +189,8 @@ def merge_tabular(*datasets: Tabular):
         g_offset += ds_.groups.max() + 1
 
         regions.append(np.zeros_like(ds_.groups) + idx)
+        coords_y.append(ds_.coord_y)
+        coords_x.append(ds_.coord_x)
 
     return Tabular(
         np.concatenate(ds_x),
@@ -193,6 +199,8 @@ def merge_tabular(*datasets: Tabular):
         bin_l,
         bin_r,
         np.concatenate(regions),
+        np.concatenate(coords_y),
+        np.concatenate(coords_x),
     )
 
 
