@@ -11,7 +11,7 @@
 # %%
 
 import pathlib
-from typing import NamedTuple
+from typing import NamedTuple, Literal
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -23,13 +23,14 @@ from msi_zarr_analysis.preprocessing.binning import fticr_binning, bin_and_flatt
 
 # %%
 
-tag = "nonorm"  # "317norm"
+tag: Literal["nonorm", "317norm"] = "nonorm"
+bin_method: Literal["sum", "integration"] = "sum"
 
 de_tol = 2e-3  # tolerance of the deisotoping function
-slim_dir = pathlib.Path.home() / "datasets" / "COMULIS-slim-msi"
-dest_dir = slim_dir.parent / f"slim-deisotoping-{de_tol:.1e}"
+datasets_dir = pathlib.Path.home() / "datasets"
+non_binned_dir = datasets_dir / f"slim-deisotoping-{de_tol:.1e}"
 
-files = sorted(dest_dir.iterdir())
+files = sorted(non_binned_dir.iterdir())
 assert len(files) == 6
 
 files = [f for f in files if tag in f.name]
@@ -128,7 +129,7 @@ def make_tabular(
     dataset_x = np.empty((n_rows, n_feat), dtype=ozm.z_int.dtype)
 
     # populate dataset
-    ys, xs = bin_and_flatten_v2(dataset_x, ozm.group, mask_yx, bin_lo, bin_hi)
+    ys, xs = bin_and_flatten_v2(dataset_x, ozm.group, mask_yx, bin_lo, bin_hi, bin_method)
     dataset_y = label[ys, xs, :]
 
     # find blobs in the label + make groups
@@ -219,6 +220,6 @@ merged_ds = merge_tabular(
 # %%
 
 save_tabular(
-    slim_dir.parent / f"slim-deisotoping-{de_tol:.1e}-binned" / f"binned_{tag}.npz",
+    datasets_dir / f"slim-deisotoping-{de_tol:.1e}-binned" / f"binned_{tag}.npz",
     merged_ds,
 )
