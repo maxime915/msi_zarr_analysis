@@ -64,6 +64,18 @@ class Tabular(NamedTuple):
             self.coord_x[mask].copy(),
         )
 
+    def max_pool(self):
+         return Tabular(
+            maximum_filter1d(self.dataset_x, 3, axis=-1, mode="constant", cval=0),
+            self.dataset_y.copy(),
+            self.groups.copy(),
+            self.bin_l.copy(),
+            self.bin_r.copy(),
+            self.regions.copy(),
+            self.coord_y.copy(),
+            self.coord_x.copy(),
+        )
+
 
 # %%
 
@@ -607,7 +619,8 @@ assert base_dir.is_dir()
 #     print(f"{prob_=} {norm_=} {mean_=:.3f} {std_=:.3f} {lo_=:.3f}")
 
 
-# """
+bin_method: Literal["sum", "integration"] = "integration"
+dataset = Tabular(*np.load(base_dir / f"binned_{bin_method}_{norm}norm.npz").values())
 # prob_='ls+/ls-' norm_='317' mean_=0.512 std_=0.049 lo_=0.463
 # prob_='ls+/ls-' norm_='no' mean_=0.474 std_=0.027 lo_=0.447
 # prob_='sc+/sc-' norm_='317' mean_=0.635 std_=0.031 lo_=0.604
@@ -619,7 +632,8 @@ assert base_dir.is_dir()
 # %%
 
 norm: Literal["no", "317"] = "317"
-dataset = Tabular(*np.load(base_dir / f"binned_{norm}norm.npz").values())
+bin_method: Literal["sum", "integration"] = "integration"
+dataset = Tabular(*np.load(base_dir / f"binned_{bin_method}_{norm}norm.npz").values())
 # model, _ = fit_and_eval(
 #     [
 #         (
