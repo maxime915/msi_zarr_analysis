@@ -516,6 +516,63 @@ def cv_score_by_region_2d(
 
 # %%
 
+def u_test(
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
+    fdr: float = 5e-2,
+):
+    pos_labels: tuple[int, ...]
+    neg_labels: tuple[int, ...]
+    match problem:
+        case "ls+/ls-":
+            pos_labels, neg_labels = (0,), (1,)
+        case "sc+/sc-":
+            pos_labels, neg_labels = (2,), (3,)
+        case "ls/sc":
+            pos_labels, neg_labels = (0, 1), (2, 3)
+        case "+/-":
+            pos_labels, neg_labels = (0, 2), (1, 3)
+        case _:
+            raise ValueError(f"unsupported value for {problem=!r}")
+
+    y = np.argmax(dataset_.dataset_y, axis=1)
+
+    # only rows which have the right class and a positive weight
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(y, neg_labels + pos_labels)
+
+    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
+    X = dataset_.dataset_x[cls_mask, :]
+    m = X.shape[1]
+
+    # Mann-Whitney U test
+    p_values = np.ones(shape=(m,), dtype=float)
+    for feature_idx in range(m):
+        # split attribute into two
+        ds_pos = X[y == 1, feature_idx]
+        ds_neg = X[y == 0, feature_idx]
+
+        _, p_values[feature_idx] = mannwhitneyu(ds_pos, ds_neg)
+        if feature_idx % 1000 == 0:
+            print(f"{feature_idx=}")
+
+    # apply Benjamini-Hochberg procedure
+    s_idx = np.argsort(p_values)
+    sorted_p_values = p_values[s_idx]
+
+    # find highest item such that P[k] <= (k + 1) * fdr / m
+    check = sorted_p_values <= (1 + np.arange(m)) * fdr / m
+    max_idx = m - 1 - np.argmax(check[::-1])
+    if not check.any():
+        max_idx = 0
+
+    # selected features
+    valid_idx = s_idx[:max_idx]
+    bin_c = 0.5 * (dataset_.bin_l + dataset_.bin_r)
+
+    return bin_c[valid_idx], p_values[valid_idx]
+
+# %%
 
 def _ds_to_Xy(
     dataset_: Tabular,
