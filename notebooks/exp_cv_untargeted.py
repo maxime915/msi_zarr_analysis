@@ -11,10 +11,12 @@ import numba as nb
 import numpy as np
 import pandas as pd
 import sklearn
-from scipy.stats import rankdata
+from scipy.stats import rankdata, mannwhitneyu
+from scipy.ndimage import maximum_filter1d
 from sklearn.base import BaseEstimator
 from sklearn.ensemble import RandomForestClassifier  # noqa:F401
 from sklearn.ensemble._forest import ForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict, cross_validate
