@@ -46,6 +46,8 @@ class Tabular(NamedTuple):
     bin_l: np.ndarray
     bin_r: np.ndarray
     regions: np.ndarray
+    coord_y: np.ndarray
+    coord_x: np.ndarray
 
     def select_region(self, region: int | float):
         "returns a new dataset only containing the given region"
@@ -58,6 +60,8 @@ class Tabular(NamedTuple):
             self.bin_l.copy(),
             self.bin_r.copy(),
             self.regions[mask].copy(),
+            self.coord_y[mask].copy(),
+            self.coord_x[mask].copy(),
         )
 
 
