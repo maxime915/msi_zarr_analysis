@@ -1070,6 +1070,133 @@ def mprobes(
 
 # %%
 
+class LassoClsCfg(NamedTuple):
+    coeff: float
+    problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-"]
+    bin_method: Literal["sum", "integration", "max-pool"]
+
+coeffs: list[float] = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e2, 1e2, 1e3]
+problems: list[Literal["ls/sc", "ls+/ls-", "sc+/sc-"]] = [
+    "ls/sc",
+    "ls+/ls-",
+    "sc+/sc-",
+]
+bin_methods: list[Literal["sum", "integration", "max-pool"]] = ["sum", "integration", "max-pool"]
+
+configs = [LassoClsCfg(c_c, p_c, b_c) for p_c, c_c, b_c in product(problems, coeffs, bin_methods)]
+
+res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted-scores-lasso"
+res_dir.mkdir(exist_ok=True)
+
+exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
+exp_dir.mkdir()
+
+for idx, cfg in enumerate(configs):
+    cfg_dir = exp_dir / f"cfg-{idx}"
+    cfg_dir.mkdir()
+
+    with open(cfg_dir / "info.txt", "w", encoding="utf8") as cfg_info_f:
+        print(f"{cfg.problem=} {cfg.bin_method=} {cfg.coeff=}", file=cfg_info_f)
+
+    bm = cfg.bin_method
+    if cfg.bin_method == "max-pool":
+        bm = "sum"
+
+    ds = Tabular(*np.load(base_dir / f"binned_{bm}_317norm.npz").values())
+    if cfg.bin_method == "max-pool":
+        ds = ds.max_pool()
+
+    score = cv_logo_roc_auc(
+        LogisticRegression(
+            C=cfg.coeff,
+            penalty="l1",
+            solver="liblinear",
+            random_state=0,
+            # n_jobs=-2,  # no effect with liblinear and I don't like warnings
+        ),
+        dataset_=ds,
+        problem=cfg.problem,
+        grouping="groups",
+        weighting=False,
+    )
+
+    with open(cfg_dir / "score.txt", "w", encoding="utf8") as cfg_score_f:
+        print(str(score), file=cfg_score_f)
+
+# %%
+
+
+class Configuration(NamedTuple):
+    n_trees: int
+    max_feat: Literal["sqrt"] | None
+    max_depth: int | None
+    problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-"]
+    bin_method: Literal["sum", "integration", "max-pool"]
+
+
+tree_configs: list[tuple[int, Literal["sqrt"] | None, int | None]] = [
+    (100, None, 2),
+    (100, None, 3),
+    (1000, None, 3),
+    (100, None, 5),
+    (100, None, 10),
+    (100, None, None),
+    (10000, "sqrt", 2),
+    (10000, "sqrt", 3),
+    # (10, "sqrt", 1),
+]
+problems = [
+    "ls/sc",
+    "ls+/ls-",
+    "sc+/sc-",
+]
+bin_methods = [
+    "sum",
+    # "integration",
+]
+
+configs = [Configuration(*t_c, p_c, b_c) for t_c, p_c, b_c in product(tree_configs, problems, bin_methods)]
+
+res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted-scores"
+res_dir.mkdir(exist_ok=True)
+
+exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
+exp_dir.mkdir()
+
+for idx, cfg in enumerate(configs):
+    cfg_dir = exp_dir / f"cfg-{idx}"
+    cfg_dir.mkdir()
+
+    with open(cfg_dir / "info.txt", "w", encoding="utf8") as cfg_info_f:
+        print(f"{cfg.problem=} cfg.bin_method=max-pool {cfg.n_trees=} {cfg.max_feat=} {cfg.max_depth=}", file=cfg_info_f)
+
+    bm = cfg.bin_method
+    if cfg.bin_method == "max-pool":
+        bm = "sum"
+
+    ds = Tabular(*np.load(base_dir / f"binned_{bm}_317norm.npz").values())
+    if cfg.bin_method == "max-pool":
+        ds = ds.max_pool()
+
+    score = cv_logo_roc_auc(
+        RandomForestClassifier(
+            cfg.n_trees,
+            max_features=cfg.max_feat,  # type:ignore -> doc issue in sklearn, None is actually fine
+            max_depth=cfg.max_depth,
+            random_state=0,
+            n_jobs=-2,
+        ),
+        dataset_=ds,
+        problem=cfg.problem,
+        grouping="groups",
+        weighting=False,
+    )
+
+    with open(cfg_dir / "score.txt", "w", encoding="utf8") as cfg_score_f:
+        print(str(score), file=cfg_score_f)
+
+# %%
+
 max_feat: int | Literal["log2", "sqrt"]
 problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-", "+/-"]
 try:
