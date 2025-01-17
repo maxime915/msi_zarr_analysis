@@ -7,10 +7,12 @@ from pathlib import Path
 from typing import Any, Callable, Literal, NamedTuple, Protocol
 from warnings import warn
 
+import matplotlib.pyplot as plt
 import numba as nb
 import numpy as np
 import pandas as pd
 import sklearn
+from matplotlib import cm
 from scipy.stats import rankdata, mannwhitneyu
 from scipy.ndimage import maximum_filter1d
 from sklearn.base import BaseEstimator
@@ -361,6 +363,8 @@ def cv_logo_detailed_acc(
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
     grouping: Literal["groups", "regions"],
     weighting: Literal[False],
+    *,
+    return_train_score: bool = True,
 ):
     """cv_logo_detailed_acc: share some details about grouped cross validation
 
@@ -402,6 +406,8 @@ def cv_logo_detailed_acc(
         "g": g,
         "groups": dataset_.groups[cls_mask],
         "regions": dataset_.regions[cls_mask],
+        "coords_y": dataset_.coord_y[cls_mask],
+        "coords_x": dataset_.coord_x[cls_mask],
     }
 
     return cross_validate(
@@ -412,10 +418,123 @@ def cv_logo_detailed_acc(
         scoring="accuracy",
         cv=LeaveOneGroupOut(),
         n_jobs=-1,
-        return_train_score=True,
+        return_train_score=return_train_score,
         return_estimator=False,
         return_indices=True,
     ), infos
+
+
+# %%s
+
+
+def draw_2d_detailed_results(
+    title: str,
+    results: dict[str, Any],
+    infos: dict[str, np.ndarray],
+):
+    if not np.allclose(infos["g"], infos["groups"]):
+        raise ValueError("Only supported if grouping='groups'")
+
+    regions = np.unique(infos["regions"])
+
+    # x and y axis must be shared by column only
+    fig, axes = plt.subplots(
+        2 if "train_score" in results else 1,
+        len(regions),
+        sharex="col",
+        sharey="col",
+        squeeze=False,
+        figsize=(12, 6)
+    )
+
+    c_val = 2.0 * infos["y"] - 1.0
+
+    masks: dict[int, tuple[np.ndarray, np.ndarray]] = {}
+    cmap = cm.get_cmap("RdBu")
+    cmap.set_bad("lightgray")
+
+    ys, xs = infos["coords_y"], infos["coords_x"]
+
+    for col, reg in enumerate(regions):
+        height = ys[infos["regions"] == reg].max() + 1
+        width = xs[infos["regions"] == reg].max() + 1
+        # tr_map is computed even if it's not used: not an issue.
+        tr_map = np.zeros((height, width), float)
+        vl_map = np.zeros_like(tr_map)
+
+        tr_map[:] = np.nan
+        vl_map[:] = np.nan
+        masks[reg] = (tr_map, vl_map)
+
+    for fold_idx, vl_score in enumerate(results["test_score"]):
+        # which region is it
+        vl_idx = results["indices"]["test"][fold_idx]
+        reg_idx = infos["regions"][vl_idx]
+        assert len(np.unique(reg_idx)) == 1, "expected a single region per fold"
+
+        if reg_idx[0] not in masks:
+            continue
+        tr_map, vl_map = masks[reg_idx[0]]
+        vl_map[ys[vl_idx], xs[vl_idx]] = vl_score * c_val[vl_idx]
+
+        if "train_score" in results:
+            tr_score = results["train_score"][fold_idx]
+            tr_map[ys[vl_idx], xs[vl_idx]] = tr_score * c_val[vl_idx]
+
+    for col, reg in enumerate(regions):
+        tr_map, vl_map = masks[reg]
+        min_y = ys[infos["regions"] == reg].min()
+        min_x = xs[infos["regions"] == reg].min()
+
+        axes[0, col].set_title("Validation score")
+        axes[0, col].pcolormesh(vl_map[min_y:, min_x:], cmap=cmap, vmin=-1.0, vmax=1.0)
+        if "train_score" in results:
+            axes[1, col].set_title("Training score")
+            axes[1, col].pcolormesh(tr_map[min_y:, min_x:], cmap=cmap, vmin=-1.0, vmax=1.0)
+
+    fig.suptitle(title)
+    fig.tight_layout()
+
+    return fig, axes
+
+
+def show_detail_cv(res_info_tpl):
+    "show bars to represent each fold"
+    res, infos = res_info_tpl
+
+    colors = ["tab:orange", "tab:blue", "tab:green"]
+    test_indices = res["indices"]["test"]
+    region_per_fold = [np.unique(infos["regions"][i]) for i in test_indices]
+    if any(len(r) > 1 for r in region_per_fold):
+        raise RuntimeError("multiple regions in a fold")
+    group_per_fold = [np.unique(infos["groups"][i]) for i in test_indices]
+    if any(len(r) > 1 for r in group_per_fold):
+        raise RuntimeError("multiple groups in a fold")
+
+    color_per_fold = [colors[r[0]] for r in region_per_fold]
+    label = [g[0] for g in group_per_fold]
+
+    fig, axes = plt.subplots(2, 1, sharex=True)
+    axes[0].bar(
+        label,
+        res["test_score"],
+        color=color_per_fold,
+    )
+    axes[0].set_ylabel("test score")
+    axes[0].set_ylim((0, 1))
+
+    axes[1].bar(
+        label,
+        res["train_score"],
+        color=color_per_fold,
+    )
+    axes[1].set_ylabel("train score")
+    axes[1].set_ylim((0, 1))
+
+    return fig, axes
+
+
+# %%
 
 
 def cv_score_by_region(
@@ -678,8 +797,6 @@ assert base_dir.is_dir()
 #     print(f"{prob_=} {norm_=} {mean_=:.3f} {std_=:.3f} {lo_=:.3f}")
 
 
-bin_method: Literal["sum", "integration"] = "integration"
-dataset = Tabular(*np.load(base_dir / f"binned_{bin_method}_{norm}norm.npz").values())
 # prob_='ls+/ls-' norm_='317' mean_=0.512 std_=0.049 lo_=0.463
 # prob_='ls+/ls-' norm_='no' mean_=0.474 std_=0.027 lo_=0.447
 # prob_='sc+/sc-' norm_='317' mean_=0.635 std_=0.031 lo_=0.604
@@ -691,7 +808,7 @@ dataset = Tabular(*np.load(base_dir / f"binned_{bin_method}_{norm}norm.npz").val
 # %%
 
 norm: Literal["no", "317"] = "317"
-bin_method: Literal["sum", "integration"] = "integration"
+bin_method: Literal["sum", "integration"] = "sum"
 dataset = Tabular(*np.load(base_dir / f"binned_{bin_method}_{norm}norm.npz").values())
 # model, _ = fit_and_eval(
 #     [
