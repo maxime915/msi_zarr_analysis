@@ -23,19 +23,6 @@ from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict, cross_validate
 
-# %% protocols and stuff
-
-
-class FitPred(Protocol):
-    "A (restrictive) protocol for most useful classifiers in scikit-learn"
-
-    def fit(
-        self, X: np.ndarray, y: np.ndarray, sample_weight: np.ndarray | None = None
-    ) -> "FitPred": ...
-
-    def predict(self, X: np.ndarray) -> np.ndarray: ...
-
-    def predict_proba(self, X: np.ndarray) -> np.ndarray: ...
 
 
 # %%
