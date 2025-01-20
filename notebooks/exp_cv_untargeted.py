@@ -352,9 +352,10 @@ def cv_logo_roc_auc(
         groups=g,
         cv=LeaveOneGroupOut(),
         n_jobs=-1,
+        method="predict_proba",
     )
 
-    return roc_auc_score(y, y_pred)
+    return roc_auc_score(y, y_pred[:, 1])
 
 
 def cv_logo_detailed_acc(
