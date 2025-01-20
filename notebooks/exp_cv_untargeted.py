@@ -482,19 +482,27 @@ def draw_2d_detailed_results(
             tr_score = results["train_score"][fold_idx]
             tr_map[ys[vl_idx], xs[vl_idx]] = tr_score * c_val[vl_idx]
 
+    pcm: cm.ScalarMappable | None = None
     for col, reg in enumerate(regions):
         tr_map, vl_map = masks[reg]
         min_y = ys[infos["regions"] == reg].min()
         min_x = xs[infos["regions"] == reg].min()
 
-        axes[0, col].set_title("Validation score")
-        axes[0, col].pcolormesh(vl_map[min_y:, min_x:], cmap=cmap, vmin=-1.0, vmax=1.0)
+        if col == 0:
+            axes[0, 0].set_ylabel("Validation score")
+        pcm = axes[0, col].pcolormesh(vl_map[min_y:, min_x:], cmap=cmap, vmin=-1.0, vmax=1.0)
         if "train_score" in results:
-            axes[1, col].set_title("Training score")
+            if col == 0:
+                axes[1, 0].set_ylabel("Training score")
             axes[1, col].pcolormesh(tr_map[min_y:, min_x:], cmap=cmap, vmin=-1.0, vmax=1.0)
+    assert pcm is not None, "no graph to color"
 
     fig.suptitle(title)
     fig.tight_layout()
+
+    fig.subplots_adjust(right=0.95)
+    cbar_ax = fig.add_axes((0.98, 0.1, 0.02, 0.8))
+    fig.colorbar(pcm, cax=cbar_ax)
 
     return fig, axes
 
