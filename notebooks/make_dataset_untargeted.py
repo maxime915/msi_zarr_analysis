@@ -24,7 +24,6 @@ from msi_zarr_analysis.preprocessing.binning import fticr_binning, bin_and_flatt
 # %%
 
 tag: Literal["nonorm", "317norm"] = "nonorm"
-bin_method: Literal["sum", "integration"] = "sum"
 
 de_tol = 2e-3  # tolerance of the deisotoping function
 datasets_dir = pathlib.Path.home() / "datasets"
@@ -110,8 +109,8 @@ class Tabular(NamedTuple):
     "Afterthought: that could have been a pandas dataframe"
 
     dataset_x: np.ndarray
-    dataset_y: np.ndarray
-    groups: np.ndarray
+    annotation_overlap: np.ndarray
+    annotation_idx: np.ndarray
     bin_l: np.ndarray
     bin_r: np.ndarray
     regions: np.ndarray | None  # only used after merging
@@ -120,42 +119,45 @@ class Tabular(NamedTuple):
 
 
 def make_tabular(
-    ozm: OMEZarrMSI, label: np.ndarray, bin_lo: np.ndarray, bin_hi: np.ndarray
+    ozm: OMEZarrMSI, label: np.ndarray, bin_lo: np.ndarray, bin_hi: np.ndarray, bin_method: Literal["sum", "integration"],
 ):
     "label: float[y, x, L]"
+
+    # bin without duplicate first
     mask_yx = np.any(label, axis=-1)
-    n_rows = int(mask_yx.sum())
+    n_spec = int(mask_yx.sum())
     n_feat = len(bin_lo)
 
-    # build dataset_x
-    dataset_x = np.empty((n_rows, n_feat), dtype=ozm.z_int.dtype)
+    spectra = np.zeros((n_spec, n_feat), dtype=ozm.z_int.dtype)
+    ys, xs = bin_and_flatten_v2(spectra, ozm.group, mask_yx, bin_lo, bin_hi, bin_method)
 
-    # populate dataset
-    ys, xs = bin_and_flatten_v2(dataset_x, ozm.group, mask_yx, bin_lo, bin_hi, bin_method)
-    dataset_y = label[ys, xs, :]
-
-    # find blobs in the label + make groups
-    group_lst: list[np.ndarray] = []
+    annotation_cover = label[ys, xs]
+    annotation_idx = - np.ones((ys.size, label.shape[-1]), dtype=int)
+    curr_idx = 1
     for cls_ in range(label.shape[-1]):
         label_cls_ = label[..., cls_]
-        components, num = label_components(
-            label_cls_ > 0, background=0, return_num=True
-        )
+        match label_components(label_cls_ > 0, background=0, return_num=True):
+            case components, num:
+                pass
+            case _:
+                raise RuntimeError(f"unexpected return value from label_component: {_}")
         for group_idx in range(1, num + 1):
-            mask = (components == group_idx).astype(int)
+            mask = np.asarray(components == group_idx, dtype=int)
             assert mask.any()
-            group_lst.append(mask)
+            flat_mask = mask[ys, xs] != 0
+            annotation_idx[flat_mask, cls_] =  curr_idx
+            curr_idx += 1
 
-    groups_stack = np.stack(group_lst, axis=-1)
-    groups_yx = groups_stack.argmax(axis=-1)
-    invalid_flag = np.iinfo(groups_yx.dtype).min
-    groups_yx[~groups_stack.any(axis=-1)] = invalid_flag
-
-    # find groups
-    groups = groups_yx[ys, xs]
-    assert (groups != invalid_flag).all(), "all rows in groups should be valid"
-
-    return Tabular(dataset_x, dataset_y, groups, bin_lo, bin_hi, None, ys, xs)
+    return Tabular(
+        dataset_x=spectra,
+        annotation_overlap=annotation_cover,
+        annotation_idx=annotation_idx,
+        bin_l=bin_l,
+        bin_r=bin_r,
+        regions=None,
+        coord_y=ys,
+        coord_x=xs,
+    )
 
 
 def merge_tabular(*datasets: Tabular):
@@ -172,8 +174,8 @@ def merge_tabular(*datasets: Tabular):
         raise ValueError("inconsistent bin_r")
 
     ds_x: list[np.ndarray] = []
-    ds_y: list[np.ndarray] = []
-    groups: list[np.ndarray] = []
+    ann_cover: list[np.ndarray] = []
+    ann_idx: list[np.ndarray] = []
     regions: list[np.ndarray] = []
     coords_y: list[np.ndarray] = []
     coords_x: list[np.ndarray] = []
@@ -181,21 +183,23 @@ def merge_tabular(*datasets: Tabular):
     g_offset = 0
     for idx, ds_ in enumerate(datasets):
         ds_x.append(ds_.dataset_x)
-        ds_y.append(ds_.dataset_y)
+        ann_cover.append(ds_.annotation_overlap)
 
-        if ds_.groups.min() != 0:
-            raise ValueError(f"{ds_.groups.min()=} but expected 0")
-        groups.append(ds_.groups + g_offset)
-        g_offset += ds_.groups.max() + 1
+        if ds_.annotation_idx[ds_.annotation_idx != -1].min() != 1:
+            raise ValueError(f"invalid min found in {ds_.annotation_idx}")
+        copy = ds_.annotation_idx.copy()
+        copy[copy != -1] += g_offset
+        ann_idx.append(copy)
+        g_offset = copy.max()
 
-        regions.append(np.zeros_like(ds_.groups) + idx)
+        regions.append(np.zeros_like(copy) + idx)
         coords_y.append(ds_.coord_y)
         coords_x.append(ds_.coord_x)
 
     return Tabular(
         np.concatenate(ds_x),
-        np.concatenate(ds_y),
-        np.concatenate(groups),
+        np.concatenate(ann_cover),
+        np.concatenate(ann_idx),
         bin_l,
         bin_r,
         np.concatenate(regions),
@@ -218,9 +222,11 @@ lbl_dct = {
 
 # %%
 
+bin_method: Literal["sum", "integration"] = "sum"
+
 merged_ds = merge_tabular(
     *[
-        make_tabular(ozm, lbl, merged_l, merged_r)
+        make_tabular(ozm, lbl, merged_l, merged_r, bin_method)
         for ozm, lbl in zip(ozm_datasets.values(), lbl_dct.values(), strict=True)
     ]
 )
@@ -238,3 +244,5 @@ except NameError:
         datasets_dir / f"slim-deisotoping-{de_tol:.1e}-binned" / f"binned_{bin_method}_{tag}.npz",
         merged_ds,
     )
+
+# %%
