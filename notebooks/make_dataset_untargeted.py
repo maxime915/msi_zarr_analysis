@@ -145,7 +145,7 @@ def make_tabular(
             mask = np.asarray(components == group_idx, dtype=int)
             assert mask.any()
             flat_mask = mask[ys, xs] != 0
-            annotation_idx[flat_mask, cls_] =  curr_idx
+            annotation_idx[flat_mask, cls_] = curr_idx
             curr_idx += 1
 
     return Tabular(
@@ -192,7 +192,7 @@ def merge_tabular(*datasets: Tabular):
         ann_idx.append(copy)
         g_offset = copy.max()
 
-        regions.append(np.zeros_like(copy) + idx)
+        regions.append(np.full((len(copy),), idx, int))
         coords_y.append(ds_.coord_y)
         coords_x.append(ds_.coord_x)
 

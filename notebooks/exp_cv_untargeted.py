@@ -1,10 +1,9 @@
 # %%
 
-import argparse
 from datetime import datetime
-from itertools import product  # noqa
+from itertools import product
 from pathlib import Path
-from typing import Any, Callable, Literal, NamedTuple, Protocol
+from typing import Any, Callable, Literal, NamedTuple
 from warnings import warn
 
 import matplotlib.pyplot as plt
@@ -16,13 +15,12 @@ from matplotlib import cm
 from scipy.stats import rankdata, mannwhitneyu
 from scipy.ndimage import maximum_filter1d
 from sklearn.base import BaseEstimator
-from sklearn.ensemble import RandomForestClassifier  # noqa:F401
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble._forest import ForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics._scorer import _BaseScorer, roc_auc_scorer  # noqa
+from sklearn.metrics._scorer import _BaseScorer
 from sklearn.metrics import roc_auc_score
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict, cross_validate
-
 
 
 # %%
@@ -32,8 +30,8 @@ class Tabular(NamedTuple):
     "Afterthought: that could have been a pandas dataframe"
 
     dataset_x: np.ndarray
-    dataset_y: np.ndarray
-    groups: np.ndarray
+    annotation_overlap: np.ndarray
+    annotation_idx: np.ndarray
     bin_l: np.ndarray
     bin_r: np.ndarray
     regions: np.ndarray
@@ -46,8 +44,8 @@ class Tabular(NamedTuple):
         mask = self.regions == region
         return Tabular(
             self.dataset_x[mask].copy(),
-            self.dataset_y[mask].copy(),
-            self.groups[mask].copy(),
+            self.annotation_overlap[mask, :].copy(),
+            self.annotation_idx[mask, :].copy(),
             self.bin_l.copy(),
             self.bin_r.copy(),
             self.regions[mask].copy(),
@@ -56,10 +54,10 @@ class Tabular(NamedTuple):
         )
 
     def max_pool(self):
-         return Tabular(
+        return Tabular(
             maximum_filter1d(self.dataset_x, 3, axis=-1, mode="constant", cval=0),
-            self.dataset_y.copy(),
-            self.groups.copy(),
+            self.annotation_overlap.copy(),
+            self.annotation_idx.copy(),
             self.bin_l.copy(),
             self.bin_r.copy(),
             self.regions.copy(),
@@ -141,7 +139,7 @@ def fit_and_eval(
     models: list[tuple[BaseEstimator, dict[str, Any]]],
     dataset_: Tabular,
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
-    grouping: Literal["none", "groups", "regions"],
+    grouping: Literal["none", "annotations", "regions"],
     weighting: bool,
     scorer_: _BaseScorer,
     n_splits: int,
@@ -162,50 +160,7 @@ def fit_and_eval(
         - the CV-scores on each fold of *the selection procedure* (evaluated models may differ)
     """
 
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
-
-    flat_w = dataset_.dataset_y.flatten()  # [N * L]
-    re_idx = (
-        np.expand_dims(np.arange(dataset_.dataset_y.shape[0]), axis=1)
-        .repeat(dataset_.dataset_y.shape[1], axis=1)
-        .flatten()
-    )
-    re_cls = (
-        np.expand_dims(np.arange(dataset_.dataset_y.shape[1]), axis=0)
-        .repeat(dataset_.dataset_y.shape[0], axis=0)
-        .flatten()
-    )
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(re_cls, neg_labels + pos_labels) & (flat_w > 0)
-    mask_bin_cls = re_idx[cls_mask]
-
-    y = np.where(np.isin(re_cls[cls_mask], pos_labels), 1, 0)
-    w = flat_w[cls_mask]
-    X = dataset_.dataset_x[mask_bin_cls, :]
-
-    if grouping == "groups":
-        groups = dataset_.groups[mask_bin_cls]
-    elif grouping == "none":
-        groups = np.arange(y.size)
-    elif grouping == "regions":
-        assert dataset_.regions is not None
-        groups = dataset_.regions[mask_bin_cls]
-    else:
-        raise ValueError(f"unexpected value for {grouping=!r}")
+    X, y, w, groups = _ds_to_Xy(dataset_, problem, grouping, "highest")
 
     if not weighting:
         w.fill(1.0)
@@ -229,7 +184,7 @@ def cv_score(
     model: BaseEstimator,
     dataset_: Tabular,
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
-    grouping: Literal["none", "groups", "regions"],
+    grouping: Literal["none", "annotations", "regions"],
     weighting: Literal[False],
     scorer_: _BaseScorer,
     cv,
@@ -249,38 +204,8 @@ def cv_score(
         - the CV-score
     """
 
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
-
-    y = np.argmax(dataset_.dataset_y, axis=1)
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(y, neg_labels + pos_labels)
-
-    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
-    X = dataset_.dataset_x[cls_mask, :]
-    groups: np.ndarray | None = dataset_.groups[cls_mask]
-
-    match grouping:
-        case "none":
-            groups = None
-        case "groups" | "regions":
-            if isinstance(cv, int) or cv is None:
-                raise ValueError(f"{grouping=} will be ignored for {cv=}. Use a sklearn GroupCV object.")
-        case _:
-            raise ValueError(f"{grouping=!r} is not supported")
+    X, y, _, groups = _ds_to_Xy(dataset_, problem, grouping, "highest")
+    assert weighting is False
 
     scores = cross_val_score(
         model,
@@ -299,38 +224,12 @@ def cv_logo_roc_auc(
     model: BaseEstimator,
     dataset_: Tabular,
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
-    grouping: Literal["groups", "regions"],
+    grouping: Literal["annotations", "regions"],
     weighting: Literal[False],
 ):
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
 
-    y = np.argmax(dataset_.dataset_y, axis=1)
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(y, neg_labels + pos_labels)
-
-    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
-    X = dataset_.dataset_x[cls_mask, :]
-    match grouping:
-        case "groups":
-            g = dataset_.groups[cls_mask]
-        case "regions":
-            g = dataset_.regions[cls_mask]
-        case _:
-            raise ValueError(f"{grouping=!r} is invalid")
+    X, y, _, g = _ds_to_Xy(dataset_, problem, grouping, "highest")
+    assert weighting is False
 
     y_pred = cross_val_predict(
         model,
@@ -342,14 +241,14 @@ def cv_logo_roc_auc(
         method="predict_proba",
     )
 
-    return roc_auc_score(y, y_pred[:, 1])
+    return roc_auc_score(y, y_pred[:, 1]), (y, y_pred)
 
 
 def cv_logo_detailed_acc(
     model: BaseEstimator,
     dataset_: Tabular,
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
-    grouping: Literal["groups", "regions"],
+    grouping: Literal["annotations", "regions"],
     weighting: Literal[False],
     *,
     return_train_score: bool = True,
@@ -358,44 +257,18 @@ def cv_logo_detailed_acc(
 
     This function returns the training and validation accuracy on each of the folds, as well as the indices in of them.
     """
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
 
-    y = np.argmax(dataset_.dataset_y, axis=1)
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(y, neg_labels + pos_labels)
-
-    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
-    X = dataset_.dataset_x[cls_mask, :]
-    match grouping:
-        case "groups":
-            g = dataset_.groups[cls_mask]
-        case "regions":
-            g = dataset_.regions[cls_mask]
-        case _:
-            raise ValueError(f"{grouping=!r} is invalid")
+    X, y, _, g, row_idx, col_idx = _ds_to_Xy_with_idx(dataset_, problem, grouping, "highest")
+    assert weighting is False
 
     infos = {
         "X": X,
         "y": y,
         "g": g,
-        "groups": dataset_.groups[cls_mask],
-        "regions": dataset_.regions[cls_mask],
-        "coords_y": dataset_.coord_y[cls_mask],
-        "coords_x": dataset_.coord_x[cls_mask],
+        "groups": dataset_.annotation_idx[row_idx, col_idx],
+        "regions": dataset_.regions[row_idx],
+        "coords_y": dataset_.coord_y[row_idx],
+        "coords_x": dataset_.coord_x[row_idx],
     }
 
     return cross_validate(
@@ -408,7 +281,7 @@ def cv_logo_detailed_acc(
         n_jobs=-1,
         return_train_score=return_train_score,
         return_estimator=False,
-        return_indices=True,
+        return_indices=True,  # type: ignore
     ), infos
 
 
@@ -540,29 +413,9 @@ def cv_score_by_region(
     weighting: Literal[False],
     scorer_: _BaseScorer,
 ):
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
+    X, y, _, regions = _ds_to_Xy(dataset_, problem, "regions", "highest")
+    assert weighting is False
 
-    y = np.argmax(dataset_.dataset_y, axis=1)
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(y, neg_labels + pos_labels)
-
-    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
-    X = dataset_.dataset_x[cls_mask, :]
-    regions = dataset_.regions[cls_mask]
     indices = np.arange(len(y))
 
     # manual folds
@@ -589,29 +442,9 @@ def cv_score_by_region_2d(
     weighting: Literal[False],
     scorer_: _BaseScorer,
 ):
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
+    X, y, _, regions = _ds_to_Xy(dataset_, problem, "regions", "highest")
+    assert weighting is False
 
-    y = np.argmax(dataset_.dataset_y, axis=1)
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(y, neg_labels + pos_labels)
-
-    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
-    X = dataset_.dataset_x[cls_mask, :]
-    regions = dataset_.regions[cls_mask]
     indices = np.arange(len(y))
 
     # manual folds
@@ -638,28 +471,8 @@ def u_test(
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
     fdr: float = 5e-2,
 ):
-    pos_labels: tuple[int, ...]
-    neg_labels: tuple[int, ...]
-    match problem:
-        case "ls+/ls-":
-            pos_labels, neg_labels = (0,), (1,)
-        case "sc+/sc-":
-            pos_labels, neg_labels = (2,), (3,)
-        case "ls/sc":
-            pos_labels, neg_labels = (0, 1), (2, 3)
-        case "+/-":
-            pos_labels, neg_labels = (0, 2), (1, 3)
-        case _:
-            raise ValueError(f"unsupported value for {problem=!r}")
 
-    y = np.argmax(dataset_.dataset_y, axis=1)
-
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(y, neg_labels + pos_labels)
-
-    y = np.where(np.isin(y[cls_mask], pos_labels), 1, 0)
-    X = dataset_.dataset_x[cls_mask, :]
+    X, y, _, _ = _ds_to_Xy(dataset_, problem, "none", "highest")
     m = X.shape[1]
 
     # Mann-Whitney U test
@@ -691,13 +504,30 @@ def u_test(
 
 # %%
 
-def _ds_to_Xy(
+
+def _ds_to_Xy_with_idx(
     dataset_: Tabular,
     problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
-    grouping: Literal["none", "groups", "regions"],
-    weighting: bool,
+    grouping: Literal["none", "annotations", "regions"],
+    label_mode: Literal["soft", "highest", "drop"],
+    *,
+    min_weight: float | None = 0.2,
 ):
+    """_ds_to_Xy: prepare a Tabular dataset for a binary classification
 
+    Args:
+        dataset_ (Tabular): dataset to use
+        problem (Literal[&quot;ls+/ls-&quot;, &quot;sc+/sc-&quot;, &quot;ls/sc&quot;, &quot;+/-&quot;]): problem to find the labels
+        grouping (Literal[&quot;none&quot;, &quot;annotations&quot;, &quot;regions&quot;]): kind of grouping to use
+        label_mode (Literal[&quot;soft&quot;, &quot;highest&quot;, &quot;drop&quot;]): how to handle spectra which have an overlap with more than one annotations: `"soft"` keeps all possibilities, `"highest"` only keep the label with the highest overlap, `"drop"` will drop any spectrum which has more than one possible label
+        min_weight (float | None, optional): minimal value for the overlap, values lower than that are dropped. Defaults to 0.2.
+
+    Raises:
+        ValueError: on any invalid parameter
+
+    Returns:
+        tuple[ndarray, ...]: X, y, w, g, row_idx, col_idx
+    """
     pos_labels: tuple[int, ...]
     neg_labels: tuple[int, ...]
     match problem:
@@ -712,131 +542,90 @@ def _ds_to_Xy(
         case _:
             raise ValueError(f"unsupported value for {problem=!r}")
 
-    flat_w = dataset_.dataset_y.flatten()  # [N * L]
-    re_idx = (
-        np.expand_dims(np.arange(dataset_.dataset_y.shape[0]), axis=1)
-        .repeat(dataset_.dataset_y.shape[1], axis=1)
-        .flatten()
-    )
-    re_cls = (
-        np.expand_dims(np.arange(dataset_.dataset_y.shape[1]), axis=0)
-        .repeat(dataset_.dataset_y.shape[0], axis=0)
-        .flatten()
-    )
+    # no row without label
+    assert dataset_.annotation_overlap.max(axis=1).min() > 0.0
 
-    # only rows which have the right class and a positive weight
-    assert not set(neg_labels).intersection(pos_labels)
-    cls_mask = np.isin(re_cls, neg_labels + pos_labels) & (flat_w > 0)
-    mask_bin_cls = re_idx[cls_mask]
-
-    y = np.where(np.isin(re_cls[cls_mask], pos_labels), 1, 0)
-    w = flat_w[cls_mask]
-    X = dataset_.dataset_x[mask_bin_cls, :]
-
-    if grouping == "groups":
-        groups = dataset_.groups[mask_bin_cls]
-    elif grouping == "none":
-        groups = np.arange(y.size)
-    elif grouping == "regions":
-        assert dataset_.regions is not None
-        groups = dataset_.regions[mask_bin_cls]
+    # find relevant items of the dataset
+    if label_mode == "highest":
+        row_idx = np.arange(len(dataset_.dataset_x))
+        col_idx = dataset_.annotation_overlap.argmax(axis=1)
+    elif label_mode == "drop":
+        mask = (dataset_.annotation_overlap > 0).sum(axis=1) == 1
+        row_idx = np.arange(len(dataset_.dataset_x))[mask]
+        col_idx = dataset_.annotation_overlap.argmax(axis=1)[mask]
+    elif label_mode == "soft":
+        row_idx, col_idx = dataset_.annotation_overlap.nonzero()
     else:
-        raise ValueError(f"unexpected value for {grouping=!r}")
+        raise ValueError(f"unsupported value for {label_mode=!r}")
 
-    if not weighting:
-        w.fill(1.0)
+    # select only rows relevant to the classification problem
+    assert not set(neg_labels).intersection(pos_labels)
+    cls_mask = np.isin(col_idx, neg_labels + pos_labels)
+    row_idx = row_idx[cls_mask]
+    col_idx = col_idx[cls_mask]
 
-    return X, y, w, groups
+    # weighting
+    w = dataset_.annotation_overlap[row_idx, col_idx]
+    if min_weight:
+        valid = w >= min_weight
+        row_idx = row_idx[valid]
+        col_idx = col_idx[valid]
+        w = w[valid]
+
+    # split between positive and negative (be consistant with old implementation !)
+    y = np.where(np.isin(col_idx, pos_labels), 1, 0)
+
+    # obtain grouping & weights
+    match grouping:
+        case "annotations":
+            g = dataset_.annotation_idx[row_idx, col_idx]
+        case "regions":
+            g = dataset_.regions[row_idx]
+        case "none":
+            g = np.arange(y.size)
+        case _:
+            raise ValueError(f"unsupported value for {grouping=!r}")
+
+    return dataset_.dataset_x[row_idx], y, w, g, row_idx, col_idx
+
+
+def _ds_to_Xy(
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
+    grouping: Literal["none", "annotations", "regions"],
+    label_mode: Literal["soft", "highest", "drop"],
+    *,
+    min_weight: float | None = 0.2,
+):
+    """_ds_to_Xy: prepare a Tabular dataset for a binary classification
+
+    Args:
+        dataset_ (Tabular): dataset to use
+        problem (Literal[&quot;ls+/ls-&quot;, &quot;sc+/sc-&quot;, &quot;ls/sc&quot;, &quot;+/-&quot;]): problem to find the labels
+        grouping (Literal[&quot;none&quot;, &quot;annotations&quot;, &quot;regions&quot;]): kind of grouping to use
+        label_mode (Literal[&quot;soft&quot;, &quot;highest&quot;, &quot;drop&quot;]): how to handle spectra which have an overlap with more than one annotations: `"soft"` keeps all possibilities, `"highest"` only keep the label with the highest overlap, `"drop"` will drop any spectrum which has more than one possible label
+        min_weight (float | None, optional): minimal value for the overlap, values lower than that are dropped. Defaults to 0.2.
+
+    Raises:
+        ValueError: on any invalid parameter
+
+    Returns:
+        tuple[ndarray, ...]: X, y, w, g
+    """
+    X, y, w, g, _, _ = _ds_to_Xy_with_idx(dataset_, problem, grouping, label_mode, min_weight=min_weight)
+    return X, y, w, g
 
 
 # %%
 
-base_dir = Path("/home/maxime/datasets/slim-deisotoping-2.0e-03-binned")
+base_dir = Path("/home/mamodei/datasets/slim-deisotoping-2.0e-03-binned")
 assert base_dir.is_dir()
-
-# %%
-
-# problems: tuple[Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"], ...] = (
-#     "ls+/ls-",
-#     "sc+/sc-",
-#     "ls/sc",
-# )
-# norms = ["317", "no"]
-
-# for prob_, norm_ in product(problems, norms):
-#     _, scores = fit_and_eval(
-#         [
-#             (
-#                 RandomForestClassifier(random_state=0, n_jobs=-1),
-#                 {
-#                     "n_estimators": [100],
-#                     "max_depth": [20],
-#                     "max_features": ["sqrt"],
-#                 },
-#             ),
-#         ],
-#         dataset_=Tabular(
-#             *np.load(
-#                 base_dir / f"binned_{norm_}norm.npz"
-#             ).values()
-#         ),
-#         problem=prob_,
-#         grouping="regions",
-#         weighting=True,
-#         scorer_=roc_auc_scorer,
-#         n_splits=3,
-#     )
-
-#     mean_: float = scores.mean()
-#     std_: float = scores.std(ddof=1.0)
-#     lo_ = mean_ - std_
-#     print(f"{prob_=} {norm_=} {mean_=:.3f} {std_=:.3f} {lo_=:.3f}")
-
-
-# prob_='ls+/ls-' norm_='317' mean_=0.512 std_=0.049 lo_=0.463
-# prob_='ls+/ls-' norm_='no' mean_=0.474 std_=0.027 lo_=0.447
-# prob_='sc+/sc-' norm_='317' mean_=0.635 std_=0.031 lo_=0.604
-# prob_='sc+/sc-' norm_='no' mean_=0.586 std_=0.083 lo_=0.503
-# prob_='ls/sc' norm_='317' mean_=0.793 std_=0.047 lo_=0.746
-# prob_='ls/sc' norm_='no' mean_=0.847 std_=0.079 lo_=0.768
-# """
 
 # %%
 
 norm: Literal["no", "317"] = "317"
 bin_method: Literal["sum", "integration"] = "sum"
 dataset = Tabular(*np.load(base_dir / f"binned_{bin_method}_{norm}norm.npz").values())
-# model, _ = fit_and_eval(
-#     [
-#         (
-#             RandomForestClassifier(random_state=0, n_jobs=-1),
-#             {
-#                 "n_estimators": [10],
-#                 # "max_depth": [20],
-#                 # "max_features": ["sqrt"],
-#             },
-#         ),
-#     ],
-#     dataset,
-#     "ls/sc",
-#     grouping="regions",
-#     weighting=True,
-#     scorer_=roc_auc_scorer,
-#     n_splits=3
-# )
-
-# # %%
-
-# assert isinstance(model, RandomForestClassifier)
-# importances = model.feature_importances_
-# std = np.std([tree.feature_importances_ for tree in model.estimators_], axis=0)
-
-# df = pd.DataFrame({
-#     "bin_center": 0.5 * (dataset.bin_l + dataset.bin_r),
-#     "bin_width": (dataset.bin_r - dataset.bin_l),
-#     "importances": importances,
-#     "std": std
-# })
 
 # %%
 
@@ -1242,209 +1031,137 @@ def mprobes(
 
 # %%
 
-class LassoClsCfg(NamedTuple):
-    coeff: float
-    problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-"]
-    bin_method: Literal["sum", "integration", "max-pool"]
 
-coeffs: list[float] = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e2, 1e2, 1e3]
-problems: list[Literal["ls/sc", "ls+/ls-", "sc+/sc-"]] = [
-    "ls/sc",
-    "ls+/ls-",
-    "sc+/sc-",
-]
-bin_methods: list[Literal["sum", "integration", "max-pool"]] = ["sum", "integration", "max-pool"]
+def run_lasso_param_sweep() -> None:
 
-configs = [LassoClsCfg(c_c, p_c, b_c) for p_c, c_c, b_c in product(problems, coeffs, bin_methods)]
+    class LassoClsCfg(NamedTuple):
+        coeff: float
+        problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-"]
+        bin_method: Literal["sum", "integration", "max-pool"]
 
-res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted-scores-lasso"
-res_dir.mkdir(exist_ok=True)
+    coeffs: list[float] = [1e-5, 1e-4, 1e-3, 1e-2, 1e-1, 1e0, 1e2, 1e2, 1e3]
+    problems: list[Literal["ls/sc", "ls+/ls-", "sc+/sc-"]] = [
+        "ls/sc",
+        "ls+/ls-",
+        "sc+/sc-",
+    ]
+    bin_methods: list[Literal["sum", "integration", "max-pool"]] = ["sum", "integration", "max-pool"]
 
-exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
-exp_dir.mkdir()
+    configs = [LassoClsCfg(c_c, p_c, b_c) for p_c, c_c, b_c in product(problems, coeffs, bin_methods)]
 
-for idx, cfg in enumerate(configs):
-    cfg_dir = exp_dir / f"cfg-{idx}"
-    cfg_dir.mkdir()
+    res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted-scores-lasso"
+    res_dir.mkdir(exist_ok=True)
 
-    with open(cfg_dir / "info.txt", "w", encoding="utf8") as cfg_info_f:
-        print(f"{cfg.problem=} {cfg.bin_method=} {cfg.coeff=}", file=cfg_info_f)
+    exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
+    exp_dir.mkdir()
 
-    bm = cfg.bin_method
-    if cfg.bin_method == "max-pool":
-        bm = "sum"
+    for idx, cfg in enumerate(configs):
+        cfg_dir = exp_dir / f"cfg-{idx}"
+        cfg_dir.mkdir()
 
-    ds = Tabular(*np.load(base_dir / f"binned_{bm}_317norm.npz").values())
-    if cfg.bin_method == "max-pool":
-        ds = ds.max_pool()
+        with open(cfg_dir / "info.txt", "w", encoding="utf8") as cfg_info_f:
+            print(f"{cfg.problem=} {cfg.bin_method=} {cfg.coeff=}", file=cfg_info_f)
 
-    score = cv_logo_roc_auc(
-        LogisticRegression(
-            C=cfg.coeff,
-            penalty="l1",
-            solver="liblinear",
-            random_state=0,
-            # n_jobs=-2,  # no effect with liblinear and I don't like warnings
-        ),
-        dataset_=ds,
-        problem=cfg.problem,
-        grouping="groups",
-        weighting=False,
-    )
+        bm = cfg.bin_method
+        if cfg.bin_method == "max-pool":
+            bm = "sum"
 
-    with open(cfg_dir / "score.txt", "w", encoding="utf8") as cfg_score_f:
-        print(str(score), file=cfg_score_f)
+        ds = Tabular(*np.load(base_dir / f"binned_{bm}_317norm.npz").values())
+        if cfg.bin_method == "max-pool":
+            ds = ds.max_pool()
 
-# %%
+        score = cv_logo_roc_auc(
+            LogisticRegression(
+                C=cfg.coeff,
+                penalty="l1",
+                solver="liblinear",
+                random_state=0,
+                # n_jobs=-2,  # no effect with liblinear and I don't like warnings
+            ),
+            dataset_=ds,
+            problem=cfg.problem,
+            grouping="annotations",
+            weighting=False,
+        )
 
-
-class Configuration(NamedTuple):
-    n_trees: int
-    max_feat: Literal["sqrt"] | None
-    max_depth: int | None
-    problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-"]
-    bin_method: Literal["sum", "integration", "max-pool"]
-
-
-tree_configs: list[tuple[int, Literal["sqrt"] | None, int | None]] = [
-    (100, None, 2),
-    (100, None, 3),
-    (1000, None, 3),
-    (100, None, 5),
-    (100, None, 10),
-    (100, None, None),
-    (10000, "sqrt", 2),
-    (10000, "sqrt", 3),
-    # (10, "sqrt", 1),
-]
-problems = [
-    "ls/sc",
-    "ls+/ls-",
-    "sc+/sc-",
-]
-bin_methods = [
-    "sum",
-    # "integration",
-]
-
-configs = [Configuration(*t_c, p_c, b_c) for t_c, p_c, b_c in product(tree_configs, problems, bin_methods)]
-
-res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted-scores"
-res_dir.mkdir(exist_ok=True)
-
-exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
-exp_dir.mkdir()
-
-for idx, cfg in enumerate(configs):
-    cfg_dir = exp_dir / f"cfg-{idx}"
-    cfg_dir.mkdir()
-
-    with open(cfg_dir / "info.txt", "w", encoding="utf8") as cfg_info_f:
-        print(f"{cfg.problem=} cfg.bin_method=max-pool {cfg.n_trees=} {cfg.max_feat=} {cfg.max_depth=}", file=cfg_info_f)
-
-    bm = cfg.bin_method
-    if cfg.bin_method == "max-pool":
-        bm = "sum"
-
-    ds = Tabular(*np.load(base_dir / f"binned_{bm}_317norm.npz").values())
-    if cfg.bin_method == "max-pool":
-        ds = ds.max_pool()
-
-    score = cv_logo_roc_auc(
-        RandomForestClassifier(
-            cfg.n_trees,
-            max_features=cfg.max_feat,  # type:ignore -> doc issue in sklearn, None is actually fine
-            max_depth=cfg.max_depth,
-            random_state=0,
-            n_jobs=-2,
-        ),
-        dataset_=ds,
-        problem=cfg.problem,
-        grouping="groups",
-        weighting=False,
-    )
-
-    with open(cfg_dir / "score.txt", "w", encoding="utf8") as cfg_score_f:
-        print(str(score), file=cfg_score_f)
+        with open(cfg_dir / "score.txt", "w", encoding="utf8") as cfg_score_f:
+            print(str(score), file=cfg_score_f)
 
 # %%
 
-max_feat: int | Literal["log2", "sqrt"]
-problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-", "+/-"]
-try:
-    # detect if the cell is ran in a notebook and manually defines values
-    get_ipython()  # type:ignore
-    n_trees = 1000
-    max_feat = "sqrt"
-    n_perms = 50
-    joint = True
-    problem = "ls/sc"
-except NameError:
-    # else, assume a script and parse arguments
-    parser = argparse.ArgumentParser("exp_cv_binned")
-    parser.add_argument("--n-trees", type=int)
-    parser.add_argument("--max-feat", help="'log2', 'none', 'sqrt', or an integer")
-    parser.add_argument("--n-perms", type=int)
-    parser.add_argument("--joint", choices=["yes", "no"])
-    parser.add_argument("--problem", choices=["ls/sc", "ls+/ls-", "sc+/sc-"])
 
-    args = parser.parse_args()
-    n_trees = int(args.n_trees)
-    if args.max_feat in ["log2", "sqrt"]:
-        max_feat = args.max_feat  # type:ignore
-    elif args.max_feat == "none":
-        # all features
-        max_feat = dataset.dataset_x.shape[1]
-    else:
-        max_feat = int(args.max_feat)
-    n_perms = int(args.n_perms)
-    joint = {"yes": True, "no": False}[args.joint]
-    problem = args.problem
+def run_tree_param_sweep() -> None:
+
+    class Configuration(NamedTuple):
+        n_trees: int
+        max_feat: Literal["sqrt"] | None
+        max_depth: int | None
+        problem: Literal["ls/sc", "ls+/ls-", "sc+/sc-"]
+        bin_method: Literal["sum", "integration", "max-pool"]
+
+    tree_configs: list[tuple[int, Literal["sqrt"] | None, int | None]] = [
+        (100, None, 2),
+        (100, None, 3),
+        (1000, None, 3),
+        (100, None, 5),
+        (100, None, 10),
+        (100, None, None),
+        (10000, "sqrt", 2),
+        (10000, "sqrt", 3),
+        # (10, "sqrt", 1),
+    ]
+    problems: list[Literal['ls/sc', 'ls+/ls-', 'sc+/sc-']] = [
+        "ls/sc",
+        "ls+/ls-",
+        "sc+/sc-",
+    ]
+    bin_methods: list[Literal['sum', 'integration', 'max-pool']] = [
+        "sum",
+        "integration",
+        "max-pool",
+    ]
+
+    configs_ = [
+        Configuration(*t_c, p_c, b_c)
+        for t_c, p_c, b_c in product(tree_configs, problems, bin_methods)
+    ]
+
+    res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted-scores"
+    res_dir.mkdir(exist_ok=True)
+
+    exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
+    exp_dir.mkdir()
+
+    for idx, cfg in enumerate(configs_):
+        cfg_dir = exp_dir / f"cfg-{idx}"
+        cfg_dir.mkdir()
+
+        with open(cfg_dir / "info.txt", "w", encoding="utf8") as cfg_info_f:
+            print(f"{cfg.problem=} cfg.bin_method=max-pool {cfg.n_trees=} {cfg.max_feat=} {cfg.max_depth=}", file=cfg_info_f)
+
+        bm = cfg.bin_method
+        if cfg.bin_method == "max-pool":
+            bm = "sum"
+
+        ds = Tabular(*np.load(base_dir / f"binned_{bm}_317norm.npz").values())
+        if cfg.bin_method == "max-pool":
+            ds = ds.max_pool()
+
+        score = cv_logo_roc_auc(
+            RandomForestClassifier(
+                cfg.n_trees,
+                max_features=cfg.max_feat,  # type:ignore
+                max_depth=cfg.max_depth,
+                random_state=0,
+                n_jobs=-2,
+            ),
+            dataset_=ds,
+            problem=cfg.problem,
+            grouping="annotations",
+            weighting=False,
+        )
+
+        with open(cfg_dir / "score.txt", "w", encoding="utf8") as cfg_score_f:
+            print(str(score), file=cfg_score_f)
 
 # %%
-
-X, y, w, g = _ds_to_Xy(dataset, problem, "regions", True)
-
-# %%
-
-res_dir = Path(__file__).parent.parent / "res-exp-cv-untargeted"
-res_dir.mkdir(exist_ok=True)
-
-exp_dir = res_dir / datetime.now().strftime("%Y.%m.%d-%H.%M.%S.%f")
-exp_dir.mkdir()
-# TODO this sucks. create a new directory inside res_dir with a datetime
-#   add all meaningfull info inside a log file
-#   add the importance into a simply-named file
-
-with open(exp_dir / "info.csv", "w", encoding="utf8") as exp_info_f:
-    print("norm,problem,n_trees,max_feat,n_perms,joint", file=exp_info_f)
-    print(f"{norm},{problem},{n_trees},{max_feat},{n_perms},{joint}", file=exp_info_f)
-
-# %%
-
-results = mprobes(
-    X,
-    y,
-    model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
-    nb_perm=n_perms,
-    join_permute=joint,
-    verbose=False,
-)
-results["bin_center"] = 0.5 * (dataset.bin_l + dataset.bin_r)
-results["bin_width"] = dataset.bin_r - dataset.bin_l
-
-# %%
-
-# results = cer_fdr(
-#     results,
-#     X,
-#     y,
-#     model=RandomForestClassifier(n_trees, max_features=max_feat, n_jobs=-1),
-#     nb_perm=n_perms,
-#     n_to_compute="all",
-#     thresh_stop=0.4,
-# )
-
-# %%
-
-results.to_csv(exp_dir / "results.csv")
