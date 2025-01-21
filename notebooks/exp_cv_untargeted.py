@@ -546,16 +546,7 @@ def u_test(
     *,
     fdr: float | None = None,
     num_features: int | None = None,
-    fdr: float = 5e-2,
-    *,
-    fdr: float | None = None,
-    num_features: int | None = None,
 ):
-
-    if fdr is None and num_features is None:
-        raise ValueError(f"at least one of {fdr=} and {num_features=} must be given")
-    if fdr is not None and num_features is not None:
-        raise ValueError(f"{fdr=} and {num_features=} may not be both given")
 
     if fdr is None and num_features is None:
         raise ValueError(f"at least one of {fdr=} and {num_features=} must be given")
@@ -578,7 +569,6 @@ def u_test(
 
     # apply Benjamini-Hochberg procedure
     s_idx = np.argsort(p_values)
-    sorted_p_values = p_values[s_idx]
 
     # apply Benjamini-Hochberg procedure to control p-values
     p_values = false_discovery_control(p_values[s_idx], method="bh")
@@ -591,33 +581,11 @@ def u_test(
     else:
         assert num_features is not None
         right_end = min(num_features, len(s_idx))
-    # find highest item such that P[k] <= (k + 1) * fdr / m
-    check = sorted_p_values <= (1 + np.arange(m)) * fdr / m
-    max_idx = m - 1 - np.argmax(check[::-1])
-    if not check.any():
-        max_idx = 0
-    # apply Benjamini-Hochberg procedure to control p-values
-    p_values = false_discovery_control(p_values[s_idx], method="bh")
 
-    if fdr is not None:
-        # reject until the rate is fdr
-        right_end = np.argmax(p_values > fdr)
-        if not p_values[right_end] > fdr:
-            right_end = -1
-    else:
-        assert num_features is not None
-        right_end = min(num_features, len(s_idx))
-
-    valid_idx = s_idx[:right_end]
-    valid_p_values = p_values[:right_end]
-    # selected features
-    valid_idx = s_idx[:max_idx]
     valid_idx = s_idx[:right_end]
     valid_p_values = p_values[:right_end]
     bin_c = 0.5 * (dataset_.bin_l + dataset_.bin_r)
 
-    return bin_c[valid_idx], valid_p_values
-    return bin_c[valid_idx], p_values[valid_idx]
     return bin_c[valid_idx], valid_p_values
 
 # %%
