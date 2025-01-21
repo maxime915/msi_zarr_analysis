@@ -19,7 +19,7 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.ensemble._forest import ForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics._scorer import _BaseScorer
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import auc, RocCurveDisplay, roc_auc_score
 from sklearn.model_selection import GridSearchCV, StratifiedGroupKFold, LeaveOneGroupOut, cross_val_score, cross_val_predict, cross_validate
 
 
@@ -401,6 +401,80 @@ def show_detail_cv(res_info_tpl):
     axes[1].set_ylim((0, 1))
 
     return fig, axes
+
+
+# %%
+
+
+def show_average_groupped_roc_auc(
+    model: BaseEstimator,
+    dataset_: Tabular,
+    problem: Literal["ls+/ls-", "sc+/sc-", "ls/sc", "+/-"],
+    grouping: Literal["annotations", "regions"],
+    weighting: Literal[False],
+    n_splits: int,
+):
+
+    X, y, _, g = _ds_to_Xy(dataset_, problem, grouping, "highest")
+    assert weighting is False
+
+    cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=False)
+
+    tprs = []
+    aucs = []
+    mean_fpr = np.linspace(0, 1, 100)
+
+    fig, ax = plt.subplots(figsize=(6, 6))
+    for fold, (train, test) in enumerate(cv.split(X, y, g)):
+        model.fit(X[train], y[train])  # type: ignore
+        viz = RocCurveDisplay.from_estimator(
+            model,
+            X[test],
+            y[test],
+            name=f"ROC fold {fold}",
+            alpha=0.3,
+            lw=1,
+            ax=ax,
+            plot_chance_level=(fold == n_splits - 1),
+        )
+        interp_tpr = np.interp(mean_fpr, viz.fpr, viz.tpr)  # type: ignore
+        interp_tpr[0] = 0.0
+        tprs.append(interp_tpr)
+        aucs.append(viz.roc_auc)  # type: ignore
+
+    mean_tpr = np.mean(tprs, axis=0)
+    mean_tpr[-1] = 1.0
+    mean_auc = auc(mean_fpr, mean_tpr)
+    std_auc = np.std(aucs)
+    ax.plot(
+        mean_fpr,
+        mean_tpr,
+        color="b",
+        label=r"Mean ROC (AUC = %0.2f $\pm$ %0.2f)" % (mean_auc, std_auc),
+        lw=2,
+        alpha=0.8,
+    )
+
+    std_tpr = np.std(tprs, axis=0)
+    tprs_upper = np.minimum(mean_tpr + std_tpr, 1)
+    tprs_lower = np.maximum(mean_tpr - std_tpr, 0)
+    ax.fill_between(
+        mean_fpr,
+        tprs_lower,
+        tprs_upper,
+        color="grey",
+        alpha=0.2,
+        label=r"$\pm$ 1 std. dev.",
+    )
+
+    ax.set(
+        xlabel="False Positive Rate",
+        ylabel="True Positive Rate",
+        title="Mean ROC curve with variability",
+    )
+    ax.legend(loc="lower right")
+
+    return fig, ax
 
 
 # %%
