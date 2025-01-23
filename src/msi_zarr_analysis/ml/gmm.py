@@ -22,8 +22,10 @@ INV_SQRT_2_PI: float = math.pow(2 * math.pi, -0.5)
 
 def kern(size: int):
     "build the invocation tuple for a given size with THREADS_PER_BLOCK"
-    if not isinstance(size, int) or size < 1:
+    if not isinstance(size, int) or size < 0:
         raise ValueError(f"{size=!r} must be a non negative integer")
+    if size == 0:
+        return 1, THREADS_PER_BLOCK
     block_per_grid = (size + (THREADS_PER_BLOCK - 1)) // THREADS_PER_BLOCK
     return block_per_grid, THREADS_PER_BLOCK
 
@@ -190,7 +192,11 @@ def gmm_prob(
         mz (torch.Tensor): the inputs to compute the PDF for
         compute_grad_inputs (bool, optional): keeping track of mz for gradient computation. Defaults to False.
     """
-    return _GMMProbFn.apply(pi, mu, lv, mz, compute_grad_inputs)  # type: ignore
+
+    old_shape = mz.shape
+    mz = torch.flatten(mz, 0)
+    out: torch.Tensor = _GMMProbFn.apply(pi, mu, lv, mz, compute_grad_inputs)  # type: ignore
+    return torch.unflatten(out, 0, old_shape)
 
 
 class GMM1D(nn.Module):
@@ -318,3 +324,80 @@ class GMM1DCls(nn.Module):
         llh_neg = self.neg_head.neg_log_likelihood(batch)
 
         return 1.0 - torch.exp(-torch.abs(llh_pos - llh_neg))
+
+    def predict_proba(
+        self,
+        mzs: torch.Tensor,
+        weights: torch.Tensor,
+        prior_pos: float,
+    ):
+        """computes the posterior probability of the two classes for each spectrum in the batch.
+
+        Args:
+            mzs (torch.Tensor): [B?, L] X
+            weights (torch.Tensor): [B?, L] weights for X
+            prior_pos (float): P(C=+) assuming P(C=-) = 1 - P(C=+)
+
+        Returns:
+            torch.Tensor: [B?, 2] P(C | X)
+        """
+
+        # because we make the assumption that the prior distribution of the number
+        # of different masses in a spectrum is independent of the class, this value
+        # cancels out in the classification and it's not required for the computation.
+
+        if mzs.shape != weights.shape:
+            raise ValueError(f"{mzs.shape=} != {weights.shape=}")
+
+        likelihood_neg = torch.exp(-1.0 * torch.sum(self.neg_head.neg_log_likelihood(mzs) * weights, dim=-1))
+        likelihood_pos = torch.exp(-1.0 * torch.sum(self.pos_head.neg_log_likelihood(mzs) * weights, dim=-1))
+
+        joint_neg = likelihood_neg * (1.0 - prior_pos)
+        joint_pos = likelihood_pos * prior_pos
+
+        normalisation = joint_neg + joint_pos
+        prob_neg = joint_neg / normalisation
+        prob_pos = 1.0 - prob_neg
+
+        probs = torch.stack((prob_neg, prob_pos), dim=-1)
+
+        return probs
+
+
+class GMM1DClsShared(GMM1DCls):
+    """CMM1DClsShared: a classifier module that uses two GMM1D (one per class) to build
+    a classification by sharing the components's location and scale (not weight). See GMM1DCls.
+
+    Attributes
+    ----------
+    components : int
+        the number of components for the GMM
+    mz_min: float
+        the beginning of the domain
+    mz_max: float
+        the end of the domain
+    std_dev: float | None, optional
+        the standard deviation of each mode (if None or not given, (mz_max - mz_min) / (2 * components) is used)
+    dtype: torch.dtype, optional
+        the data type of the inputs and outputs of this model (default: torch.float32)
+    generator: torch.Generator | None, optional
+        a PRNG to add noise to the means of the data
+    """
+
+    def __init__(
+        self,
+        components: int,
+        mz_min: float,
+        mz_max: float,
+        std_dev: float | None = None,
+        dtype: torch.dtype = torch.float32,
+        generator: torch.Generator | None = None,
+    ):
+        super().__init__(components, mz_min, mz_max, std_dev, dtype, generator)
+
+        self.neg_head.mu = self.pos_head.mu
+        self.neg_head.lv = self.pos_head.lv
+
+    def parameters(self, recurse: bool = True):
+        yield from self.pos_head.parameters(recurse)
+        yield self.neg_head.pi_l

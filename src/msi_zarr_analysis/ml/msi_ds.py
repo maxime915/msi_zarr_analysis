@@ -203,6 +203,44 @@ class MSIDataset(Dataset):
             for m, c_ in zip(masks, coords_per_mask, strict=True)
         ]
 
+        # find idx for which there is a duplication
+        coords_set_per_mask: list[set[AxialMapping[int]]] = [set(lst) for lst in coords_per_mask]
+        duplicate_rows: set[AxialMapping[int]] = set().union(*[
+            coords_set_per_mask[i].intersection(coords_set_per_mask[j])
+            for i in range(len(masks))
+            for j in range(i + 1, len(masks))
+        ])
+
+        # list out the unwanted indices
+        idx_to_remove: list[list[int]] = [[] for _ in masks]
+        for coord in duplicate_rows:
+            best_mask_idx = None
+            best_row_idx = None
+            for idx in range(len(masks)):
+                if coord not in coords_set_per_mask[idx]:
+                    continue
+                row_idx = coords_per_mask[idx].index(coord)
+                if best_mask_idx is None:
+                    best_mask_idx = idx
+                    best_row_idx = row_idx
+                    continue
+                assert best_row_idx is not None
+                c_weight = weights[idx][row_idx]
+                b_weight = weights[best_mask_idx][best_row_idx]
+                if c_weight > b_weight:
+                    idx_to_remove[best_mask_idx].append(best_row_idx)
+                    best_mask_idx = idx
+                    best_row_idx = row_idx
+                else:
+                    idx_to_remove[idx].append(row_idx)
+
+        for mask_idx, bad_indices in enumerate(idx_to_remove):
+            print(f"{mask_idx=} {bad_indices=}")
+            # update weights & coords_per_mask
+            for bad_idx in sorted(bad_indices, reverse=True):
+                weights[mask_idx].pop(bad_idx)
+                coords_per_mask[mask_idx].pop(bad_idx)
+
         # 1-hot label
         class_idx = [
             [cls_per_label[idx]] * len(c_)  # all labels of this mask have this class
