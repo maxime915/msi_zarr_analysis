@@ -175,10 +175,9 @@ def train_model(
             # items in a spectrum, which is assumed constant for simplicity.
 
             pos_mask = (b_y == 1)
-            valid_mask = (b_mzs > 0.0)
 
-            nll_n = model.neg_head.ws_neg_log_likelihood(b_mzs[pos_mask][valid_mask[pos_mask]], b_int[pos_mask][valid_mask[pos_mask]])
-            nll_p = model.pos_head.ws_neg_log_likelihood(b_mzs[~pos_mask][valid_mask[~pos_mask]], b_int[~pos_mask][valid_mask[~pos_mask]])
+            nll_n = model.neg_head.ws_neg_log_likelihood(b_mzs[pos_mask], b_int[pos_mask])
+            nll_p = model.pos_head.ws_neg_log_likelihood(b_mzs[~pos_mask], b_int[~pos_mask])
             loss = torch.mean(nll_n) + torch.mean(nll_p)
             loss.backward()
             optim.step()
@@ -190,10 +189,9 @@ def train_model(
             vl_auroc = BinaryAUROC().to(device)
             for (b_mzs, b_int, b_y, _) in vl_dl:
                 pos_mask = (b_y == 1)
-                valid_mask = (b_mzs > 0.0)
 
-                nll_n = model.neg_head.ws_neg_log_likelihood(b_mzs[pos_mask][valid_mask[pos_mask]], b_int[pos_mask][valid_mask[pos_mask]])
-                nll_p = model.pos_head.ws_neg_log_likelihood(b_mzs[~pos_mask][valid_mask[~pos_mask]], b_int[~pos_mask][valid_mask[~pos_mask]])
+                nll_n = model.neg_head.ws_neg_log_likelihood(b_mzs[pos_mask], b_int[pos_mask])
+                nll_p = model.pos_head.ws_neg_log_likelihood(b_mzs[~pos_mask], b_int[~pos_mask])
                 nll_n = nll_n.mean()
                 nll_p = nll_p.mean()
 

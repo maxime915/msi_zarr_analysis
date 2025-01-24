@@ -349,15 +349,21 @@ class GMM1DCls(nn.Module):
         if mzs.shape != weights.shape:
             raise ValueError(f"{mzs.shape=} != {weights.shape=}")
 
-        likelihood_neg = torch.exp(-1.0 * torch.sum(self.neg_head.neg_log_likelihood(mzs) * weights, dim=-1))
-        likelihood_pos = torch.exp(-1.0 * torch.sum(self.pos_head.neg_log_likelihood(mzs) * weights, dim=-1))
+        log_likelihood_neg = -1.0 * torch.sum(self.neg_head.neg_log_likelihood(mzs) * weights, dim=-1)
+        log_likelihood_pos = -1.0 * torch.sum(self.pos_head.neg_log_likelihood(mzs) * weights, dim=-1)
+
+        # apply a shift on each element to avoid saturating the exponential
+        # the shift is the same for both classes, but it is data-dependent
+        shift = torch.maximum(log_likelihood_neg, log_likelihood_pos)
+        likelihood_neg = torch.exp(log_likelihood_neg - shift)
+        likelihood_pos = torch.exp(log_likelihood_pos - shift)
 
         joint_neg = likelihood_neg * (1.0 - prior_pos)
         joint_pos = likelihood_pos * prior_pos
 
         normalisation = joint_neg + joint_pos
-        prob_neg = joint_neg / normalisation
-        prob_pos = 1.0 - prob_neg
+        prob_pos = joint_pos / (1e-6 + normalisation)
+        prob_neg = 1.0 - prob_pos
 
         probs = torch.stack((prob_neg, prob_pos), dim=-1)
 

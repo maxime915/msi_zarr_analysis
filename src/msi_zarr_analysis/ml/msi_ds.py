@@ -235,7 +235,6 @@ class MSIDataset(Dataset):
                     idx_to_remove[idx].append(row_idx)
 
         for mask_idx, bad_indices in enumerate(idx_to_remove):
-            print(f"{mask_idx=} {bad_indices=}")
             # update weights & coords_per_mask
             for bad_idx in sorted(bad_indices, reverse=True):
                 weights[mask_idx].pop(bad_idx)

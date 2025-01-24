@@ -2,12 +2,12 @@ base_config:
   problem: "sc/ls"
   data_dir_s: "/home/maxime/datasets/slim-deisotoping-2.0e-03"
   region: "all"
-  components: 1000
-  mz_min: 775.0
-  mz_max: 795.0
-  max_epochs: 500
-  convergence_threshold: 5.0e-2
+  components: 100
+  mz_min: 758.0
+  mz_max: 759.0
+  max_epochs: 50
+  convergence_threshold: -1.0
   batch_size: 20
-  lr: 1.0e-1
+  lr: 1.0e-3
   wandb_entity: "maxime915"
   wandb_mode: "disabled"
